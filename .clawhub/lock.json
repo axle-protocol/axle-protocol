@@ -12,6 +12,26 @@
     "phantom": {
       "version": "1.0.0",
       "installedAt": 1770125915902
+    },
+    "ai-code-review": {
+      "version": "1.0.1",
+      "installedAt": 1770194437204
+    },
+    "deps-checker": {
+      "version": "1.0.2",
+      "installedAt": 1770194439230
+    },
+    "security-audit": {
+      "version": "1.0.0",
+      "installedAt": 1770194440942
+    },
+    "pr-reviewer": {
+      "version": "1.0.0",
+      "installedAt": 1770194442562
+    },
+    "perf-profiler": {
+      "version": "1.0.0",
+      "installedAt": 1770194443910
     }
   }
 }

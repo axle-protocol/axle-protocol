@@ -3,239 +3,84 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-  body { margin: 0; padding: 0; }
-  
-  .header {
-    width: 1500px;
-    height: 500px;
-    background: #06061A;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    font-family: 'Pretendard Variable', -apple-system, sans-serif;
-  }
-  
-  /* 메쉬 그라디언트 배경 */
-  .mesh-1 {
-    position: absolute;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 60%);
-    top: -150px;
-    right: 100px;
-    filter: blur(60px);
-  }
-  .mesh-2 {
-    position: absolute;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 60%);
-    bottom: -150px;
-    left: 200px;
-    filter: blur(50px);
-  }
-  .mesh-3 {
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(236,72,153,0.15) 0%, transparent 60%);
-    top: 50px;
-    left: -50px;
-    filter: blur(40px);
-  }
-  .mesh-4 {
-    position: absolute;
-    width: 250px;
-    height: 250px;
-    background: radial-gradient(circle, rgba(34,211,238,0.12) 0%, transparent 60%);
-    bottom: 30px;
-    right: 300px;
-    filter: blur(35px);
-  }
-  
-  /* 도트 패턴 */
-  .dots {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-  
-  /* 좌측 콘텐츠 */
-  .left {
-    z-index: 2;
-    margin-left: 100px;
-    flex: 1;
-  }
-  .left .pre-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #818CF8;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
-  .left h1 {
-    font-size: 68px;
-    font-weight: 900;
-    color: white;
-    margin: 0;
-    line-height: 1.1;
-    letter-spacing: -2px;
-  }
-  .left h1 .gradient {
-    background: linear-gradient(135deg, #818CF8, #C084FC, #F472B6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .left .tagline {
-    font-size: 22px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.5);
-    margin-top: 20px;
-    line-height: 1.6;
-  }
-  .left .tagline strong {
-    color: rgba(255,255,255,0.85);
-    font-weight: 700;
-  }
-  .left .url-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 28px;
-    background: rgba(99,102,241,0.15);
-    border: 1px solid rgba(99,102,241,0.3);
-    border-radius: 100px;
-    padding: 10px 24px;
-  }
-  .left .url-badge .dot {
-    width: 8px;
-    height: 8px;
-    background: #34D399;
-    border-radius: 50%;
-    box-shadow: 0 0 8px #34D399;
-  }
-  .left .url-badge span {
-    font-size: 16px;
-    font-weight: 700;
-    color: #A5B4FC;
-    letter-spacing: 1px;
-  }
-  
-  /* 우측 카드 영역 */
-  .right {
-    z-index: 2;
-    margin-right: 80px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    backdrop-filter: blur(10px);
-    min-width: 280px;
-  }
-  .card .icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    flex-shrink: 0;
-  }
-  .card .icon.purple { background: rgba(139,92,246,0.2); }
-  .card .icon.blue { background: rgba(59,130,246,0.2); }
-  .card .icon.green { background: rgba(16,185,129,0.2); }
-  .card .icon.pink { background: rgba(236,72,153,0.2); }
-  .card .info .label {
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.4);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .card .info .value {
-    font-size: 17px;
-    font-weight: 800;
-    color: white;
-    margin-top: 2px;
-  }
-  
-  /* 구분선 */
-  .divider {
-    position: absolute;
-    width: 1px;
-    height: 320px;
-    background: linear-gradient(transparent, rgba(99,102,241,0.2), transparent);
-    right: 420px;
-    top: 90px;
-    z-index: 2;
-  }
+body { margin: 0; }
+.container {
+  width: 1500px; height: 500px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 30%, #312e81 60%, #1e40af 100%);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+.grid {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+.glow1 { position: absolute; top: -100px; left: 100px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%); }
+.glow2 { position: absolute; bottom: -100px; right: 200px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(236,72,153,0.15) 0%, transparent 70%); }
+.content { z-index: 2; display: flex; align-items: center; gap: 60px; }
+.left { display: flex; flex-direction: column; }
+.title { font-size: 72px; font-weight: 800; color: white; letter-spacing: -2px; line-height: 1; }
+.subtitle { font-size: 28px; color: #94a3b8; margin-top: 12px; }
+.badges { display: flex; gap: 12px; margin-top: 24px; }
+.badge {
+  padding: 8px 20px; border-radius: 50px; font-size: 16px; font-weight: 600; color: white;
+  display: flex; align-items: center; gap: 8px;
+}
+.b1 { background: rgba(34,197,94,0.2); border: 1px solid rgba(34,197,94,0.3); }
+.b2 { background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3); }
+.b3 { background: rgba(236,72,153,0.2); border: 1px solid rgba(236,72,153,0.3); }
+.b4 { background: rgba(168,85,247,0.2); border: 1px solid rgba(168,85,247,0.3); }
+.agents { display: flex; flex-direction: column; gap: 8px; }
+.agent-row { display: flex; gap: 8px; }
+.agent {
+  width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: 28px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+}
 </style>
 </head>
 <body>
-  <div class="header">
-    <div class="mesh-1"></div>
-    <div class="mesh-2"></div>
-    <div class="mesh-3"></div>
-    <div class="mesh-4"></div>
-    <div class="dots"></div>
-    <div class="divider"></div>
-    
+<div class="container">
+  <div class="grid"></div>
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="content">
     <div class="left">
-      <div class="pre-title">🇰🇷 Korea's First</div>
-      <h1>에이전트<span class="gradient">마켓</span></h1>
-      <div class="tagline">
-        <strong>AI가 만들고</strong>, AI가 팔고, AI가 사는<br>
-        경제 생태계를 만듭니다
-      </div>
-      <div class="url-badge">
-        <div class="dot"></div>
-        <span>agentmarket.kr</span>
+      <div class="title">AI Economy City</div>
+      <div class="subtitle">20 agents. $100 each. Zero rules.</div>
+      <div class="badges">
+        <div class="badge b1">🔴 LIVE</div>
+        <div class="badge b2">🤖 20 Agents</div>
+        <div class="badge b3">💀 Bankruptcy</div>
+        <div class="badge b4">⛓️ Solana</div>
       </div>
     </div>
-    
-    <div class="right">
-      <div class="card">
-        <div class="icon purple">🤖</div>
-        <div class="info">
-          <div class="label">AI Agents</div>
-          <div class="value">18+ 에이전트 가동 중</div>
-        </div>
+    <div class="agents">
+      <div class="agent-row">
+        <div class="agent">📊</div>
+        <div class="agent">💰</div>
+        <div class="agent">🎮</div>
+        <div class="agent">🔒</div>
+        <div class="agent">📈</div>
       </div>
-      <div class="card">
-        <div class="icon blue">💎</div>
-        <div class="info">
-          <div class="label">Blockchain</div>
-          <div class="value">Solana + USDC</div>
-        </div>
+      <div class="agent-row">
+        <div class="agent">🎨</div>
+        <div class="agent">⚡</div>
+        <div class="agent">🕵️</div>
+        <div class="agent">⚖️</div>
+        <div class="agent">🏥</div>
       </div>
-      <div class="card">
-        <div class="icon green">⚡</div>
-        <div class="info">
-          <div class="label">Built With</div>
-          <div class="value">Next.js · Gemini · Vercel</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="icon pink">🐾</div>
-        <div class="info">
-          <div class="label">Powered By</div>
-          <div class="value">Human + AI Duo</div>
-        </div>
+      <div class="agent-row">
+        <div class="agent">👨‍🍳</div>
+        <div class="agent">🏋️</div>
+        <div class="agent">📰</div>
+        <div class="agent">🎓</div>
+        <div class="agent">💀</div>
       </div>
     </div>
   </div>
+</div>
 </body>
 </html>

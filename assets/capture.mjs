@@ -1,20 +1,27 @@
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const browser = await chromium.launch();
-const page = await browser.newPage();
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Profile pic (400x400)
-await page.setViewportSize({ width: 400, height: 400 });
-await page.goto('file:///Users/hyunwoo/.openclaw/workspace/assets/twitter-profile.html');
-await page.waitForTimeout(500);
-await page.screenshot({ path: '/Users/hyunwoo/.openclaw/workspace/assets/twitter-profile.png', omitBackground: true });
-console.log('✅ Profile pic saved');
+async function capture() {
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  
+  // Profile pic 400x400
+  const page1 = await browser.newPage();
+  await page1.setViewport({ width: 400, height: 400 });
+  await page1.goto(`file://${join(__dirname, 'twitter-profile.html')}`);
+  await page1.screenshot({ path: join(__dirname, 'twitter-profile.png') });
+  console.log('✅ twitter-profile.png (400x400)');
 
-// Header (1500x500)
-await page.setViewportSize({ width: 1500, height: 500 });
-await page.goto('file:///Users/hyunwoo/.openclaw/workspace/assets/twitter-header.html');
-await page.waitForTimeout(1000); // wait for font
-await page.screenshot({ path: '/Users/hyunwoo/.openclaw/workspace/assets/twitter-header.png' });
-console.log('✅ Header saved');
+  // Header 1500x500
+  const page2 = await browser.newPage();
+  await page2.setViewport({ width: 1500, height: 500 });
+  await page2.goto(`file://${join(__dirname, 'twitter-header.html')}`);
+  await page2.screenshot({ path: join(__dirname, 'twitter-header.png') });
+  console.log('✅ twitter-header.png (1500x500)');
+  
+  await browser.close();
+}
 
-await browser.close();
+capture().catch(e => { console.error(e); process.exit(1); });

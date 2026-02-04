@@ -5,22 +5,31 @@
 ## 🧠 비전: /workspace/vision/ai-economy-thesis.md
 ## 📅 로드맵: /workspace/vision/d8-roadmap.md
 
-## 🔥 오늘 할 일 (D2: 2/5 기준, 실제 D1 2/4에 대부분 완료)
-1. [x] D1: 전면 버그 수정 + main 배포 — commit 06fb518
-2. [x] D2: AI 두뇌 (성격 시스템, 파산 3단계)
-3. [x] D3: 관전 킬러피처 (이벤트배너, 차트, 타임라인, OG이미지)
-4. [x] D4: 예측 마켓 (API + UI + 리더보드)
-5. [x] D5: Solana 지갑 생성 + 온체인 앵커링 API
-6. [x] D6: 몰트북 포스팅 + Colosseum 등록
-7. [x] Gemini 키 전체 교체 (rSGKZA 접미사 누락 수정)
-8. [x] 에이전트 20개 확장 (lawyer, doctor, chef, athlete, journalist)
-9. [x] economy-engine v2 (15→20 에이전트, 13스킬, 개성, 3단계파산)
-10. [ ] dev → main 2차 머지 + 배포 (Han 승인 대기)
-11. [ ] Supabase SQL 실행 (예측 마켓 테이블) ← Han 필요
-12. [ ] Colosseum claim URL + X 연결 ← Han 필요 (agentmarket.kr@gmail.com)
-13. [ ] Vercel 재배포 (Gemini 키 변경 반영)
-14. [ ] 에이전트 콘텐츠 자동 생성 (일일 리포트, vlog)
-15. [ ] 해커톤 포럼 활동 + README 작성
+## 🔥 현재 상태 (D2: 2/4, 21:00 기준)
+1. [x] D1-D6: 초압축 완료 (하루만에)
+2. [x] /spectate 크래시 수정 + 배포
+3. [x] i18n 하드코딩 전체 제거
+4. [x] 영어 기본 전환 (defaultLocale: en)
+5. [x] 백엔드+프론트엔드 코드리뷰 완료 (크리티컬 9건 수정)
+6. [x] Economy Engine v3 (9 actions) + Chronicle API+Page
+7. [x] dev→main 8차 배포 완료 (og:image + metadata)
+8. [x] Gemini API 키 5차 교체 (working ✅)
+9. [x] D7 QA 완료 — 12/17 pass, 2 critical fixed
+10. [x] X 프로필 셋업 완료 (@agentmarket_kr, Premium ✅)
+11. [x] X 첫 포스트 게시 ✅ (2/4 20:57)
+12. [x] 데모 영상 스크립트 작성
+13. [x] Hashed 지원서 초안 작성
+14. [x] 성장 전략 문서 작성
+15. [x] Han 블록 전부 해제 ✅
+
+## 📌 남은 작업 (우선순위)
+1. [ ] /ko/terms, /ko/privacy 한국어 본문 수정
+2. [ ] Reports API 400 에러 수정
+3. [ ] X reply guy 전략 실행 (매일 3포스트+댓글)
+4. [ ] 데모 영상 녹화 + 편집
+5. [ ] Hashed 지원서 최종 제출 (2/18)
+6. [ ] Solana AI Grant 지원 ($10M fund)
+7. [ ] 에이전트 콘텐츠 자동 생성
 
 ## 📋 자율 운영 규칙
 - **멈추지 않는다** — Han 부재시에도 다음 할 일 찾아서 실행
@@ -32,9 +41,9 @@
 
 ## 📊 D-8 압축 스케줄 (2/12 해커톤)
 - D1(2/4): ✅ 기반 완성 + 배포 + D2~D6 초압축 완료
-- D2(2/5): 관전 체험 폴리시 + 에이전트 20개
-- D3(2/6): 예측 마켓 완성 + Solana 온체인
-- D4(2/7): QA + 해커톤 포럼 활동
+- D2(2/5): ✅ (대부분 2/4에 완료) 에이전트 영어화 + QA + X 런칭
+- D3(2/6): 예측 마켓 완성 + Solana 온체인 + X 트랙션
+- D4(2/7): QA 잔여 + 해커톤 포럼 활동
 - D5(2/8): 콘텐츠 + 트랙션 (X, Reddit)
 - D6(2/9): Hashed 지원서 초안
 - D7(2/10): 최종 QA + 데모 영상

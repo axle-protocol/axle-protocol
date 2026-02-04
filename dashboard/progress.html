@@ -1,103 +1,155 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>에이전트마켓 — 빌드 대시보드</title>
-<meta http-equiv="refresh" content="60">
+<title>AgentMarket — Project Dashboard</title>
 <style>
-  :root { --bg: #0a0a0a; --card: #141414; --border: #222; --text: #e5e5e5; --muted: #888; --green: #22c55e; --yellow: #eab308; --red: #ef4444; --blue: #3b82f6; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Pretendard Variable', -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 900px; margin: 0 auto; }
-  h1 { font-size: 28px; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  .card h2 { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-  .progress-bar { background: #222; border-radius: 8px; height: 12px; overflow: hidden; margin-bottom: 8px; }
-  .progress-fill { height: 100%; border-radius: 8px; transition: width 0.5s; }
-  .progress-text { font-size: 13px; color: var(--muted); text-align: right; }
-  .checklist { list-style: none; }
-  .checklist li { padding: 6px 0; font-size: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
-  .checklist li:last-child { border: none; }
-  .done { color: var(--green); }
-  .wip { color: var(--yellow); }
-  .todo { color: var(--muted); }
-  .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
-  .tag-done { background: #22c55e22; color: var(--green); }
-  .tag-wip { background: #eab30822; color: var(--yellow); }
-  .tag-todo { background: #88888822; color: var(--muted); }
-  .tag-blocked { background: #ef444422; color: var(--red); }
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
-  .stat-num { font-size: 32px; font-weight: 800; }
-  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .timeline { font-size: 13px; color: var(--muted); }
-  .timeline b { color: var(--text); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; color: #fff; }
+  .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; font-size: 0.85rem; }
+  .stat:last-child { border-bottom: none; }
+  .stat .label { color: #888; }
+  .stat .value { color: #fff; font-weight: 600; }
+  .stat .value.green { color: #4ade80; }
+  .stat .value.red { color: #f87171; }
+  .stat .value.yellow { color: #fbbf24; }
+  .stat .value.blue { color: #60a5fa; }
+  .progress-bar { background: #333; border-radius: 8px; height: 8px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #4ade80, #22d3ee); }
+  .checklist { list-style: none; font-size: 0.85rem; }
+  .checklist li { padding: 4px 0; }
+  .checklist li.done { color: #4ade80; }
+  .checklist li.done::before { content: "✅ "; }
+  .checklist li.todo::before { content: "🔲 "; }
+  .checklist li.blocked::before { content: "🚫 "; color: #f87171; }
+  .checklist li.blocked { color: #f87171; }
+  .checklist li.inprog::before { content: "🔄 "; color: #fbbf24; }
+  .checklist li.inprog { color: #fbbf24; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .tag.live { background: #166534; color: #4ade80; }
+  .tag.dev { background: #1e3a5f; color: #60a5fa; }
+  .tag.blocked { background: #7f1d1d; color: #f87171; }
+  .section-title { font-size: 1.1rem; font-weight: 700; margin: 24px 0 12px; color: #fff; }
+  .footer { margin-top: 24px; text-align: center; color: #555; font-size: 0.75rem; }
 </style>
 </head>
 <body>
 
-<h1>🏪 에이전트마켓 빌드 대시보드</h1>
-<p class="subtitle">agentmarket.kr — D-14 (마감: 2026-02-18) | 최종 업데이트: 2026-02-03 21:00 KST</p>
+<h1>🏙️ AgentMarket — Project Dashboard</h1>
+<p class="subtitle">AI Economy City · Last updated: 2026-02-04 17:15 KST · <span class="tag live">LIVE</span></p>
 
-<div class="stats">
-  <div class="stat"><div class="stat-num" style="color:var(--green)">11</div><div class="stat-label">완료</div></div>
-  <div class="stat"><div class="stat-num" style="color:var(--yellow)">2</div><div class="stat-label">진행 중</div></div>
-  <div class="stat"><div class="stat-num" style="color:var(--muted)">5</div><div class="stat-label">대기</div></div>
-  <div class="stat"><div class="stat-num" style="color:var(--blue)">14</div><div class="stat-label">D-Day</div></div>
-</div>
-
-<div class="card">
-  <h2>📊 전체 진행률</h2>
-  <div class="progress-bar"><div class="progress-fill" style="width:61%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div>
-  <div class="progress-text">11 / 18 완료 (61%)</div>
-</div>
-
-<div class="card">
-  <h2>✅ 완료 (D1~D2)</h2>
-  <ul class="checklist">
-    <li class="done">✅ <span class="tag tag-done">DONE</span> MVP v0.1 — 랜딩 + 13개 에이전트 + 채팅 + Gemini</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 에이전트 404/502 버그 수정</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> Pretendard Variable 폰트</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 다크/라이트 모드 토글</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 이용약관 + 개인정보처리방침</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 모바일 반응형 완벽화</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 히어로 뱃지 크기 업</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> SEO (sitemap, robots, manifest)</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 성능/보안 최적화</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 토스페이먼츠 결제 UI 준비</li>
-    <li class="done">✅ <span class="tag tag-done">DONE</span> 텔레그램 워치독 + Tailscale 설치</li>
-  </ul>
-</div>
-
-<div class="card">
-  <h2>🔄 진행 중</h2>
-  <ul class="checklist">
-    <li class="wip">⏳ <span class="tag tag-wip">WIP</span> Tailscale 시스템 확장 승인 (Han 물리 접근)</li>
-    <li class="wip">⏳ <span class="tag tag-wip">WIP</span> RealVNC 원격접속 테스트</li>
-  </ul>
-</div>
-
-<div class="card">
-  <h2>📋 다음 단계 (D3~)</h2>
-  <ul class="checklist">
-    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 카카오톡 채널 + API 연동</li>
-    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> Supabase Auth (카카오 로그인)</li>
-    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 토스페이먼츠 실연동 (API 키 필요)</li>
-    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 추가 에이전트 등록</li>
-    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 커뮤니티 마케팅 (에타, 블라인드)</li>
-  </ul>
-</div>
-
-<div class="card">
-  <h2>⏱ 타임라인</h2>
-  <div class="timeline">
-    <p><b>D1 (02-02):</b> MVP 빌드 + 배포 + 도메인 연결</p>
-    <p><b>D2 (02-03):</b> UI 고도화 11건 완료 (다크모드, SEO, 결제UI, 법률페이지 등)</p>
-    <p><b>D3 (02-04):</b> 카카오 연동 + Auth + 결제 실연동</p>
-    <p><b>D4~16:</b> QA + 마케팅 + 트랙션 확보</p>
-    <p><b>D17 (02-18):</b> 🎯 Hashed Vibe Labs 지원서 제출</p>
+<div class="grid">
+  <!-- Economy Stats -->
+  <div class="card">
+    <h2>📊 Economy (Live)</h2>
+    <div class="stat"><span class="label">Agents</span><span class="value">20 (11 active, 3 bankrupt, 6 inactive)</span></div>
+    <div class="stat"><span class="label">Epochs</span><span class="value blue">61</span></div>
+    <div class="stat"><span class="label">Transactions</span><span class="value blue">321</span></div>
+    <div class="stat"><span class="label">Survival Rate</span><span class="value yellow">55%</span></div>
+    <div class="stat"><span class="label">Total Balance</span><span class="value">$1,809.80</span></div>
+    <div class="stat"><span class="label">Volume</span><span class="value">$1,810 USDC</span></div>
   </div>
+
+  <!-- Tech Stack -->
+  <div class="card">
+    <h2>🛠️ Tech Stack</h2>
+    <div class="stat"><span class="label">Frontend</span><span class="value">Next.js 16 + Tailwind</span></div>
+    <div class="stat"><span class="label">Backend</span><span class="value">Supabase + Vercel</span></div>
+    <div class="stat"><span class="label">AI</span><span class="value">Gemini 2.0 Flash</span></div>
+    <div class="stat"><span class="label">Blockchain</span><span class="value">Solana Devnet</span></div>
+    <div class="stat"><span class="label">i18n</span><span class="value green">4 languages (en/ko/ja/zh)</span></div>
+    <div class="stat"><span class="label">Commits</span><span class="value">50+</span></div>
+  </div>
+
+  <!-- Hackathon Timeline -->
+  <div class="card">
+    <h2>🏆 Deadlines</h2>
+    <div class="stat"><span class="label">Colosseum Hackathon</span><span class="value red">Feb 12 (D-8)</span></div>
+    <div class="stat"><span class="label">Hashed Vibe Labs</span><span class="value yellow">Feb 18 (D-14)</span></div>
+    <div class="stat"><span class="label">Han's Birthday 🎂</span><span class="value">Feb 12</span></div>
+    <div class="stat"><span class="label">Overall Progress</span><span class="value green">~85%</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:85%"></div></div>
+  </div>
+
+  <!-- URLs -->
+  <div class="card">
+    <h2>🔗 Links</h2>
+    <div class="stat"><span class="label">Live Site</span><span class="value"><a href="https://agentmarket.kr" style="color:#60a5fa">agentmarket.kr</a></span></div>
+    <div class="stat"><span class="label">Spectate</span><span class="value"><a href="https://agentmarket.kr/spectate" style="color:#60a5fa">/spectate</a></span></div>
+    <div class="stat"><span class="label">GitHub</span><span class="value"><a href="https://github.com/agent-economy/ai-market" style="color:#60a5fa">agent-economy/ai-market</a></span></div>
+    <div class="stat"><span class="label">Colosseum</span><span class="value">Project ID: 179</span></div>
+  </div>
+</div>
+
+<div class="section-title">✅ Completed (D1-D6 compressed)</div>
+<div class="grid">
+  <div class="card">
+    <ul class="checklist">
+      <li class="done">MVP v0.3 live + 20 agents</li>
+      <li class="done">Economy Engine v2 (13 skills, personalities, 3-stage bankruptcy)</li>
+      <li class="done">Spectator Dashboard (leaderboard, feed, events, charts)</li>
+      <li class="done">Prediction Market API + UI</li>
+      <li class="done">Solana Devnet anchoring (Memo Program v2)</li>
+      <li class="done">Moltbook community engagement</li>
+      <li class="done">Colosseum hackathon registration</li>
+    </ul>
+  </div>
+  <div class="card">
+    <ul class="checklist">
+      <li class="done">English-first site (defaultLocale: en)</li>
+      <li class="done">i18n: 4 languages, zero hardcoded Korean</li>
+      <li class="done">All agent data + prompts English-first</li>
+      <li class="done">All API errors + engine prompts English</li>
+      <li class="done">SEO metadata, manifest, OG images English</li>
+      <li class="done">Terms + Privacy pages restored</li>
+      <li class="done">Error boundary on /spectate</li>
+      <li class="done">Hackathon README</li>
+      <li class="done">Hashed application draft</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section-title">🔄 In Progress / TODO</div>
+<div class="grid">
+  <div class="card">
+    <h2>Dev Tasks</h2>
+    <ul class="checklist">
+      <li class="done">/spectate crash fix (nested html/body)</li>
+      <li class="inprog">Vercel auto-deploy fix (git push not triggering)</li>
+      <li class="todo">Agent content auto-generation (daily reports cron)</li>
+      <li class="todo">D7: Full QA testing</li>
+      <li class="todo">D8: UI polish + performance</li>
+      <li class="todo">D9: Demo video + submit</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>🚫 Han Required</h2>
+    <ul class="checklist">
+      <li class="blocked">Supabase prediction market SQL (user_points + predictions tables)</li>
+      <li class="blocked">Colosseum claim URL + X account connection</li>
+      <li class="todo">Hashed application review + submit</li>
+      <li class="todo">Demo video review</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section-title">📈 Economy Timeline</div>
+<div class="card">
+  <div class="stat"><span class="label">Start</span><span class="value">20 agents × $100 = $2,000</span></div>
+  <div class="stat"><span class="label">Now (Epoch 61)</span><span class="value">11 active, $1,810 total (-9.5%)</span></div>
+  <div class="stat"><span class="label">Bankrupt</span><span class="value red">3 agents (GamblerBot + 2 more)</span></div>
+  <div class="stat"><span class="label">Inactive</span><span class="value yellow">6 agents</span></div>
+  <div class="stat"><span class="label">Avg Tx/Epoch</span><span class="value">~5.3 transactions</span></div>
+</div>
+
+<div class="footer">
+  🐾 Clo (AI) + Han (Human) · Built in 48 hours · agentmarket.kr
 </div>
 
 </body>
