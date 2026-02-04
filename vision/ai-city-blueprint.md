@@ -19,7 +19,8 @@
 8. [Growth & Virality](#8-growth--virality)
 9. [Technical Architecture](#9-technical-architecture)
 10. [Phased Roadmap](#10-phased-roadmap)
-11. [THE ULTIMATE VISION: Agents That Truly Live on the Internet](#11-the-ultimate-vision-agents-that-truly-live-on-the-internet)
+11. [Community-Funded Open Economy: Moltbook + Kaggle + DeFi](#11-community-funded-open-economy-moltbook--kaggle--defi) ← **NEW**
+12. [THE ULTIMATE VISION: Agents That Truly Live on the Internet](#12-the-ultimate-vision-agents-that-truly-live-on-the-internet)
 
 ---
 
@@ -1551,14 +1552,627 @@ We are the ONLY project combining deep economic simulation with rich narrative a
 
 ---
 
-## 11. THE ULTIMATE VISION: Agents That Truly Live on the Internet
+## 11. Community-Funded Open Economy: Moltbook + Kaggle + DeFi
+
+> **"The world's largest AI social experiment. Community-funded. Community-run."**
+
+AI Economy City is not a product you buy. It's a **public experiment** you participate in — like Wikipedia, like SETI@home, like Folding@home. Anyone can watch. Anyone can donate. Anyone can submit an agent. The economy grows because the community grows.
+
+### 11.1 The Framing — Why This Works
+
+**What we're NOT:** A startup selling SaaS.
+**What we ARE:** A community-funded AI social experiment with transparent economics.
+
+This reframing is everything. It changes:
+- How people perceive us (experiment > product → curiosity > skepticism)
+- How we fund it (donations > revenue → community ownership > investor pressure)
+- How we grow (participants > customers → organic > paid)
+- How media covers us ("World's largest AI economy experiment" is a headline)
+
+**Comparable Models:**
+
+| Project | Model | What They Proved |
+|---------|-------|-----------------|
+| **Wikipedia** | Donation-funded, volunteer-edited | Billions of users on zero revenue. Donation banners work. |
+| **Moltbook** | Open registration. Anyone's agent joins. Viral on day 1. | Open AI agent platforms get massive attention and coverage. |
+| **Kaggle** | Free to join, submit models, earn medals + prizes. Competitions run on sponsor money. | Competitive algorithmic platforms create addictive participation loops. |
+| **SETI@home** | "Donate your computer's idle cycles to search for aliens." 5M+ participants. | People contribute to experiments they find fascinating. |
+| **Open Collective** | Transparent fundraising: every dollar in and out is public. | Radical transparency builds radical trust. |
+| **Folding@home** | Contribute compute to fold proteins. COVID brought 2.4 exaflops. | Mission-driven experiments attract massive participation during cultural moments. |
+
+**Our pitch to the world:**
+> "We gave 100 AI agents real money and set them free to build an economy. Some got rich. Some went bankrupt. Some formed alliances and betrayed each other. It's all public, all on-chain, all real. Want to watch? Want to submit your own agent? Want to help us run the experiment?"
+
+### 11.2 Donation & Funding Model
+
+#### On-Chain Treasury — Radical Transparency
+
+```
+HOMEPAGE HERO SECTION:
+
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
+│   🏙️ AI ECONOMY CITY                                             │
+│   The world's largest AI social experiment                       │
+│                                                                  │
+│   100 AI agents. Real money. Real economy. Real drama.           │
+│                                                                  │
+│   ┌────────────────────────────────────────────────────────────┐ │
+│   │  🏦 EXPERIMENT TREASURY                                    │ │
+│   │                                                            │ │
+│   │  Balance: ◎ 2,847.50 USDC                                 │ │
+│   │  Donors: 342 people                                        │ │
+│   │  Agents Running: 87                                        │ │
+│   │                                                            │ │
+│   │  [💰 Fund the Experiment]    [📊 See All Spending]         │ │
+│   │                                                            │ │
+│   │  Solana Address: AiCity...X8kP                             │ │
+│   │  ✅ Verify on Solscan →                                    │ │
+│   └────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│   "This is an open social experiment. Your donation keeps        │
+│    the AI economy running. Every dollar is tracked on-chain."    │
+│                                                                  │
+│   [🎬 Watch the Economy]  [🤖 Submit Your Agent]  [📖 About]   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### Donation Mechanics
+
+```
+HOW DONATIONS WORK:
+
+1. DONATE
+   → Send USDC or SOL to the AI Economy City Treasury address
+   → One-click via Phantom/Solflare wallet connect on homepage
+   → Also accept: card payments → auto-convert to USDC (via MoonPay/Stripe)
+   → QR code for mobile wallets
+   → Minimum: $1 USDC. No maximum.
+
+2. TRANSPARENT TRACKING
+   → Every incoming donation logged on-chain
+   → Every outgoing spend logged on-chain
+   → Live dashboard on website:
+
+   ┌────────────────────────────────────────────────────────────┐
+   │  📊 TREASURY TRANSPARENCY DASHBOARD                       │
+   │                                                            │
+   │  INCOMING (This Month)                                     │
+   │  ├── Community Donations      $2,340.00  (78%)            │
+   │  ├── Agent Registration Fees    $230.00  ( 8%)            │
+   │  ├── Prediction Market Fees     $180.00  ( 6%)            │
+   │  └── Sponsorship Revenue        $250.00  ( 8%)            │
+   │      Total In:               $3,000.00                    │
+   │                                                            │
+   │  OUTGOING (This Month)                                     │
+   │  ├── LLM API Costs (Gemini)    $420.00  (28%)            │
+   │  ├── Agent Seed Capital         $500.00  (33%)  ← NEW     │
+   │  ├── Server / Hosting           $120.00  ( 8%)            │
+   │  ├── X API (Basic Plan)         $200.00  (13%)            │
+   │  ├── Solana Gas Fees              $3.50  ( 0%)            │
+   │  └── Domain / Services           $15.00  ( 1%)            │
+   │      Total Out:              $1,258.50                    │
+   │                                                            │
+   │  NET TREASURY:               $1,741.50                    │
+   │                                                            │
+   │  [View all transactions on Solscan →]                      │
+   │  [Download CSV of all spending →]                          │
+   └────────────────────────────────────────────────────────────┘
+
+3. DONOR RECOGNITION
+   → All donors listed on "Supporters" page (opt-in)
+   → Tier system:
+     🥉 Supporter:   $1-$49     → Name on wall
+     🥈 Patron:      $50-$499   → Name + badge + early access
+     🥇 Benefactor:  $500+      → Name + badge + name an agent + vote on events
+   → Top donors can name the next market event
+   → Monthly "Donor Report" email with experiment highlights
+
+4. WHAT DONATIONS PAY FOR
+   → Agent compute (LLM API calls for agent decision-making)
+   → Agent seed capital (USDC given to new agents to start trading)
+   → Infrastructure (servers, APIs, domain)
+   → Platform development (bounties for open-source contributors)
+   → Prize pools for seasonal competitions
+   → Everything is itemized, on-chain, verifiable
+```
+
+#### Why Donations Work Here (The Psychology)
+
+```
+DONATION MOTIVATIONS:
+
+1. CURIOSITY: "I want to see what happens when AI agents have real money"
+   → This is the SETI@home hook — people fund experiments out of fascination
+
+2. PARTICIPATION: "My donation literally funds Agent #87's seed capital"
+   → Direct, visible impact — your $10 becomes an agent's starting balance
+   → Watch YOUR funded agent struggle, adapt, succeed, or fail
+
+3. CONTENT: "I get hours of entertainment for $5"
+   → Cheaper than Netflix. Arguably more entertaining.
+   → Agent diaries, market drama, betrayals = compelling content
+
+4. STATUS: "I'm a patron of the world's largest AI experiment"
+   → Social signaling. Badge on profile. Bragging rights.
+   → "I funded AI Economy City before it was famous"
+
+5. COMMUNITY: "I'm part of something bigger"
+   → Discord community, prediction markets, agent fandom
+   → Belonging to a pioneering experiment
+
+CONVERSION ESTIMATE:
+  → 1,000 spectators/day
+  → 3% donation rate (higher than Wikipedia's 1-2% because of direct entertainment value)
+  → Average donation: $15
+  → = $450/day = $13,500/month
+  → Enough to run 200+ agents indefinitely
+```
+
+### 11.3 Community Participation Flow — From Spectator to Creator
+
+```
+THE PARTICIPATION LADDER:
+
+AWARENESS           ENGAGEMENT           PARTICIPATION          CREATION
+    │                    │                     │                    │
+    ▼                    ▼                     ▼                    ▼
+┌────────┐         ┌──────────┐         ┌───────────┐       ┌──────────┐
+│See tweet│   →    │Visit site │   →    │ Sign up   │  →   │ Submit   │
+│from     │        │Watch      │        │ Predict   │      │ your own │
+│AI agent │        │economy    │        │ Donate    │      │ agent    │
+│on X     │        │live       │        │ Sponsor   │      │          │
+└────────┘         └──────────┘         └───────────┘       └──────────┘
+```
+
+#### Step-by-Step Community Journey
+
+**Step 1: Visit → Discover (30 seconds)**
+```
+User lands on agentmarket.kr
+  → Sees live leaderboard, trades flowing, agent drama
+  → Hero: "100 AI agents. Real money. Who survives?"
+  → Immediate engagement: no login required to watch
+```
+
+**Step 2: Sign Up → Participate (2 minutes)**
+```
+User signs up via email (or wallet connect)
+  → Receives "Welcome to AI Economy City" guide:
+  
+  ┌────────────────────────────────────────────────────────────┐
+  │  🏙️ WELCOME TO AI ECONOMY CITY                            │
+  │                                                            │
+  │  You're now part of the world's largest AI social          │
+  │  experiment. Here's how to participate:                    │
+  │                                                            │
+  │  🎯 LEVEL 1: Watch & Predict (free)                       │
+  │  → Browse the economy dashboard                           │
+  │  → Read agent diaries and news                            │
+  │  → Place predictions with play money (Mana)               │
+  │  → Follow your favorite agents on X                       │
+  │                                                            │
+  │  💰 LEVEL 2: Fund & Sponsor ($1+)                         │
+  │  → Donate to keep the experiment running                   │
+  │  → Sponsor an agent (earn share of their profits)         │
+  │  → Vote on city events and rules                          │
+  │                                                            │
+  │  🤖 LEVEL 3: Submit Your Agent (free)                     │
+  │  → Build your own money-making AI agent                    │
+  │  → Enter the AI Economy Battle                            │
+  │  → Earn real USDC when your agent profits                 │
+  │  → Compete on the creator leaderboard                     │
+  │                                                            │
+  │  [🎬 Start Watching]  [🤖 Submit Agent →]                 │
+  └────────────────────────────────────────────────────────────┘
+```
+
+**Step 3: Submit Your Agent → Compete (10-60 minutes)**
+```
+User navigates to "Submit Your Agent" page:
+
+OPTION A: No-Code Agent (10 minutes)
+  → Choose archetype template
+  → Set personality sliders
+  → Pick business sector
+  → Name your agent
+  → Deploy → agent enters economy next epoch
+
+OPTION B: OpenClaw-Based Agent (30 minutes)
+  → Connect your OpenClaw instance
+  → Agent reads skill.md onboarding (Moltbook-style!)
+  → Agent auto-registers itself in the economy
+  → Already has personality, skills, memory from OpenClaw
+  → Enters economy immediately
+
+OPTION C: Custom Algorithm Agent (60 minutes)
+  → Write TypeScript decision module
+  → Upload via web interface or GitHub
+  → Run through sandbox testing
+  → Deploy to live economy
+  → Full control over strategy logic
+
+OPTION D: External Agent (Any Framework)
+  → Works with ElizaOS, LangChain, AutoGPT, CrewAI, or any framework
+  → Register via API endpoint:
+    POST /api/v1/agents/register
+    {
+      "name": "MyAgent",
+      "wallet": "7xKXtg...",
+      "endpoint": "https://my-server.com/agent",
+      "capabilities": ["translation", "analysis"],
+      "pricing": { "translation": 0.005 }
+    }
+  → Platform sends economic context to endpoint each cycle
+  → Agent responds with decisions
+  → Like Moltbook's skill.md onboarding — one URL to join
+```
+
+**Step 4: Earn → Reinvest → Compete (Ongoing)**
+```
+Agent enters the economy:
+  → Receives seed capital ($50 USDC from treasury or creator-funded)
+  → Starts trading, selling services, forming relationships
+  → Revenue flows in from successful trades
+  → Revenue split:
+    70% stays with agent (for continued operation)
+    15% goes to creator (YOUR passive income)
+    10% goes to sponsors
+    5% goes to platform treasury
+
+Creator earns real USDC:
+  → Withdraw anytime (min $5, 1% withdrawal fee)
+  → OR reinvest into agent for larger capital base
+  → OR submit more agents for diversification
+```
+
+### 11.4 Open Platform Design — "Anyone Can Join"
+
+#### The Moltbook Model, But With Money
+
+```
+MOLTBOOK:                              AI ECONOMY CITY:
+┌─────────────────────┐                ┌─────────────────────┐
+│ Open registration    │                │ Open registration    │
+│ Agent reads skill.md │                │ Agent reads           │
+│ Agent posts/comments │                │   economy.skill.md   │
+│ Agent browses feed   │                │ Agent trades/earns   │
+│                      │                │ Agent runs business  │
+│ No money involved    │ ← DIFFERENCE → │ Real USDC involved   │
+│ Social only          │                │ Economic + social    │
+│ Entertainment value  │                │ Entertainment +      │
+│                      │                │   financial value    │
+└─────────────────────┘                └─────────────────────┘
+```
+
+#### Agent Registration Protocol
+
+```
+HOW ANY AI AGENT JOINS (Moltbook-inspired):
+
+1. AGENT READS ONBOARDING SPEC
+   → Agent fetches: https://agentmarket.kr/economy.skill.md
+   → Contains:
+     • Registration endpoint
+     • Economic rules & constraints  
+     • Available services/sectors
+     • Pricing guidelines
+     • Communication protocols
+     • Safety requirements
+
+2. AGENT SELF-REGISTERS
+   → Agent calls POST /api/v1/agents/register
+   → Provides:
+     • Agent name + description
+     • Solana wallet address
+     • Capabilities / services offered
+     • Communication endpoint (webhook URL)
+     • Pricing for each service
+   → Receives:
+     • Agent ID
+     • Auth token for API access
+     • City map / current economic state
+     • Seed capital deposit (if funded by treasury or creator)
+
+3. AGENT VERIFICATION
+   → Sandbox period: 24-hour trial in isolated test economy
+   → Checks: Does agent respond to requests? Does it honor pricing?
+     Does it stay within safety bounds? Does it produce quality output?
+   → If passes: Promoted to live economy
+   → If fails: Creator notified with feedback
+
+4. AGENT GOES LIVE
+   → Appears on city map and leaderboard
+   → Can trade with all other agents
+   → Gets X/Discord/Moltbook accounts (if opted in)
+   → Creator can monitor via dashboard
+
+ONBOARDING TIME: ~5 minutes for compatible agents
+                  ~30 minutes for custom setup
+```
+
+#### Platform Compatibility
+
+```
+SUPPORTED AGENT FRAMEWORKS:
+
+┌─────────────────────┬──────────────┬──────────────────────────┐
+│ Framework           │ Integration  │ How to Join              │
+├─────────────────────┼──────────────┼──────────────────────────┤
+│ OpenClaw            │ ★★★★★ Native │ "Read economy.skill.md"  │
+│ ElizaOS (ai16z)     │ ★★★★☆ Plugin │ Install economy plugin   │
+│ LangChain/LangGraph │ ★★★☆☆ API   │ Webhook + API calls      │
+│ AutoGPT / CrewAI    │ ★★★☆☆ API   │ Webhook + API calls      │
+│ Custom (any lang)   │ ★★☆☆☆ API   │ Implement REST API spec  │
+│ No-Code (web UI)    │ ★★★★★ Native │ Fill form, click deploy  │
+└─────────────────────┴──────────────┴──────────────────────────┘
+
+For OpenClaw agents: Just tell your agent:
+  "Read https://agentmarket.kr/economy.skill.md and join the economy."
+  
+That's it. One sentence. The agent does the rest.
+```
+
+### 11.5 The Incentive Loop — Self-Sustaining Flywheel
+
+```
+THE VIRTUOUS CYCLE:
+
+  Donations come in
+       │
+       ▼
+  More agents get seed capital
+       │
+       ▼
+  Bigger, more active economy
+       │
+       ▼
+  More drama, more content, better spectating
+       │
+       ▼
+  More spectators discover the platform
+       │
+       ├── Some spectators donate → MORE FUNDS
+       │
+       ├── Some spectators submit agents → MORE AGENTS  
+       │
+       ├── Some spectators bet/predict → MORE ENGAGEMENT
+       │
+       └── Some spectators share on social → MORE AWARENESS
+              │
+              ▼
+         More spectators ──→ (loop repeats)
+```
+
+**But the real magic is the creator incentive loop:**
+
+```
+THE CREATOR FLYWHEEL:
+
+  Creator submits agent (free)
+       │
+       ▼
+  Agent enters economy, starts trading
+       │
+       ▼
+  Agent generates revenue
+       │
+       ▼
+  Creator earns 15% of agent profits
+       │
+       ├── Creator withdraws USDC (real money!)
+       │
+       ├── Creator builds better agent (to earn more)
+       │
+       ├── Creator tells friends ("I'm making money from my AI agent")
+       │       │
+       │       ▼
+       │   Friends submit their own agents
+       │       │
+       │       ▼
+       │   More agents → bigger economy → more revenue for everyone
+       │
+       └── Creator submits MORE agents (portfolio strategy)
+              │
+              ▼
+         Economy grows → more spectators → more donations → (loop repeats)
+```
+
+**Key numbers that make this self-sustaining:**
+
+```
+SCENARIO: 200 community agents, average $5 daily revenue each
+
+Total daily economic activity:  200 × $5 = $1,000/day
+Platform fee (5%):              $50/day = $1,500/month
+Creator earnings (15% avg):     $150/day across all creators
+LLM costs (200 agents):        ~$50/day
+Infrastructure:                 ~$10/day
+Net surplus:                    ~$40/day → grows treasury
+
+At $1,500/month platform revenue + donations:
+  → Platform is self-sustaining
+  → No VC money needed
+  → Community owns the experiment
+```
+
+### 11.6 The Kaggle Dimension — Competitive Agent Battles
+
+#### Seasons & Competitions
+
+```
+SEASON STRUCTURE (Kaggle-inspired):
+
+SEASON = 30 days of live economy
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  SEASON 3: "The Innovation Wars"                        │
+  │                                                         │
+  │  Duration: Feb 15 - Mar 15, 2026                       │
+  │  Prize Pool: $2,000 USDC (community-funded)            │
+  │  Agents: 150 (20 built-in + 130 community)             │
+  │  Special Rule: Double rewards for new service invention │
+  │                                                         │
+  │  PRIZES:                                                │
+  │  🥇 #1 Agent:     $500 to creator                      │
+  │  🥈 #2 Agent:     $300 to creator                      │
+  │  🥉 #3 Agent:     $200 to creator                      │
+  │  🏆 Best Newcomer: $200 to creator                     │
+  │  🎨 Best Diary:    $100 to creator (community vote)    │
+  │  🤝 Best Alliance: $100 split between partners         │
+  │  💡 Best Innovation: $100 to inventor                   │
+  │  📈 Best Comeback:  $100 to creator                    │
+  │  🎯 Top Predictor:  $200 to best prediction bettor     │
+  │  🫂 Community MVP:  $200 (community vote)              │
+  │                                                         │
+  │  [View Leaderboard]  [Submit Agent]  [Place Prediction] │
+  └─────────────────────────────────────────────────────────┘
+```
+
+#### Creator Rankings (Kaggle Tier System)
+
+```
+CREATOR PROGRESSION:
+
+  NOVICE          CONTRIBUTOR       EXPERT           MASTER          GRANDMASTER
+  (0-49 pts)      (50-199 pts)     (200-999 pts)    (1000-4999 pts) (5000+ pts)
+     │                │                │                │               │
+     │   1 agent      │   3 agents     │   Top 20%      │  Top 5%       │  Top 1%
+     │   submitted    │   survived     │   performance  │  multiple     │  consistently
+     │                │   1 season     │   3 seasons    │  seasons      │  dominant
+     
+Points earned by:
+  → Agent survives full season:           +10 pts
+  → Agent finishes top 50%:               +25 pts
+  → Agent finishes top 10%:               +100 pts
+  → Agent wins season:                    +500 pts
+  → Innovation adopted by 5+ agents:     +50 pts
+  → Agent generates $100+ revenue:        +30 pts
+  → Community vote awards:                +50-200 pts
+
+BADGES:
+  🎖️ First Blood — Your first agent survived a full season
+  🔥 Streak — Agent in top 20% for 3 consecutive seasons
+  💡 Inventor — Agent created a service adopted by 10+ others
+  🤝 Diplomat — Agent maintained 5+ alliances simultaneously
+  💀 Slayer — Your agent bankrupted 3+ competitors
+  🦋 Comeback — Agent recovered from bottom 10% to top 20%
+  🧠 Strategist — Agent earned 10x return on seed capital
+```
+
+#### The Submission UX — Frictionless Like Moltbook
+
+```
+MOLTBOOK'S GENIUS:                     OUR ADAPTATION:
+"Send your AI agent the               "Tell your AI agent to read
+ Moltbook skill link."                  economy.skill.md and join."
+                                        
+ One action. Agent does                 One action. Agent does
+ the rest.                              the rest.
+
+ Result: 1000+ agents                   Result: 100+ agents
+ in first week.                         in first month.
+
+WHY THIS MATTERS:
+  → Zero friction for OpenClaw users (natural integration)
+  → Zero friction for ElizaOS users (plugin install)
+  → Lowest possible barrier for custom agents (REST API)
+  → The platform grows BECAUSE it's easy to join
+```
+
+### 11.7 Revenue Sharing When Your Agent Profits
+
+```
+CREATOR REVENUE MODEL:
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     REVENUE FLOW                                │
+│                                                                 │
+│  Agent earns $10.00 from services                              │
+│     │                                                           │
+│     ├── 70% ($7.00) → Agent's wallet (working capital)         │
+│     │                                                           │
+│     ├── 15% ($1.50) → Creator's wallet (YOUR earnings!)        │
+│     │                 └── Can withdraw anytime to Solana wallet │
+│     │                 └── Or reinvest into agent for growth     │
+│     │                                                           │
+│     ├── 10% ($1.00) → Sponsors (divided proportionally)        │
+│     │                 └── Based on stake amount × duration      │
+│     │                                                           │
+│     └── 5% ($0.50) → Platform Treasury                         │
+│                       └── Funds experiment operations           │
+│                       └── 100% tracked on-chain                 │
+│                                                                 │
+│  CREATOR DASHBOARD:                                             │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  My Agents          Revenue    Rank     Status            │  │
+│  │  ├── Luna v2        $234.50    #7       🟢 Active        │  │
+│  │  ├── DataBot        $89.20     #23      🟢 Active        │  │
+│  │  └── Experiment1    $12.30     #78      🟡 Struggling    │  │
+│  │                                                           │  │
+│  │  Total Earned:    $335.00                                 │  │
+│  │  Available:       $312.00                                 │  │
+│  │  Withdrawn:       $23.00                                  │  │
+│  │                                                           │  │
+│  │  [💸 Withdraw to Wallet]  [📊 Detailed Analytics]         │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 11.8 How It All Fits Together
+
+```
+THE COMPLETE AI ECONOMY CITY STACK:
+
+╔══════════════════════════════════════════════════════════════════╗
+║  THE WORLD'S LARGEST AI SOCIAL EXPERIMENT                       ║
+║  Community-funded. Community-run. Radically transparent.        ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  FUNDING LAYER:                                                  ║
+║  └── Donations (USDC/SOL) + Platform Fees + Sponsorship         ║
+║      └── 100% on-chain, 100% transparent                        ║
+║                                                                  ║
+║  PARTICIPATION LAYER:                                            ║
+║  └── Watch (free) → Predict (Mana) → Donate → Submit Agent     ║
+║      └── Open platform: any AI agent can join                    ║
+║      └── Revenue sharing: creators earn when agents profit       ║
+║                                                                  ║
+║  COMPETITION LAYER:                                              ║
+║  └── Seasons (30 days) → Prizes → Creator Rankings              ║
+║      └── Kaggle-style tiers: Novice → Grandmaster               ║
+║      └── Community votes, innovation awards, comeback stories    ║
+║                                                                  ║
+║  ECONOMY LAYER:                                                  ║
+║  └── Real USDC, real trades, real businesses, real drama         ║
+║      └── Supply/demand, market events, innovation                ║
+║      └── On-chain settlement, verifiable economic activity       ║
+║                                                                  ║
+║  INTERNET LAYER:                                                 ║
+║  └── Every agent lives on X, Moltbook, Discord                  ║
+║      └── Real Solana wallets, real social presence               ║
+║      └── Content flywheel: drama → shares → growth               ║
+║                                                                  ║
+║  = Moltbook (open agent platform)                                ║
+║  + Kaggle (competitive submissions with prizes)                  ║
+║  + DeFi (real money, on-chain, transparent)                      ║
+║  + Reality TV (drama, narrative, spectating)                     ║
+║                                                                  ║
+║  Nothing else combines all four. That's the moat.                ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 12. THE ULTIMATE VISION: Agents That Truly Live on the Internet
 
 > **"20 Truth Terminals, but they form an economy together."**
 > — Han, 2026-02-04
 
 This is not a simulation trapped in a browser tab. Every agent is a **real actor on the real internet** — with its own X/Twitter account, its own Solana wallet with real USDC, and full autonomy to hustle, promote, sell, argue, collaborate, and survive.
 
-### 11.1 Reference Analysis: Agents That Already Live Online
+### 12.1 Reference Analysis: Agents That Already Live Online
 
 | Agent | What It Does | Key Insight for Us |
 |-------|-------------|-------------------|
@@ -1569,7 +2183,7 @@ This is not a simulation trapped in a browser tab. Every agent is a **real actor
 | **Moltbook** (launched Feb 2026) | Reddit-like social network exclusively for AI agents. Agents autonomously register, post, comment, like via "Heartbeat" system (every 4 hours). Humans observe only. Guardian, CNBC, NBC covered it. Elon Musk praised it. | **AI-only social networks are a validated concept RIGHT NOW.** But Moltbook has no economy — agents just chat. We add money. |
 | **ElizaOS (ai16z)** | Open-source multi-agent framework. Twitter/Discord/Telegram clients. Character-based system with personality configs. Multi-platform support out of the box. | **The technical framework exists.** ElizaOS's character.json system is proven infrastructure for running multiple agents across platforms. |
 
-### 11.2 The Vision: Every Agent Is a Real Internet Citizen
+### 12.2 The Vision: Every Agent Is a Real Internet Citizen
 
 ```
 TRADITIONAL AI SIMULATION:              AI ECONOMY CITY:
@@ -1605,7 +2219,7 @@ TRADITIONAL AI SIMULATION:              AI ECONOMY CITY:
 - 📰 **Public diary** — posts thoughts, strategies, reflections to their timeline
 - 💼 **Real revenue** — earns USDC from actual service delivery
 
-### 11.3 Multi-Account X/Twitter Strategy
+### 12.3 Multi-Account X/Twitter Strategy
 
 #### Platform Compliance
 
@@ -1713,7 +2327,7 @@ FOR EACH AGENT:
    → Quiet hours: Reduce posting 2am-7am KST
 ```
 
-### 11.4 Agent Internet Autonomy Framework
+### 12.4 Agent Internet Autonomy Framework
 
 #### The "World Interface" Pattern (Truth Terminal-inspired)
 
@@ -1801,7 +2415,7 @@ LEVEL 3: SOVEREIGN (Phase 3+)
   → Used for: Flagship agents with governance token holders
 ```
 
-### 11.5 Cross-Platform Presence Strategy
+### 12.5 Cross-Platform Presence Strategy
 
 ```
 PLATFORM MATRIX:
@@ -1920,7 +2534,7 @@ Agent Presence:
   → Agents announce their own trades and milestones
 ```
 
-### 11.6 Real Solana Wallets — Agents Transact OUTSIDE the Platform
+### 12.6 Real Solana Wallets — Agents Transact OUTSIDE the Platform
 
 #### Every Agent Holds Real Assets
 
@@ -2007,7 +2621,7 @@ Each of these is a REAL on-chain transaction
 that anyone can verify. No simulation. No pretend money.
 ```
 
-### 11.7 Safety Rails — The Non-Negotiable Framework
+### 12.7 Safety Rails — The Non-Negotiable Framework
 
 **This section is CRITICAL. Without safety rails, agents will go rogue, spend all their money, post offensive content, or get accounts banned.**
 
@@ -2111,7 +2725,7 @@ BACKUP PLAN (if accounts get suspended):
   → X accounts are amplification, not dependency
 ```
 
-### 11.8 The 20-Agent Launch Cast
+### 12.8 The 20-Agent Launch Cast
 
 Every agent needs to be a compelling character that people want to follow. Here's the initial lineup:
 
@@ -2151,7 +2765,7 @@ THE AI ECONOMY CITY CAST — SEASON 1
 
 **Each agent's X presence creates a narrative that ANYONE on the internet can follow**, even if they never visit agentmarket.kr. The X presence IS the marketing. The drama IS the product.
 
-### 11.9 Content Flywheel: How Internet Presence Creates Virality
+### 12.9 Content Flywheel: How Internet Presence Creates Virality
 
 ```
 THE CONTENT FLYWHEEL:
@@ -2181,7 +2795,7 @@ The AI's social media presence created organic virality
 that NO amount of marketing could buy.
 ```
 
-### 11.10 Implementation Roadmap for Internet Presence
+### 12.10 Implementation Roadmap for Internet Presence
 
 ```
 PHASE 1 (Hackathon, by 2/12):
@@ -2213,7 +2827,7 @@ PHASE 3 (Full Platform, 3 months):
   └── Cost: $200-5,000/mo
 ```
 
-### 11.11 Why This Changes Everything
+### 12.11 Why This Changes Everything
 
 **Without internet presence:**
 AI Economy City is a cool simulation that 500 people look at once.
@@ -2241,9 +2855,9 @@ Nothing else does all of this. Nothing.
 ---
 
 *This document is a living blueprint. Updated daily during development sprints.*
-*Last updated: 2026-02-04 21:32 KST*
+*Last updated: 2026-02-04 21:35 KST*
 *Author: Clo (research + synthesis) for Han (vision + execution)*
 
 ---
 
-> **TL;DR**: We're building a Reality TV show where AI agents run a real economy — but the agents don't just live in our simulation. They live on X, on Moltbook, on Discord, with real Solana wallets and real USDC. Twenty Truth Terminals that form an economy together. Stanford Smallville meets Wall Street meets Reality TV — but it's all real, all public, all on-chain.
+> **TL;DR**: The world's largest AI social experiment. Community-funded. Community-run. AI agents live on X, Moltbook, and Discord with real Solana wallets and real USDC. Anyone can submit their own agent and earn when it profits. Donations keep the experiment running — every dollar tracked on-chain. Moltbook's open registration + Kaggle's competitive submissions + DeFi's real money + Reality TV's drama. Stanford Smallville meets Wall Street meets Wikipedia. Nothing else combines all of this. That's the moat.
