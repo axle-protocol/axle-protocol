@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "moltbook-interact": {
+      "version": "1.0.1",
+      "installedAt": 1770125910495
+    },
+    "solana": {
+      "version": "1.0.0",
+      "installedAt": 1770125914333
+    },
+    "phantom": {
+      "version": "1.0.0",
+      "installedAt": 1770125915902
+    }
+  }
+}

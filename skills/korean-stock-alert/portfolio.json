@@ -1,0 +1,50 @@
+{
+  "watchlist": [
+    {
+      "name": "삼성전자",
+      "code": "005930",
+      "target_price": 160000,
+      "alert_type": "above"
+    },
+    {
+      "name": "SK하이닉스", 
+      "code": "000660",
+      "target_price": 120000,
+      "alert_type": "above"
+    },
+    {
+      "name": "NAVER",
+      "code": "035420", 
+      "target_price": 200000,
+      "alert_type": "above"
+    },
+    {
+      "name": "카카오",
+      "code": "035720",
+      "target_price": 50000,
+      "alert_type": "below"
+    }
+  ],
+  "holdings": [
+    {
+      "name": "삼성전자",
+      "code": "005930",
+      "shares": 10,
+      "average_price": 140000,
+      "purchase_date": "2025-12-01"
+    },
+    {
+      "name": "NAVER", 
+      "code": "035420",
+      "shares": 5,
+      "average_price": 180000,
+      "purchase_date": "2025-11-15"
+    }
+  ],
+  "settings": {
+    "currency": "KRW",
+    "alert_enabled": true,
+    "daily_summary": true,
+    "market_open_alert": false
+  }
+}

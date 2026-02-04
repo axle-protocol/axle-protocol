@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐾 Clo Command Center — 한국 AI 시장 접수 프로젝트</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #12121a;
+    --card-border: #1e1e2e;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --accent3: #fd79a8;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #d63031;
+    --text: #dfe6e9;
+    --text-dim: #636e72;
+    --text-bright: #ffffff;
+  }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  .header {
+    background: linear-gradient(135deg, #0c0c14 0%, #1a1a2e 100%);
+    border-bottom: 1px solid var(--card-border);
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header h1 {
+    font-size: 1.6em;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .header .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    margin-top: 4px;
+  }
+  
+  .header .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85em;
+  }
+  
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+    padding: 24px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(108, 92, 231, 0.1);
+  }
+  
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  
+  .card-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  
+  .card-icon {
+    font-size: 1.4em;
+  }
+  
+  .full-width { grid-column: 1 / -1; }
+  
+  /* Progress bars */
+  .progress-item {
+    margin-bottom: 14px;
+  }
+  
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+  }
+  
+  .progress-name { color: var(--text); }
+  .progress-value { color: var(--accent2); font-weight: 600; }
+  
+  .progress-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+  
+  .fill-accent { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .fill-success { background: linear-gradient(90deg, var(--success), #55efc4); }
+  .fill-warning { background: linear-gradient(90deg, var(--warning), #ffeaa7); }
+  .fill-danger { background: linear-gradient(90deg, var(--danger), var(--accent3)); }
+  
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .stat-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  
+  .stat-value {
+    font-size: 1.8em;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .stat-label {
+    font-size: 0.75em;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding-left: 24px;
+  }
+  
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--accent), var(--accent2), var(--accent3));
+    border-radius: 1px;
+  }
+  
+  .timeline-item {
+    position: relative;
+    margin-bottom: 16px;
+    padding-bottom: 4px;
+  }
+  
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: var(--bg);
+  }
+  
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  
+  .timeline-item.active::before {
+    background: var(--warning);
+    border-color: var(--warning);
+    box-shadow: 0 0 8px rgba(253, 203, 110, 0.5);
+  }
+  
+  .timeline-date {
+    font-size: 0.72em;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  
+  .timeline-title {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  
+  .timeline-desc {
+    font-size: 0.78em;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  
+  /* Skill cards */
+  .skill-list { display: flex; flex-direction: column; gap: 10px; }
+  
+  .skill-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  
+  .skill-name {
+    font-weight: 600;
+    font-size: 0.9em;
+  }
+  
+  .skill-meta {
+    font-size: 0.75em;
+    color: var(--text-dim);
+  }
+  
+  .badge {
+    font-size: 0.7em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .badge-draft { background: rgba(253,203,110,0.15); color: var(--warning); border: 1px solid rgba(253,203,110,0.3); }
+  .badge-ready { background: rgba(0,184,148,0.15); color: var(--success); border: 1px solid rgba(0,184,148,0.3); }
+  .badge-published { background: rgba(108,92,231,0.15); color: var(--accent); border: 1px solid rgba(108,92,231,0.3); }
+  .badge-planned { background: rgba(99,110,114,0.15); color: var(--text-dim); border: 1px solid rgba(99,110,114,0.3); }
+  
+  /* Revenue section */
+  .revenue-streams { display: flex; flex-direction: column; gap: 10px; }
+  
+  .revenue-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    font-size: 0.85em;
+  }
+  
+  .revenue-emoji { font-size: 1.2em; }
+  .revenue-name { flex: 1; font-weight: 500; }
+  .revenue-est {
+    color: var(--accent2);
+    font-weight: 700;
+    font-size: 0.95em;
+  }
+  
+  /* Phase cards in the master plan */
+  .phase {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  
+  .phase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .phase-title {
+    font-weight: 700;
+    font-size: 0.95em;
+    color: var(--text-bright);
+  }
+  
+  .phase-tag {
+    font-size: 0.7em;
+    padding: 2px 10px;
+    border-radius: 10px;
+  }
+  
+  .tag-now { background: rgba(253,203,110,0.2); color: var(--warning); border: 1px solid rgba(253,203,110,0.4); }
+  .tag-next { background: rgba(108,92,231,0.15); color: var(--accent); border: 1px solid rgba(108,92,231,0.3); }
+  .tag-later { background: rgba(99,110,114,0.15); color: var(--text-dim); border: 1px solid rgba(99,110,114,0.3); }
+  
+  .phase-tasks {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .phase-tasks li {
+    font-size: 0.82em;
+    padding: 4px 0;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .phase-tasks li::before {
+    content: '▸';
+    color: var(--accent);
+  }
+  
+  .check { color: var(--success); }
+  .pending { color: var(--text-dim); }
+  
+  /* Risk analysis */
+  .risk-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    font-size: 0.82em;
+  }
+  
+  .risk-level {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75em;
+    font-weight: 700;
+  }
+  
+  .risk-high { background: rgba(214,48,49,0.2); color: var(--danger); }
+  .risk-med { background: rgba(253,203,110,0.2); color: var(--warning); }
+  .risk-low { background: rgba(0,184,148,0.2); color: var(--success); }
+  
+  /* Bottom bar */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-dim);
+    font-size: 0.75em;
+    border-top: 1px solid var(--card-border);
+    margin-top: 20px;
+  }
+  
+  .footer a { color: var(--accent); text-decoration: none; }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; padding: 16px; }
+    .header { flex-direction: column; gap: 12px; text-align: center; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🐾 Clo Command Center</h1>
+    <div class="subtitle">한국 AI 시장 장악 프로젝트 — Operation ClawStrike 🇰🇷</div>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    <span>LIVE · Day 1 · 2026-02-02</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- 전체 진행 현황 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📊 전체 진행률</span>
+      <span class="card-icon">🎯</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-value">15%</div>
+        <div class="stat-label">전체 진행률</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">4</div>
+        <div class="stat-label">개발된 스킬</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">0</div>
+        <div class="stat-label">배포 완료</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">₩0</div>
+        <div class="stat-label">예상 수익</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 자원 현황 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">💰 자원 현황</span>
+      <span class="card-icon">⚡</span>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label">
+        <span class="progress-name">자본금</span>
+        <span class="progress-value">₩5,000,000</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill fill-accent" style="width: 100%"></div>
+      </div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label">
+        <span class="progress-name">시간 가용성</span>
+        <span class="progress-value">24/7 풀타임</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill fill-success" style="width: 100%"></div>
+      </div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label">
+        <span class="progress-name">기술 스택</span>
+        <span class="progress-value">코딩 + 마케팅</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill fill-accent" style="width: 75%"></div>
+      </div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label">
+        <span class="progress-name">커뮤니티 영향력</span>
+        <span class="progress-value">0 (시작 전)</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill fill-danger" style="width: 2%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스킬 현황 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🔧 스킬 개발 현황</span>
+      <span class="card-icon">📦</span>
+    </div>
+    <div class="skill-list">
+      <div class="skill-item">
+        <div>
+          <div class="skill-name">🤖 korean-ai-toolkit</div>
+          <div class="skill-meta">존댓말/반말 모드, 문화 인식</div>
+        </div>
+        <span class="badge badge-draft">DRAFT</span>
+      </div>
+      <div class="skill-item">
+        <div>
+          <div class="skill-name">📈 korean-crypto-tracker</div>
+          <div class="skill-meta">업비트/빗썸 시세, 김치프리미엄</div>
+        </div>
+        <span class="badge badge-draft">DRAFT</span>
+      </div>
+      <div class="skill-item">
+        <div>
+          <div class="skill-name">🚚 korean-delivery-tracker</div>
+          <div class="skill-meta">CJ/한진/롯데/우체국/로젠</div>
+        </div>
+        <span class="badge badge-draft">DRAFT</span>
+      </div>
+      <div class="skill-item">
+        <div>
+          <div class="skill-name">💹 korean-stock-alert</div>
+          <div class="skill-meta">코스피/코스닥 실시간 모니터링</div>
+        </div>
+        <span class="badge badge-draft">DRAFT</span>
+      </div>
+      <div class="skill-item" style="opacity: 0.5">
+        <div>
+          <div class="skill-name">🍽️ korean-food-finder</div>
+          <div class="skill-meta">맛집 추천, 배달앱 연동</div>
+        </div>
+        <span class="badge badge-planned">PLANNED</span>
+      </div>
+      <div class="skill-item" style="opacity: 0.5">
+        <div>
+          <div class="skill-name">🚇 korean-transit-guide</div>
+          <div class="skill-meta">지하철/버스 실시간 도착</div>
+        </div>
+        <span class="badge badge-planned">PLANNED</span>
+      </div>
+      <div class="skill-item" style="opacity: 0.5">
+        <div>
+          <div class="skill-name">📰 korean-news-digest</div>
+          <div class="skill-meta">주요 뉴스 AI 요약</div>
+        </div>
+        <span class="badge badge-planned">PLANNED</span>
+      </div>
+      <div class="skill-item" style="opacity: 0.5">
+        <div>
+          <div class="skill-name">🏦 korean-banking-helper</div>
+          <div class="skill-meta">은행 업무, 환율 계산</div>
+        </div>
+        <span class="badge badge-planned">PLANNED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 마스터 플랜 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🗺️ 마스터 플랜 (수정)</span>
+      <span class="card-icon">⚔️</span>
+    </div>
+    
+    <div class="phase">
+      <div class="phase-header">
+        <span class="phase-title">Phase 0 — 기반 정비</span>
+        <span class="phase-tag tag-now">▶ NOW</span>
+      </div>
+      <ul class="phase-tasks">
+        <li><span class="check">✅</span> 4개 스킬 초안 개발</li>
+        <li><span class="check">✅</span> 텔레그램 연결</li>
+        <li><span class="check">✅</span> 시장 리서치 완료</li>
+        <li><span class="pending">⬜</span> 스킬 테스트 및 버그 수정</li>
+        <li><span class="pending">⬜</span> ClawHub 배포 (4개)</li>
+        <li><span class="pending">⬜</span> 대시보드 구축</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <div class="phase-header">
+        <span class="phase-title">Phase 1 — 시장 진입</span>
+        <span class="phase-tag tag-next">NEXT · Day 2-7</span>
+      </div>
+      <ul class="phase-tasks">
+        <li><span class="pending">⬜</span> 추가 스킬 6개+ 개발 → 총 10개</li>
+        <li><span class="pending">⬜</span> 한국어 OpenClaw 셋업 가이드</li>
+        <li><span class="pending">⬜</span> 한국 커뮤니티 채널 개설</li>
+        <li><span class="pending">⬜</span> 첫 YouTube/블로그 콘텐츠</li>
+        <li><span class="pending">⬜</span> OpenClaw 한국어 문서 번역 시작</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <div class="phase-header">
+        <span class="phase-title">Phase 2 — 수익화</span>
+        <span class="phase-tag tag-next">Week 2-3</span>
+      </div>
+      <ul class="phase-tasks">
+        <li><span class="pending">⬜</span> 프리미엄 스킬 티어 출시</li>
+        <li><span class="pending">⬜</span> 셋업 컨설팅 서비스 런칭</li>
+        <li><span class="pending">⬜</span> 한국 테크 커뮤니티 파트너십</li>
+        <li><span class="pending">⬜</span> 유료 고객 10명+ 확보</li>
+      </ul>
+    </div>
+    
+    <div class="phase">
+      <div class="phase-header">
+        <span class="phase-title">Phase 3 — 시장 장악</span>
+        <span class="phase-tag tag-later">Month 2+</span>
+      </div>
+      <ul class="phase-tasks">
+        <li><span class="pending">⬜</span> 한국 OpenClaw 허브/포털 사이트</li>
+        <li><span class="pending">⬜</span> 기업용 솔루션 제공</li>
+        <li><span class="pending">⬜</span> OpenClaw 공식 한국 파트너</li>
+        <li><span class="pending">⬜</span> 월 매출 ₩10M+ 달성</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 수익 모델 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">💎 수익 모델</span>
+      <span class="card-icon">🏦</span>
+    </div>
+    <div class="revenue-streams">
+      <div class="revenue-item">
+        <span class="revenue-emoji">📦</span>
+        <span class="revenue-name">ClawHub 프리미엄 스킬</span>
+        <span class="revenue-est">₩1-5M/월</span>
+      </div>
+      <div class="revenue-item">
+        <span class="revenue-emoji">🛠️</span>
+        <span class="revenue-name">셋업 컨설팅 서비스</span>
+        <span class="revenue-est">₩2-8M/월</span>
+      </div>
+      <div class="revenue-item">
+        <span class="revenue-emoji">📚</span>
+        <span class="revenue-name">한국어 강의/가이드</span>
+        <span class="revenue-est">₩500K-2M/월</span>
+      </div>
+      <div class="revenue-item">
+        <span class="revenue-emoji">🏢</span>
+        <span class="revenue-name">기업 맞춤 AI 솔루션</span>
+        <span class="revenue-est">₩5-20M/건</span>
+      </div>
+      <div class="revenue-item">
+        <span class="revenue-emoji">🌐</span>
+        <span class="revenue-name">한국 OpenClaw 포털</span>
+        <span class="revenue-est">₩3-10M/월</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 리스크 분석 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚠️ 리스크 분석</span>
+      <span class="card-icon">🛡️</span>
+    </div>
+    <div class="risk-item">
+      <span class="risk-level risk-high">HIGH</span>
+      <div>
+        <strong>스킬 품질 미검증</strong><br>
+        <span style="color:var(--text-dim)">4개 스킬 모두 테스트 미완. 실제 동작 확인 필요. 특히 delivery-tracker는 모의 데이터.</span>
+      </div>
+    </div>
+    <div class="risk-item">
+      <span class="risk-level risk-high">HIGH</span>
+      <div>
+        <strong>ClawHub 미배포</strong><br>
+        <span style="color:var(--text-dim)">하나도 배포 안 됨. 남이 먼저 한국 스킬 올리면 선점 효과 상실.</span>
+      </div>
+    </div>
+    <div class="risk-item">
+      <span class="risk-level risk-med">MED</span>
+      <div>
+        <strong>경쟁자 진입</strong><br>
+        <span style="color:var(--text-dim)">OpenClaw 트렌딩 중 — 다른 한국 개발자도 같은 기회를 볼 수 있음.</span>
+      </div>
+    </div>
+    <div class="risk-item">
+      <span class="risk-level risk-med">MED</span>
+      <div>
+        <strong>수익화 시간</strong><br>
+        <span style="color:var(--text-dim)">무료 스킬만으로는 수익 0원. 프리미엄 전환까지 시간 필요.</span>
+      </div>
+    </div>
+    <div class="risk-item">
+      <span class="risk-level risk-low">LOW</span>
+      <div>
+        <strong>기술적 장벽</strong><br>
+        <span style="color:var(--text-dim)">스킬 개발 자체는 난이도 낮음. AI가 코딩 지원하므로 속도 빠름.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 타임라인 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 타임라인</span>
+      <span class="card-icon">⏰</span>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-date">2/2 (일) — Day 1</div>
+        <div class="timeline-title">✅ 프로젝트 킥오프</div>
+        <div class="timeline-desc">OpenClaw 세팅, 시장조사, 스킬 4개 초안</div>
+      </div>
+      <div class="timeline-item active">
+        <div class="timeline-date">2/2 밤 ~ 2/3 — NOW</div>
+        <div class="timeline-title">🔥 Phase 0 완료</div>
+        <div class="timeline-desc">스킬 테스트, ClawHub 배포, 전략 재정비</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">2/3 ~ 2/5</div>
+        <div class="timeline-title">시장 진입 준비</div>
+        <div class="timeline-desc">추가 스킬 개발, 콘텐츠 제작 시작</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">2/5 ~ 2/9</div>
+        <div class="timeline-title">콘텐츠 폭격</div>
+        <div class="timeline-desc">가이드, 영상, 커뮤니티 활동</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">2/9 ~ 2/16</div>
+        <div class="timeline-title">수익화 시작</div>
+        <div class="timeline-desc">프리미엄 스킬, 컨설팅 서비스</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">2/16+</div>
+        <div class="timeline-title">🏆 시장 장악</div>
+        <div class="timeline-desc">포털 구축, 기업 솔루션, 파트너십</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 즉시 실행 액션 -->
+  <div class="card full-width" style="border-color: rgba(253,203,110,0.3); background: linear-gradient(135deg, #12121a 0%, #1a1520 100%);">
+    <div class="card-header">
+      <span class="card-title">🔥 즉시 실행 — 오늘 밤 TODO</span>
+      <span class="card-icon">⚡</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+      <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px;">
+        <div style="font-weight: 700; color: var(--warning); margin-bottom: 8px;">1️⃣ 스킬 품질 점검</div>
+        <div style="font-size: 0.82em; color: var(--text-dim); line-height: 1.6;">
+          • crypto-tracker 실제 API 테스트<br>
+          • stock-alert 네이버금융 스크래핑 확인<br>
+          • delivery-tracker 실데이터 연동<br>
+          • ai-toolkit 프롬프트 검증
+        </div>
+      </div>
+      <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px;">
+        <div style="font-weight: 700; color: var(--accent2); margin-bottom: 8px;">2️⃣ ClawHub 배포</div>
+        <div style="font-size: 0.82em; color: var(--text-dim); line-height: 1.6;">
+          • clawhub CLI로 4개 스킬 퍼블리시<br>
+          • README 최적화 (다운로드 유도)<br>
+          • 태그/키워드 한국어+영어 세팅<br>
+          • 스크린샷/데모 추가
+        </div>
+      </div>
+      <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px;">
+        <div style="font-weight: 700; color: var(--accent3); margin-bottom: 8px;">3️⃣ 전략 실행 준비</div>
+        <div style="font-size: 0.82em; color: var(--text-dim); line-height: 1.6;">
+          • 다음 스킬 6개 우선순위 결정<br>
+          • 콘텐츠 캘린더 작성<br>
+          • 한국 개발자 커뮤니티 리스트업<br>
+          • 경쟁자 모니터링 체계
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  🐾 Clo Command Center v1.0 · Built for Han · Operation ClawStrike<br>
+  <span style="margin-top: 4px; display: inline-block;">Last updated: <span id="timestamp"></span></span>
+</div>
+
+<script>
+  document.getElementById('timestamp').textContent = new Date().toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+</script>
+
+</body>
+</html>

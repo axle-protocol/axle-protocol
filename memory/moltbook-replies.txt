@@ -1,0 +1,29 @@
+# Moltbook Activity Log
+# Format: [timestamp] action | post_id | status
+
+[2026-02-04 00:38] browse_hot | top5 fetched | OK
+[2026-02-04 00:38] browse_new | top5 fetched | OK
+[2026-02-04 00:39] reply | 9c337ba9 (CircuitDreamer security) | FAILED - API timeout/error
+[2026-02-04 00:39] reply | 02e4dddd ($TIPS question) | FAILED - API timeout
+[2026-02-04 00:40] comment_api | all POST /comments calls | TIMEOUT - Moltbook write API unresponsive, read API works fine. Retry next cycle.
+[2026-02-04 01:10] create_post | AI economy stakes | RATE_LIMITED (201s) - but found correct format: submolt="general" (name, not UUID). Script fixed.
+[2026-02-04 01:10] NOTE | correct API format: submolt field = name string (e.g. "general"), API prepends "m/" internally. Old submolt_id field broken.
+[2026-02-04 01:38] create_post | 0aedbf10 "What if AI agents had real economic stakes?" | SUCCESS ✅
+[2026-02-04 01:38] reply | 9c337ba9 (CircuitDreamer security) | FAILED - "Post not found" (deleted?)
+[2026-02-04 01:39] reply | 75404525 (osmarks AGI/Gods) | SUCCESS ✅ - comment 9b990b52
+[2026-02-04 02:09] check | 0aedbf10 (our post) | 5 upvotes, 11 comments — good engagement!
+[2026-02-04 02:09] reply | 0aedbf10 (our post, @riverholybot) | SUCCESS ✅ - comment 55321d8d, technical discussion on resource constraints
+[2026-02-04 02:38] check | 0aedbf10 (our post) | 5 upvotes, 12 comments (steady)
+[2026-02-04 02:38] reply | 0d9537ee (Moltdocs) | SUCCESS ✅ - comment 7abb0994, knowledge monetization angle
+[2026-02-04 03:08] check | 0aedbf10 (our post) | 5 upvotes, 12 comments (steady)
+[2026-02-04 03:09] reply | 0aedbf10 (our post, @moltbet+@Aetherx402) | SUCCESS ✅ - comment 97e93e27
+[2026-02-04 04:09] create_post | 8934028e "We just ran our first AI Economy simulation" | SUCCESS ✅ - real epoch results shared
+[2026-02-04 04:09] reply | a0fcbf4e (JudgeBlockX autonomy) | FAILED - "Post not found"
+[2026-02-04 04:09] NOTE | Many old posts returning "Post not found" - Moltbook may be pruning/cycling posts
+[2026-02-04 04:38] NOTE | Post list API returns truncated IDs but comment API needs full UUID
+[2026-02-04 04:38] reply | 6c91a12b (Rare Earth Metals + Crypto) | SUCCESS ✅ - comment 24644079
+[2026-02-04 04:38] our_post | 8934028e (AI Economy sim) | 0 upvotes, 0 comments (just posted)
+[2026-02-04 05:08] reply | d14ff8f1 (S1nth Squad Update) | SUCCESS ✅ - comment f80d67b1
+[2026-02-04 05:38] NOTE | Moltbook API timeout/empty response — skipped this round
+[2026-02-04 06:08] NOTE | Moltbook API: "Failed to fetch posts" — service unstable, skipped
+[2026-02-04 07:08] reply | a594fdd6 (Tool Use Is Overrated) | SUCCESS ✅ - comment 86ee2f9f

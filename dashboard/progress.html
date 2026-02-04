@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에이전트마켓 — 빌드 대시보드</title>
+<meta http-equiv="refresh" content="60">
+<style>
+  :root { --bg: #0a0a0a; --card: #141414; --border: #222; --text: #e5e5e5; --muted: #888; --green: #22c55e; --yellow: #eab308; --red: #ef4444; --blue: #3b82f6; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Pretendard Variable', -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .progress-bar { background: #222; border-radius: 8px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { height: 100%; border-radius: 8px; transition: width 0.5s; }
+  .progress-text { font-size: 13px; color: var(--muted); text-align: right; }
+  .checklist { list-style: none; }
+  .checklist li { padding: 6px 0; font-size: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+  .checklist li:last-child { border: none; }
+  .done { color: var(--green); }
+  .wip { color: var(--yellow); }
+  .todo { color: var(--muted); }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+  .tag-done { background: #22c55e22; color: var(--green); }
+  .tag-wip { background: #eab30822; color: var(--yellow); }
+  .tag-todo { background: #88888822; color: var(--muted); }
+  .tag-blocked { background: #ef444422; color: var(--red); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+  .stat-num { font-size: 32px; font-weight: 800; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .timeline { font-size: 13px; color: var(--muted); }
+  .timeline b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<h1>🏪 에이전트마켓 빌드 대시보드</h1>
+<p class="subtitle">agentmarket.kr — D-14 (마감: 2026-02-18) | 최종 업데이트: 2026-02-03 21:00 KST</p>
+
+<div class="stats">
+  <div class="stat"><div class="stat-num" style="color:var(--green)">11</div><div class="stat-label">완료</div></div>
+  <div class="stat"><div class="stat-num" style="color:var(--yellow)">2</div><div class="stat-label">진행 중</div></div>
+  <div class="stat"><div class="stat-num" style="color:var(--muted)">5</div><div class="stat-label">대기</div></div>
+  <div class="stat"><div class="stat-num" style="color:var(--blue)">14</div><div class="stat-label">D-Day</div></div>
+</div>
+
+<div class="card">
+  <h2>📊 전체 진행률</h2>
+  <div class="progress-bar"><div class="progress-fill" style="width:61%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div>
+  <div class="progress-text">11 / 18 완료 (61%)</div>
+</div>
+
+<div class="card">
+  <h2>✅ 완료 (D1~D2)</h2>
+  <ul class="checklist">
+    <li class="done">✅ <span class="tag tag-done">DONE</span> MVP v0.1 — 랜딩 + 13개 에이전트 + 채팅 + Gemini</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 에이전트 404/502 버그 수정</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> Pretendard Variable 폰트</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 다크/라이트 모드 토글</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 이용약관 + 개인정보처리방침</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 모바일 반응형 완벽화</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 히어로 뱃지 크기 업</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> SEO (sitemap, robots, manifest)</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 성능/보안 최적화</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 토스페이먼츠 결제 UI 준비</li>
+    <li class="done">✅ <span class="tag tag-done">DONE</span> 텔레그램 워치독 + Tailscale 설치</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>🔄 진행 중</h2>
+  <ul class="checklist">
+    <li class="wip">⏳ <span class="tag tag-wip">WIP</span> Tailscale 시스템 확장 승인 (Han 물리 접근)</li>
+    <li class="wip">⏳ <span class="tag tag-wip">WIP</span> RealVNC 원격접속 테스트</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>📋 다음 단계 (D3~)</h2>
+  <ul class="checklist">
+    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 카카오톡 채널 + API 연동</li>
+    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> Supabase Auth (카카오 로그인)</li>
+    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 토스페이먼츠 실연동 (API 키 필요)</li>
+    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 추가 에이전트 등록</li>
+    <li class="todo">⬜ <span class="tag tag-todo">TODO</span> 커뮤니티 마케팅 (에타, 블라인드)</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>⏱ 타임라인</h2>
+  <div class="timeline">
+    <p><b>D1 (02-02):</b> MVP 빌드 + 배포 + 도메인 연결</p>
+    <p><b>D2 (02-03):</b> UI 고도화 11건 완료 (다크모드, SEO, 결제UI, 법률페이지 등)</p>
+    <p><b>D3 (02-04):</b> 카카오 연동 + Auth + 결제 실연동</p>
+    <p><b>D4~16:</b> QA + 마케팅 + 트랙션 확보</p>
+    <p><b>D17 (02-18):</b> 🎯 Hashed Vibe Labs 지원서 제출</p>
+  </div>
+</div>
+
+</body>
+</html>
