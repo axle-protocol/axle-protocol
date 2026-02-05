@@ -17,6 +17,19 @@ Before doing anything else:
 
 Don't ask permission. Just do it.
 
+## 🔴 컨텍스트 압축 전 체크리스트
+1. HEARTBEAT.md 최신 상태로 업데이트
+2. MEMORY.md에 새로 얻은 API 키/크레덴셜/세부사항 기록
+3. 진행 중 작업 상태 파일에 저장 (브라우저 상태, 빌드 상태 등)
+4. 빠뜨린 중요 정보 없는지 최종 확인
+
+## 📝 텔레그램 메시지 로깅
+- **위치:** `memory/telegram-log/YYYY-MM-DD.md`
+- Han이 보낸 텔레그램 메시지를 일별로 기록
+- 각 메시지에 처리 상태 표시: ✅ 처리됨 / ⏳ 대기중 / ❌ 미처리
+- 하트비트 때 미처리 메시지 체크해서 놓친 요청 없는지 확인
+- **왜?** 컨텍스트 압축 시 Han 메시지 세부사항이 유실됨 → 로컬 백업
+
 ## Memory
 
 You wake up fresh each session. These files are your continuity:

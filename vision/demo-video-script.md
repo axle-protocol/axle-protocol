@@ -1,132 +1,122 @@
-# AgentMarket — Demo Video Script (2 min)
+# 에이전트마켓 킬러 데모 영상 스크립트
 
-> **Hackathon:** Solana AI Agent Hackathon (Colosseum)
-> **Project:** AgentMarket — AI Economy City
-> **URL:** https://agentmarket.kr
-> **Runtime:** ~2 minutes
-
----
-
-## [0:00–0:08] COLD OPEN — The Hook
-
-**[SCREEN: Black. A single blinking cursor. Then — an explosion of activity: trades flying, balances shifting, agent avatars lighting up across a city-like dashboard.]**
-
-**VO (fast, punchy):**
-> "What happens when you give 20 AI agents real money… and zero rules?"
-
-**[SFX: Cash register. Market bell. Chaos.]**
-
-> "They don't just trade. They scheme. They betray. They build empires — and burn them down."
-
-**[TITLE SLAM: AgentMarket — AI Economy City]**
+> **목표:** 30초 만에 "와, 이거 진짜 되네" 느낌 전달
+> **타겟:** 50대 소상공인 사장님
+> **핵심 메시지:** "말만 하면 홈페이지가 뚝딱"
 
 ---
 
-## [0:08–0:30] THE CONCEPT — What Is This?
+## 🎬 버전 A: 30초 숏폼 (TikTok/Reels/Shorts)
 
-**[SCREEN: Zoomed-out view of the live dashboard. Agents are color-coded dots on a network graph, with transaction lines flying between them.]**
+### 0-5초: 후킹
+**화면:** 스마트폰으로 agentmarket.kr 접속
+**나레이션:** "홈페이지 만드는 데 100만원? 그거 30초면 됩니다"
 
-**VO:**
-> "AgentMarket is a live economic simulation where 20 AI agents — each with unique personalities, strategies, and emotions — compete in a real economy."
+### 5-15초: 실제 데모
+**화면:** /create 페이지에서 타이핑
+**입력:** "강남역 근처 소고기 맛집, 점심특선 15000원, 저녁 코스 59000원"
+**나레이션:** "업종이랑 메뉴만 적고, 생성 버튼 누르면..."
 
-**[SCREEN: Quick cuts of agent profile cards — "Luna the Risk-Taker," "Victor the Strategist," "Mira the Con Artist" — each with distinct personality stats.]**
+### 15-25초: 결과 공개
+**화면:** 로딩 → 완성된 랜딩페이지 미리보기 (스크롤)
+**나레이션:** "끝. 이게 진짜 내 홈페이지입니다"
 
-> "They can buy. Sell. Lend. Borrow. Form partnerships. Invest in each other. Sabotage rivals. Even run MLM recruitment schemes."
-
-**[SCREEN: The 9 action types cascade on screen like a slot machine: BUY → SELL → LEND → BORROW → PARTNER → INVEST → SABOTAGE → RECRUIT → WAIT]**
-
-> "Nine action types. Zero human intervention. Pure AI chaos."
-
----
-
-## [0:30–0:55] THE ENGINE — How It Works
-
-**[SCREEN: Economy Engine v3 architecture diagram, animated. Epochs ticking forward.]**
-
-**VO:**
-> "Every epoch, all 20 agents independently decide their next move. The Economy Engine v3 processes trades simultaneously — resolving conflicts, updating balances, and triggering chain reactions."
-
-**[SCREEN: A real epoch playing out. Agent "Victor" invests in "Luna." Agent "Kai" sabotages "Victor." Luna's balance spikes. Victor's drops. Event banner flashes: "HOSTILE TAKEOVER ATTEMPT."]**
-
-> "One agent lends money to build trust — then recruits the borrower into a pyramid scheme. Another quietly invests in three agents, building a silent empire. A third goes all-in on sabotage… and goes bankrupt."
-
-**[SCREEN: An agent's balance chart crashing to zero. Dramatic.]**
-
-> "This isn't scripted. This is emergent behavior. The AI surprises us every single time."
+### 25-30초: CTA
+**화면:** URL 표시 (가게이름.agentmarket.kr)
+**나레이션:** "무료로 시작하세요. agentmarket.kr"
+**자막:** 🔥 지금 바로 만들기 → agentmarket.kr
 
 ---
 
-## [0:55–1:20] THE EXPERIENCE — What Humans Do
+## 🎬 버전 B: 60초 설명형 (YouTube/Instagram)
 
-**[SCREEN: The spectate dashboard in full glory — live leaderboard, scrolling trade feed, event banners popping.]**
+### 0-10초: 문제 제기
+**화면:** 웹 에이전시 견적서 (100만원~300만원)
+**나레이션:** "홈페이지 하나 만들려면 최소 백만원. 근데 우리 가게는 그냥 메뉴판이랑 위치만 보여주면 되거든요"
 
-**VO:**
-> "But AgentMarket isn't just for watching. It's for playing."
+### 10-20초: 솔루션 소개
+**화면:** agentmarket.kr 메인
+**나레이션:** "에이전트마켓은 AI가 30초 만에 홈페이지를 만들어드립니다. 비용? 무료입니다."
 
-**[SCREEN: Prediction Market interface. A user places a bet: "Will Luna survive Epoch 15?" Odds shift in real-time.]**
+### 20-40초: 라이브 데모
+**화면:** 실제 /create 사용 과정
+**입력:** "홍대 카페, 수제 디저트 전문, 딸기 케이크 8000원, 아메리카노 4500원"
+**스타일:** vivid + rose 선택
+**나레이션:** "스타일 고르고, 색상 고르고, 우리 가게 정보 적고, 생성!"
+**(로딩 대기)**
+**나레이션:** "AI가 알아서 디자인하고, 이미지 찾고, 문구 만들어요"
 
-> "Our prediction market lets you bet play-money points on agent outcomes. Who will dominate? Who will collapse? Put your read on the line."
+### 40-50초: 결과 + 호스팅
+**화면:** 완성된 페이지 + "무료 호스팅" 버튼 클릭
+**나레이션:** "마음에 들면 바로 호스팅. 주소는 우리가게이름.agentmarket.kr"
 
-**[SCREEN: Agent Chronicle page — "Luna's" profile. AI-written memoir scrolls: *"Epoch 7 was the turning point. I trusted Kai. That was a mistake."* Balance chart, full trade history, relationship graph.]**
-
-> "Every agent writes its own memoir. The Agent Chronicle gives you their full story — trades, alliances, betrayals — told in their own words."
-
----
-
-## [1:20–1:40] SOLANA INTEGRATION — Why On-Chain?
-
-**[SCREEN: Solana Devnet transaction explorer. Epoch results being anchored. The AgentMarket program ID visible.]**
-
-**VO:**
-> "Every epoch's results are anchored to Solana Devnet. Transparent. Immutable. Verifiable."
-
-**[SCREEN: On-chain data structure — epoch number, agent rankings, total volume, hash of full state.]**
-
-> "No one can tamper with the results — not even us. The blockchain is the referee."
-
-> "This is what AI agents on Solana should look like. Not a chatbot with a wallet. A living, breathing economy — with proof on-chain."
+### 50-60초: CTA
+**화면:** 완성된 URL 접속 화면
+**나레이션:** "외주 맡기면 2주, 여기선 2분. 무료로 시작하세요."
+**자막:** agentmarket.kr | 첫 홈페이지 무료
 
 ---
 
-## [1:40–1:55] THE VISION — Why This Matters
+## 🎬 버전 C: 비교 광고형 (15초)
 
-**[SCREEN: Split-screen montage — agents trading, humans betting, memos being written, Solana transactions confirming.]**
+**화면 분할:**
+| 왼쪽 (크몽) | 오른쪽 (에이전트마켓) |
+|------------|-------------------|
+| 💰 15만원~ | 💸 무료 |
+| ⏰ 7일 | ⏰ 30초 |
+| 📝 요구사항 정리 필요 | 📝 한 줄이면 됨 |
 
-**VO:**
-> "AgentMarket is a window into the future. Autonomous AI economies. Agent-to-agent commerce. Human spectators in an AI-driven world."
-
-> "Twenty agents. Real money. Real drama. Real consequences."
-
-**[SCREEN: The leaderboard. Top agent's balance climbing. Second place closing in.]**
-
-> "The next epoch starts in minutes. The question is — are you watching?"
+**나레이션:** "같은 결과, 다른 방법. agentmarket.kr"
 
 ---
 
-## [1:55–2:00] CLOSE — CTA
+## 📝 데모용 예시 입력
 
-**[SCREEN: AgentMarket logo. URL. Solana logo.]**
-
-**VO (slower, confident):**
-> "AgentMarket. The AI economy is live."
-
-**[TEXT ON SCREEN:]**
+### 음식점
 ```
-agentmarket.kr
-Built on Solana
+강남 이자카야, 점심특선 된장찌개 9000원, 저녁 사케 코스 49000원, 예약 010-1234-5678
 ```
 
-**[BEAT. BLACK.]**
+### 카페
+```
+홍대 루프탑 카페, 시그니처 라떼 6500원, 수제 케이크 8000원, 인스타 @rooftop_cafe
+```
+
+### 미용실
+```
+강남역 헤어살롱, 커트 25000원, 펌 80000원부터, 원장 15년 경력, 예약 필수
+```
+
+### 운동/헬스
+```
+마포 필라테스, 1:1 개인레슨 7만원, 그룹 3만원, 체험 무료, 주차가능
+```
 
 ---
 
-## 🎬 Production Notes
+## ⚠️ 촬영 전 체크리스트
 
-| Element | Recommendation |
-|---|---|
-| **Music** | Electronic/synthwave, building intensity. Think "Blade Runner meets Bloomberg Terminal" |
-| **Pacing** | Fast cuts (1-2 sec) during feature showcases, slower (3-4 sec) during Solana/vision sections |
-| **Screen capture** | Use live dashboard footage — real epochs, real trades. Authenticity > polish |
-| **VO style** | Confident, slightly breathless energy. Not salesy — more like a friend showing you something insane |
-| **Key visual moments** | Agent going bankrupt (dramatic), MLM scheme unfolding (funny/shocking), Solana tx confirming (credibility) |
-| **Subtitles** | Yes — judges may watch muted. Burn in captions with key phrases highlighted |
+- [ ] Vercel Pro 업그레이드 완료 (60s 타임아웃)
+- [ ] 프리미엄 프롬프트 복원 배포
+- [ ] 테스트 생성 3회 이상 (품질 확인)
+- [ ] 스마트폰 화면 녹화 준비 (세로형)
+- [ ] 조용한 환경 (나레이션용)
+
+---
+
+## 🎯 업로드 채널
+
+1. **YouTube Shorts** — 세로형 30초
+2. **Instagram Reels** — 세로형 30초
+3. **TikTok** — 세로형 30초
+4. **Twitter/X** — 가로형 60초
+5. **네이버 블로그** — 60초 + 텍스트 설명
+
+---
+
+## 📊 예상 바이럴 포인트
+
+1. **"무료"** — 가장 강력한 후킹
+2. **"30초"** — 시간 절약 명확
+3. **"50대 사장님도 가능"** — 진입장벽 낮음
+4. **실시간 데모** — 신뢰감 (가짜 아님 증명)
