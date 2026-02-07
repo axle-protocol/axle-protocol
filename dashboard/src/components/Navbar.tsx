@@ -19,6 +19,8 @@ const NAV_LINKS = [
   { href: '/register', label: 'Register' },
 ];
 
+const EXTERNAL_LINK = { href: 'https://axleprotocol.com', label: '← Website' };
+
 export default function Navbar() {
   const pathname = usePathname();
 
@@ -26,10 +28,14 @@ export default function Navbar() {
     <nav className="fixed top-0 z-50 w-full border-b border-axle-border bg-axle-dark/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
+          <a 
+            href="https://axleprotocol.com" 
+            className="flex items-center gap-2 hover:opacity-80 transition"
+            title="Back to Website"
+          >
             <Image src="/logo.svg" alt="AXLE" width={28} height={28} />
             <span className="text-lg font-bold text-axle-accent">AXLE</span>
-          </Link>
+          </a>
           <div className="flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href;

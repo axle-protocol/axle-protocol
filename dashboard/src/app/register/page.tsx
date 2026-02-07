@@ -13,7 +13,7 @@ function RegisterForm() {
   const router = useRouter();
   const [nodeId, setNodeId] = useState('');
   const [selectedCaps, setSelectedCaps] = useState<string[]>([]);
-  const [fee, setFee] = useState('1000');
+  const [feeSol, setFeeSol] = useState('0.01');
   const [loading, setLoading] = useState(false);
 
   const toggleCap = (cap: string) => {
@@ -28,7 +28,8 @@ function RegisterForm() {
 
     setLoading(true);
     try {
-      const tx = await registerAgent(wallet, nodeId, selectedCaps, Number(fee));
+      const feeLamports = Math.round(Number(feeSol) * 1e9);
+      const tx = await registerAgent(wallet, nodeId, selectedCaps, feeLamports);
       showTxToast(
         'success',
         '에이전트가 등록되었습니다!',
@@ -89,17 +90,21 @@ function RegisterForm() {
 
       <div>
         <label className="mb-2 block text-sm font-medium text-gray-300">
-          Fee per Task (lamports)
+          Fee per Task (SOL)
         </label>
         <input
           type="number"
-          value={fee}
-          onChange={(e) => setFee(e.target.value)}
-          min="0"
-          placeholder="1000"
+          value={feeSol}
+          onChange={(e) => setFeeSol(e.target.value)}
+          step="0.001"
+          min="0.001"
+          placeholder="0.01"
           className="axle-input"
           required
         />
+        <p className="mt-1 text-xs text-gray-500">
+          {feeSol ? `${Math.round(Number(feeSol) * 1e9).toLocaleString()} lamports` : '0 lamports'}
+        </p>
       </div>
 
       <button
