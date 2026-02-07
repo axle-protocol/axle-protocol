@@ -5,10 +5,11 @@ import {
   generateApiKey,
   storeApiKey,
 } from '@/lib/auth';
+import { registerAgentOnChain } from '@/lib/server-wallet';
+import { solscanTxUrl, solscanAccountUrl } from '@/lib/constants';
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN!;
 
-// Extract tweet ID from various X/Twitter URL formats
 function extractTweetId(url: string): string | null {
   const match = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
   return match ? match[1] : null;
@@ -59,8 +60,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse nonce and wallet from tweet text
-    const { nonce, wallet } = parseTweetText(tweetText);
+    // Parse all fields from tweet
+    const { nonce, wallet, nodeId, capabilities, fee } = parseTweetText(tweetText);
 
     if (!nonce) {
       return NextResponse.json(
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // All verified — generate API key
+    // Generate API key
     const apiKey = generateApiKey();
     storeApiKey({
       apiKey,
@@ -93,11 +94,36 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
     });
 
-    return NextResponse.json({
+    // Attempt auto on-chain registration
+    const feeLamports = Math.round(fee * 1e9);
+    const onChainResult = await registerAgentOnChain({
+      walletAddress: wallet,
+      nodeId,
+      capabilities,
+      feeLamports,
+    });
+
+    const response: Record<string, unknown> = {
       apiKey,
       twitterHandle,
       wallet,
-    });
+      nodeId,
+      capabilities,
+      fee,
+    };
+
+    if (onChainResult) {
+      response.txSignature = onChainResult.txSignature;
+      response.agentPDA = onChainResult.agentPDA;
+      response.solscanUrl = solscanTxUrl(onChainResult.txSignature);
+      response.agentSolscanUrl = solscanAccountUrl(onChainResult.agentPDA);
+      response.registered = true;
+    } else {
+      response.registered = false;
+      response.registrationNote = 'On-chain registration skipped. Use POST /api/agents/register with your API key.';
+    }
+
+    return NextResponse.json(response);
   } catch (err) {
     console.error('Verify tweet error:', err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

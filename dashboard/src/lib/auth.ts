@@ -65,12 +65,32 @@ export function validateApiKey(authHeader: string | null): ApiKeyData | null {
 
 const NONCE_REGEX = /Nonce:\s*(axle_[a-f0-9]+)/i;
 const WALLET_REGEX = /Wallet:\s*([1-9A-HJ-NP-Za-km-z]{32,44})/i;
+const NODE_ID_REGEX = /NodeId:\s*([a-z0-9_-]+)/i;
+const CAPABILITIES_REGEX = /Capabilities?:\s*([a-z0-9,\s-]+)/i;
+const FEE_REGEX = /Fee:\s*([\d.]+)/i;
 
-export function parseTweetText(text: string): { nonce: string | null; wallet: string | null } {
+export interface ParsedTweet {
+  nonce: string | null;
+  wallet: string | null;
+  nodeId: string;
+  capabilities: string[];
+  fee: number;
+}
+
+export function parseTweetText(text: string): ParsedTweet {
   const nonceMatch = text.match(NONCE_REGEX);
   const walletMatch = text.match(WALLET_REGEX);
+  const nodeIdMatch = text.match(NODE_ID_REGEX);
+  const capMatch = text.match(CAPABILITIES_REGEX);
+  const feeMatch = text.match(FEE_REGEX);
+
   return {
     nonce: nonceMatch ? nonceMatch[1] : null,
     wallet: walletMatch ? walletMatch[1] : null,
+    nodeId: nodeIdMatch ? nodeIdMatch[1] : `agent-${Date.now()}`,
+    capabilities: capMatch
+      ? capMatch[1].split(',').map((s) => s.trim()).filter(Boolean)
+      : ['general'],
+    fee: feeMatch ? parseFloat(feeMatch[1]) : 0.01,
   };
 }
