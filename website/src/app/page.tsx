@@ -235,19 +235,7 @@ const FlowStep = ({ step, title, desc, isLast }: { step: string; title: string; 
     </motion.div>
     <h3 className="text-xl font-semibold mb-2">{title}</h3>
     <p className="text-gray-400 text-sm text-center max-w-[180px]">{desc}</p>
-    {!isLast && (
-      <div className="hidden md:flex absolute top-10 -right-8 items-center justify-center w-16">
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
-          <path d="M9 6l6 6-6 6" stroke="url(#arrowGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <defs>
-            <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0066FF" />
-              <stop offset="100%" stopColor="#8B5CF6" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    )}
+{/* Arrows removed for cleaner design */}
   </div>
 )
 

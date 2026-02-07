@@ -8,12 +8,15 @@ skip-lint = false
 [programs.localnet]
 agent_protocol = "4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82"
 
+[programs.devnet]
+agent_protocol = "4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "devnet"
+wallet = "~/.config/solana/devnet.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
