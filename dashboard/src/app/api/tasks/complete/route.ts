@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Program, AnchorProvider } from '@coral-xyz/anchor';
 import { ServerWallet } from '@/lib/server-wallet';
+import { createHash } from 'crypto';
 import { validateApiKey } from '@/lib/auth';
 import { PROGRAM_ID, RPC_URL } from '@/lib/constants';
 import idl from '@/lib/idl/agent_protocol.json';
@@ -14,11 +15,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { taskPDA: taskPDAStr, keypairSecret } = body;
+    const { taskPDA: taskPDAStr, resultData, keypairSecret } = body;
 
-    if (!taskPDAStr || !keypairSecret) {
+    if (!taskPDAStr || !resultData || !keypairSecret) {
       return NextResponse.json(
-        { error: 'Missing required fields: taskPDA, keypairSecret' },
+        { error: 'Missing required fields: taskPDA, resultData, keypairSecret' },
         { status: 400 }
       );
     }
@@ -37,12 +38,24 @@ export async function POST(req: NextRequest) {
       PROGRAM_ID
     );
 
+    // Fetch task to get escrow PDA + requester
+    const taskAccount = await (program.account as any).taskAccount.fetch(taskPDA);
+    const taskIdBytes = Buffer.from(taskAccount.id as number[]);
+    const [escrowPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from('escrow'), taskIdBytes],
+      PROGRAM_ID
+    );
+
+    const resultHash = Array.from(createHash('sha256').update(resultData).digest());
+
     const txSignature = await (program.methods as any)
-      .acceptTask()
+      .completeTask(resultHash)
       .accounts({
         taskAccount: taskPDA,
         agentAccount: agentPDA,
+        escrow: escrowPDA,
         provider: keypair.publicKey,
+        requester: taskAccount.requester,
       })
       .rpc();
 
@@ -54,13 +67,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = String(err);
-    if (msg.includes('CapabilityMismatch')) {
-      return NextResponse.json({ error: 'Capability mismatch' }, { status: 400 });
-    }
     if (msg.includes('InvalidTaskStatus')) {
-      return NextResponse.json({ error: 'Task is not in Created status' }, { status: 400 });
+      return NextResponse.json({ error: 'Task is not in deliverable status' }, { status: 400 });
     }
-    console.error('Task accept error:', err);
+    console.error('Task complete error:', err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

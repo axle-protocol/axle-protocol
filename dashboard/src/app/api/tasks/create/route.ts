@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
-import { Program, AnchorProvider, BN, Wallet } from '@coral-xyz/anchor';
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { ServerWallet } from '@/lib/server-wallet';
 import { createHash, randomBytes } from 'crypto';
 import { validateApiKey } from '@/lib/auth';
 import { PROGRAM_ID, RPC_URL } from '@/lib/constants';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     const keypair = Keypair.fromSecretKey(secretKey);
 
     const connection = new Connection(RPC_URL, 'confirmed');
-    const wallet = new Wallet(keypair);
+    const wallet = new ServerWallet(keypair);
     const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' });
     const program = new Program(idl as any, provider);
 
