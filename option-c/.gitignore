@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.next/
+target/
+test-ledger/
+.shared/
+*.log
+.env
+.DS_Store

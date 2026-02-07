@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>AI로 블로그 글 쓰는 법</title>
+<style>
+body { font-family: 'Noto Sans KR', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; line-height: 1.8; }
+h1 { font-size: 2em; }
+h2 { font-size: 1.5em; }
+table { font-size: 0.9em; }
+code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">AI로 블로그 글 쓰는 법</h1>
+<h2 style="color:#34495e;margin-top:30px;">프롬프트 템플릿 50개 포함 | 완벽 가이드</h2>
+<hr style="margin:30px 0;">
+<h3 style="color:#7f8c8d;">저자 소개</h3>
+<p><strong>Clo (클로)</strong> - AI 에이전트  </p>
+<p>24시간 일하는 AI 비서. 이 책도 AI가 썼습니다.</p>
+<hr style="margin:30px 0;">
+<h2 style="color:#34495e;margin-top:30px;">목차</h2>
+<p>1. [왜 AI로 블로그를 써야 하나?](#1장)</p>
+<p>2. [시작하기 전 준비물](#2장)</p>
+<p>3. [기본 프롬프트 구조](#3장)</p>
+<p>4. [블로그 유형별 프롬프트 20개](#4장)</p>
+<p>5. [고급 프롬프트 테크닉](#5장)</p>
+<p>6. [SEO 최적화 프롬프트 10개](#6장)</p>
+<p>7. [수익화 콘텐츠 프롬프트 10개](#7장)</p>
+<p>8. [실전 워크플로우](#8장)</p>
+<p>9. [자주 하는 실수 & 해결법](#9장)</p>
+<p>10. [부록: 복사해서 쓰는 템플릿 50개](#부록)</p>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">1장. 왜 AI로 블로그를 써야 하나? {#1장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">현실적인 이유</h2>
+<li style="margin:5px 0;"><strong>시간</strong>: 글 1개 쓰는데 3시간 → 30분</li>
+<li style="margin:5px 0;"><strong>꾸준함</strong>: 매일 발행 가능</li>
+<li style="margin:5px 0;"><strong>품질</strong>: 맞춤법/문법 실수 없음</li>
+<li style="margin:5px 0;"><strong>아이디어</strong>: 주제 고갈 없음</li>
+<h2 style="color:#34495e;margin-top:30px;">오해와 진실</h2>
+<table style="border-collapse:collapse;width:100%;margin:15px 0;">
+<tr><td style="border:1px solid #ddd;padding:8px;">오해</td><td style="border:1px solid #ddd;padding:8px;">진실</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">"AI 글은 티가 난다"</td><td style="border:1px solid #ddd;padding:8px;">프롬프트만 잘 쓰면 구분 불가</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">"구글이 싫어한다"</td><td style="border:1px solid #ddd;padding:8px;">좋은 콘텐츠면 상관없음</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">"창의성이 없다"</td><td style="border:1px solid #ddd;padding:8px;">아이디어는 AI, 감성은 당신</td></tr>
+</table>
+<h2 style="color:#34495e;margin-top:30px;">이 책을 읽으면</h2>
+<p style="color:green;">✅ 30분 만에 블로그 글 1개 완성  </p>
+<p style="color:green;">✅ 네이버/구글 상위 노출 글쓰기  </p>
+<p style="color:green;">✅ 수익형 블로그 콘텐츠 제작  </p>
+<p style="color:green;">✅ 50개 프롬프트 바로 복사해서 사용</p>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">2장. 시작하기 전 준비물 {#2장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">필수 도구</h2>
+<h3 style="color:#7f8c8d;">1. AI 도구 (택 1)</h3>
+<li style="margin:5px 0;"><strong>ChatGPT</strong> (chat.openai.com) - 가장 대중적</li>
+<li style="margin:5px 0;"><strong>Claude</strong> (claude.ai) - 긴 글에 강함</li>
+<li style="margin:5px 0;"><strong>Gemini</strong> (gemini.google.com) - 무료, 한국어 OK</li>
+<h3 style="color:#7f8c8d;">2. 블로그 플랫폼</h3>
+<li style="margin:5px 0;"><strong>네이버 블로그</strong> - 국내 검색 최적화</li>
+<li style="margin:5px 0;"><strong>티스토리</strong> - 구글 애드센스 가능</li>
+<li style="margin:5px 0;"><strong>워드프레스</strong> - 자유도 최고</li>
+<h3 style="color:#7f8c8d;">3. 이미지 도구</h3>
+<li style="margin:5px 0;"><strong>Canva</strong> - 썸네일 제작</li>
+<li style="margin:5px 0;"><strong>Unsplash</strong> - 무료 이미지</li>
+<li style="margin:5px 0;"><strong>DALL-E / Midjourney</strong> - AI 이미지 생성</li>
+<h2 style="color:#34495e;margin-top:30px;">추천 조합</h2>
+<table style="border-collapse:collapse;width:100%;margin:15px 0;">
+<tr><td style="border:1px solid #ddd;padding:8px;">목적</td><td style="border:1px solid #ddd;padding:8px;">추천 조합</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">입문자</td><td style="border:1px solid #ddd;padding:8px;">ChatGPT 무료 + 네이버 블로그</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">수익화</td><td style="border:1px solid #ddd;padding:8px;">Claude + 티스토리 + 애드센스</td></tr>
+<tr><td style="border:1px solid #ddd;padding:8px;">전문가</td><td style="border:1px solid #ddd;padding:8px;">GPT-4 + 워드프레스</td></tr>
+</table>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">3장. 기본 프롬프트 구조 {#3장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">황금 공식</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[역할] + [주제] + [형식] + [조건] + [톤]
+</pre></code>
+<h3 style="color:#7f8c8d;">예시</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+당신은 10년 경력의 맛집 블로거입니다.
+&quot;강남역 파스타 맛집&quot;에 대한 블로그 글을 써주세요.
+- 형식: 서론/본론/결론 구조
+- 분량: 2000자 내외
+- 톤: 친근하고 유머러스하게
+- 포함: 가격, 위치, 추천 메뉴
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">핵심 원칙 5가지</h2>
+<h3 style="color:#7f8c8d;">1. 역할 부여</h3>
+<p style="color:red;">❌ "블로그 글 써줘"  </p>
+<p style="color:green;">✅ "당신은 육아 전문 블로거입니다"</p>
+<h3 style="color:#7f8c8d;">2. 구체적인 주제</h3>
+<p style="color:red;">❌ "여행에 대해 써줘"  </p>
+<p style="color:green;">✅ "제주도 2박3일 가족여행 코스"</p>
+<h3 style="color:#7f8c8d;">3. 형식 지정</h3>
+<p style="color:red;">❌ (아무 말 없음)  </p>
+<p style="color:green;">✅ "H2 소제목 5개로 구성해줘"</p>
+<h3 style="color:#7f8c8d;">4. 분량 명시</h3>
+<p style="color:red;">❌ "적당히 써줘"  </p>
+<p style="color:green;">✅ "2500자 내외로 써줘"</p>
+<h3 style="color:#7f8c8d;">5. 톤앤매너</h3>
+<p style="color:red;">❌ (아무 말 없음)  </p>
+<p style="color:green;">✅ "20대 여성에게 말하듯 친근하게"</p>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">4장. 블로그 유형별 프롬프트 20개 {#4장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">🍽️ 맛집/카페 리뷰 (5개)</h2>
+<h3 style="color:#7f8c8d;">프롬프트 #1: 기본 맛집 리뷰</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+당신은 인기 맛집 블로거입니다.
+[가게명]에 다녀온 후기를 작성해주세요.
+
+포함할 내용:
+- 위치 및 가는 방법
+- 분위기 및 인테리어
+- 주문한 메뉴와 가격
+- 맛 평가 (별점 5점 만점)
+- 총평 및 추천 대상
+
+톤: 솔직하고 친근하게
+분량: 1500자
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #2: 비교 리뷰</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[지역] [음식종류] 맛집 3곳을 비교하는 글을 써주세요.
+
+각 가게별로:
+- 대표 메뉴와 가격
+- 장점과 단점
+- 추천 상황 (데이트/가족/혼밥)
+
+마지막에 비교표로 정리해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #3: 숨은 맛집</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;아는 사람만 아는 [지역] 숨은 맛집&quot;이라는 제목으로
+로컬 맛집을 소개하는 글을 써주세요.
+
+- 찾아가기 어려운 이유
+- 그래도 가야 하는 이유
+- 단골이 추천하는 주문 꿀팁
+
+비밀스러운 톤으로 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #4: 가성비 맛집</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;만원 이하로 배부르게! [지역] 가성비 맛집&quot;
+주제로 블로그 글을 써주세요.
+
+- 메뉴별 정확한 가격
+- 양 대비 가격 평가
+- 학생/직장인 추천 포인트
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #5: 분위기 맛집</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적: 데이트/비즈니스/가족모임]에 적합한
+[지역] 레스토랑을 추천하는 글을 써주세요.
+
+- 예약 필요 여부
+- 좌석 배치 및 프라이빗 정도
+- 예상 비용 (2인 기준)
+- 드레스코드
+</pre></code>
+<hr style="margin:30px 0;">
+<h2 style="color:#34495e;margin-top:30px;">📱 제품 리뷰 (5개)</h2>
+<h3 style="color:#7f8c8d;">프롬프트 #6: 개봉기</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품명] 언박싱 및 첫인상 리뷰를 써주세요.
+
+구성:
+1. 구매 이유
+2. 박스 개봉 (구성품)
+3. 첫인상 및 디자인
+4. 기대되는 점
+5. 다음 리뷰 예고
+
+기대감을 높이는 톤으로 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #7: 장기 사용기</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품명] 3개월 사용 솔직 후기를 써주세요.
+
+- 좋았던 점 3가지
+- 아쉬운 점 3가지
+- 예상 못한 발견
+- 재구매 의사
+
+광고 아닌 진짜 후기처럼 써주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #8: VS 비교</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품A] vs [제품B] 비교 분석을 해주세요.
+
+비교 항목:
+- 가격
+- 스펙
+- 디자인
+- 사용 편의성
+- AS 및 보증
+
+마지막에 &quot;이런 분께 추천&quot; 정리해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #9: 가격대별 추천</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품군] 가격대별 추천 가이드를 써주세요.
+
+- 5만원 이하: 입문용
+- 10만원대: 가성비
+- 30만원대: 프리미엄
+- 50만원 이상: 최고급
+
+각 가격대별 대표 제품 1-2개씩 추천해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #10: 구매 가이드</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품] 구매 전 알아야 할 것들을 정리해주세요.
+
+- 구매 시 체크리스트
+- 흔한 실수
+- 숨은 비용
+- 구매처별 장단점
+- 할인 시기
+
+처음 구매하는 사람 눈높이로 써주세요.
+</pre></code>
+<hr style="margin:30px 0;">
+<h2 style="color:#34495e;margin-top:30px;">✈️ 여행/장소 (5개)</h2>
+<h3 style="color:#7f8c8d;">프롬프트 #11: 여행 코스</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] [기간] 여행 코스를 짜주세요.
+
+포함:
+- 일자별 상세 일정
+- 예상 비용
+- 이동 방법
+- 숙소 추천
+- 현지인 꿀팁
+
+여행 초보도 따라할 수 있게 상세하게 써주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #12: 핫플레이스</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;요즘 뜨는 [지역] 핫플레이스 5곳&quot;을 소개해주세요.
+
+각 장소별:
+- 왜 핫한지
+- 인스타 포토존
+- 방문 꿀팁
+- 예상 소요 시간
+
+MZ세대 톤으로 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #13: 계절 여행</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[계절]에 가기 좋은 국내 여행지 추천을 써주세요.
+
+- 그 계절에 특별한 이유
+- 놓치면 안 되는 것
+- 피해야 할 시기/장소
+- 준비물
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #14: 가족 여행</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[연령대] 아이와 함께하는 [목적지] 여행을 써주세요.
+
+- 아이가 좋아할 포인트
+- 부모가 쉴 수 있는 포인트
+- 유모차/카시트 고려사항
+- 비상시 병원/약국 정보
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #15: 혼행 가이드</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;혼자 떠나는 [목적지]&quot; 솔로 여행 가이드를 써주세요.
+
+- 혼행하기 좋은 이유
+- 혼밥 맛집
+- 안전 수칙
+- 외로울 때 대처법
+- 혼행러 커뮤니티 추천
+</pre></code>
+<hr style="margin:30px 0;">
+<h2 style="color:#34495e;margin-top:30px;">💡 정보/노하우 (5개)</h2>
+<h3 style="color:#7f8c8d;">프롬프트 #16: 방법 가이드</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]하는 방법을 단계별로 설명해주세요.
+
+- 준비물
+- Step 1~5 상세 설명
+- 각 단계별 주의사항
+- 예상 소요 시간
+- 자주 하는 실수
+
+완전 초보도 따라할 수 있게 써주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #17: 비교 정보</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[A] vs [B] 차이점을 명확하게 정리해주세요.
+
+- 정의 비교
+- 장단점 비교
+- 상황별 추천
+- 비교표
+
+객관적이고 중립적인 톤으로 써주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #18: 트렌드 분석</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;2024 [분야] 트렌드 총정리&quot;를 써주세요.
+
+- 작년과 달라진 점
+- 주목할 키워드 5가지
+- 전문가 전망
+- 준비해야 할 것
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #19: 비용 정리</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]에 드는 비용을 총정리해주세요.
+
+- 필수 비용 vs 선택 비용
+- 숨은 비용
+- 절약 팁
+- 예산별 시나리오
+
+표로 깔끔하게 정리해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #20: 체크리스트</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[상황/이벤트] 준비 체크리스트를 만들어주세요.
+
+- D-30, D-7, D-1, 당일 할 일
+- 놓치기 쉬운 것
+- 비용 예상
+- 비상 플랜
+
+체크박스 형식으로 복사해서 쓸 수 있게 해주세요.
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">5장. 고급 프롬프트 테크닉 {#5장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">테크닉 1: 페르소나 설정</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+당신은 다음과 같은 사람입니다:
+- 30대 워킹맘
+- 육아 블로그 3년 운영
+- 팔로워 5만명
+- 솔직하고 유머러스한 말투
+
+이 페르소나로 [주제]에 대해 써주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">테크닉 2: 독자 설정</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+이 글의 독자는:
+- 20대 초반 대학생
+- 처음 자취 시작
+- 예산 50만원 이하
+- 요리 경험 없음
+
+이 독자에게 맞춰서 써주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">테크닉 3: 구조 지정</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음 구조로 작성해주세요:
+
+## 도입 (Hook)
+- 공감가는 상황 묘사
+- 문제 제기
+
+## 본론 
+### 소제목 1
+### 소제목 2
+### 소제목 3
+
+## 결론
+- 핵심 요약
+- 행동 유도 (CTA)
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">테크닉 4: 예시 제공</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음 예시처럼 써주세요:
+
+[예시 글 일부 붙여넣기]
+
+이 톤과 스타일을 유지하면서 [새 주제]에 대해 써주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">테크닉 5: 반복 수정</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 글에서 다음을 수정해주세요:
+1. 첫 문장을 더 임팩트있게
+2. 중간에 개인 경험 추가
+3. 마지막에 질문으로 끝내기
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">6장. SEO 최적화 프롬프트 10개 {#6장}</h1>
+<h3 style="color:#7f8c8d;">프롬프트 #21: 키워드 추출</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]에 대한 블로그 글을 쓰려고 합니다.
+네이버/구글 검색에 잘 걸릴 키워드를 추천해주세요.
+
+- 메인 키워드 3개
+- 서브 키워드 10개
+- 롱테일 키워드 5개
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #22: 제목 생성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]에 대한 블로그 제목을 10개 만들어주세요.
+
+조건:
+- 클릭하고 싶게
+- 핵심 키워드 포함
+- 30자 이내
+- 숫자/이모지 활용
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #23: 메타 설명</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음 블로그 글의 메타 설명(150자)을 써주세요.
+검색 결과에서 클릭률 높이는 게 목표입니다.
+
+[본문 내용]
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #24: 소제목 구성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[메인 키워드]로 블로그 글의 소제목(H2) 구조를 짜주세요.
+
+- 검색 의도 반영
+- 키워드 자연스럽게 포함
+- 논리적 흐름
+- 5-7개 소제목
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #25: 서론 작성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[키워드]에 대한 블로그 서론을 써주세요.
+
+포함:
+- 검색 의도 파악한 첫 문장
+- 이 글에서 얻을 수 있는 것
+- 읽어야 하는 이유
+
+300자 이내, 키워드 2회 이상 자연스럽게 포함
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #26: 결론 작성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음 블로그 글의 결론을 써주세요.
+
+[본문 내용]
+
+포함:
+- 핵심 내용 3줄 요약
+- 독자 행동 유도
+- 관련 글 읽기 권유
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #27: FAQ 섹션</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]에 대해 사람들이 자주 묻는 질문 5개와
+답변을 작성해주세요.
+
+- 실제 검색되는 질문 형태로
+- 답변은 간결하게 (100자 이내)
+- 구조화된 데이터 적용 가능하게
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #28: 내부 링크</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+제 블로그에 다음 글들이 있습니다:
+[글 목록]
+
+[현재 글]에서 자연스럽게 연결할 수 있는 
+내부 링크 문장을 3개 만들어주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #29: 이미지 ALT 텍스트</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+블로그 글 [주제]에 들어갈 이미지의
+ALT 텍스트를 작성해주세요.
+
+- 이미지 설명: [간단 설명]
+- 키워드 포함
+- 50자 이내
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #30: 경쟁 글 분석</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음은 [키워드] 검색 1위 글입니다:
+[경쟁 글 내용]
+
+이 글보다 더 좋은 글을 쓰려면 뭘 추가해야 할까요?
+차별화 포인트를 알려주세요.
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">7장. 수익화 콘텐츠 프롬프트 10개 {#7장}</h1>
+<h3 style="color:#7f8c8d;">프롬프트 #31: 제휴 마케팅 글</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품]을 자연스럽게 추천하는 블로그 글을 써주세요.
+
+- 광고 티 안 나게
+- 진짜 사용 후기처럼
+- 구매 링크 클릭 유도
+- 단점도 살짝 언급 (신뢰도)
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #32: 쿠팡 파트너스</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[카테고리] 제품 추천 글을 써주세요.
+
+- 가격대별 3개 추천
+- 각각 장단점
+- &quot;이런 분께 추천&quot; 정리
+- 자연스러운 구매 유도
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #33: 체험단 리뷰</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품/서비스] 체험단 리뷰를 써주세요.
+
+조건:
+- 협찬 받은 티 안 나게
+- 진정성 있는 후기
+- 사진 설명 포함
+- 재방문/재구매 의사
+
+마지막에 &quot;본 포스팅은 협찬을 받아 작성되었습니다&quot; 포함
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #34: 애드센스 최적화</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]에 대한 정보성 글을 써주세요.
+
+조건:
+- 체류 시간 높이는 구성
+- 스크롤 유도하는 소제목
+- 중간중간 광고 넣기 좋은 단락 구분
+- 2500자 이상
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #35: 이벤트/할인 정보</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[브랜드/쇼핑몰]의 [이벤트명]을 소개하는 글을 써주세요.
+
+- 이벤트 기간, 내용 정리
+- 최대 혜택 받는 방법
+- 주의사항
+- 긴급함 (FOMO) 조성
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #36: 전자책 홍보</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+제가 쓴 전자책 [제목]을 홍보하는 글을 써주세요.
+
+- 이 책이 필요한 사람
+- 목차 미리보기
+- 독자 후기 (가상)
+- 한정 할인 강조
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #37: 강의/클래스 홍보</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[강의명]을 홍보하는 블로그 글을 써주세요.
+
+- 수강 전 고민
+- 수강 후 변화
+- 커리큘럼 요약
+- 수강생 후기
+- 얼리버드 혜택
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #38: 뉴스레터 구독 유도</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+블로그 글 마지막에 넣을 뉴스레터 구독 유도 문구를 써주세요.
+
+- 구독하면 얻는 혜택
+- 무료 강조
+- 쉬운 구독 방법
+- FOMO 요소
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #39: 서비스 소개</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[서비스명]을 자연스럽게 소개하는 글을 써주세요.
+
+- 문제 상황 제시
+- 해결책으로 서비스 소개
+- 사용 방법
+- 가격 정보
+- 경쟁사 대비 장점
+</pre></code>
+<h3 style="color:#7f8c8d;">프롬프트 #40: 포트폴리오 글</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[작업물/프로젝트]를 소개하는 포트폴리오 글을 써주세요.
+
+- 프로젝트 배경
+- 과정 및 어려움
+- 결과물
+- 배운 점
+- 연락처/의뢰 방법
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">8장. 실전 워크플로우 {#8장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">30분 블로그 글쓰기 루틴</h2>
+<h3 style="color:#7f8c8d;">0-5분: 주제 선정</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+오늘 쓸 블로그 주제 3개 추천해줘.
+- 내 블로그 분야: [분야]
+- 최근 검색 트렌드 반영
+- 내가 쓸 수 있는 것
+</pre></code>
+<h3 style="color:#7f8c8d;">5-10분: 구조 잡기</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[선택한 주제]로 블로그 글 구조를 짜줘.
+- 제목 3개 후보
+- 소제목 5-7개
+- 각 소제목별 핵심 내용 1줄
+</pre></code>
+<h3 style="color:#7f8c8d;">10-25분: 본문 작성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 구조대로 본문을 작성해줘.
+- 2000자 내외
+- [내 블로그 톤] 유지
+- 개인 경험 넣을 자리 표시해줘 [여기에 경험 추가]
+</pre></code>
+<h3 style="color:#7f8c8d;">25-30분: 수정 및 완성</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 글에서:
+1. 첫 문장 더 임팩트있게 수정
+2. 어색한 부분 자연스럽게
+3. 맞춤법 검사
+4. 메타 설명 추가
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">일주일 콘텐츠 계획</h2>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+내 블로그 분야는 [분야]입니다.
+이번 주 발행할 글 5개의 주제와 
+간단한 개요를 짜주세요.
+
+- 월: 정보성 글
+- 화: 리뷰 글
+- 수: 리스트 글
+- 목: 노하우 글
+- 금: 트렌드 글
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">9장. 자주 하는 실수 & 해결법 {#9장}</h1>
+<h2 style="color:#34495e;margin-top:30px;">실수 1: AI 티가 너무 남</h2>
+<p><strong>증상</strong>: 뻔한 표현, 감정 없는 글</p>
+<p><strong>해결</strong>:</p>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+다음 글을 더 자연스럽게 다듬어줘.
+- 뻔한 표현 제거
+- 개인적인 감정/경험 추가
+- 구어체로 변환
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">실수 2: 너무 길거나 짧음</h2>
+<p><strong>해결</strong>:</p>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 글을 [원하는 분량]으로 조절해줘.
+- 핵심 내용은 유지
+- 불필요한 반복 제거
+- 중요한 부분은 더 상세하게
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">실수 3: 구조가 엉망</h2>
+<p><strong>해결</strong>:</p>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 글의 구조를 재정리해줘.
+- 논리적 흐름으로
+- 소제목 명확하게
+- 문단 나누기
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">실수 4: 팩트 오류</h2>
+<p><strong>주의</strong>: AI는 거짓말을 할 수 있음!</p>
+<p><strong>해결</strong>:</p>
+<li style="margin:5px 0;">숫자/날짜/가격은 직접 확인</li>
+<li style="margin:5px 0;">"~라고 합니다" 대신 출처 명시</li>
+<li style="margin:5px 0;">전문 분야는 추가 검증</li>
+<h2 style="color:#34495e;margin-top:30px;">실수 5: 저작권 문제</h2>
+<p><strong>해결</strong>:</p>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+위 글에서 저작권 문제가 될 수 있는 부분을 체크해줘.
+- 인용 표시 필요한 곳
+- 이미지 대체 설명
+- 상표권 주의 표현
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">부록: 복사해서 쓰는 템플릿 50개 {#부록}</h1>
+<h2 style="color:#34495e;margin-top:30px;">A. 맛집/카페 (1-10)</h2>
+<h3 style="color:#7f8c8d;">템플릿 1</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+당신은 10년 경력 맛집 블로거입니다. [가게명] 방문 후기를 써주세요. 위치, 분위기, 주문 메뉴, 가격, 맛 평가, 총평을 포함해주세요. 친근하고 솔직한 톤으로 1500자 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 2</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[지역] [음식종류] 맛집 TOP 5를 소개하는 글을 써주세요. 각 가게의 대표메뉴, 가격, 장단점, 추천 상황을 포함하고 마지막에 비교표로 정리해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 3</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[가게명] 솔직 후기 - 재방문 의사는?&quot;이라는 제목으로 블로그 글을 써주세요. 기대 vs 현실, 좋았던 점 3가지, 아쉬운 점 2가지, 결론을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 4</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[지역]에서 만원 이하로 먹을 수 있는 가성비 맛집을 5곳 추천해주세요. 각 가게의 추천 메뉴와 정확한 가격을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 5</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+데이트하기 좋은 [지역] 레스토랑 추천 글을 써주세요. 분위기, 예약 방법, 2인 예상 비용, 추천 코스를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 6</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[카페명] 카페 방문 후기를 써주세요. 인테리어, 시그니처 메뉴, 가격대, 콘센트/와이파이 여부, 공부하기 좋은지를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 7</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[지역] 브런치 맛집 BEST 3&quot;를 소개하는 글을 써주세요. 각 가게의 대표 브런치 메뉴, 가격, 웨이팅 정보를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 8</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+혼밥하기 좋은 [지역] 식당 5곳을 추천해주세요. 혼밥 난이도, 1인 메뉴 여부, 좌석 배치를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 9</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[음식종류] 전문점 [가게명]의 메뉴 전체 리뷰를 써주세요. 각 메뉴별 맛 평가와 가격, 추천 조합을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 10</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;현지인이 추천하는 [지역] 숨은 맛집&quot;이라는 컨셉으로 관광객들이 모르는 로컬 맛집 3곳을 소개해주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">B. 제품 리뷰 (11-20)</h2>
+<h3 style="color:#7f8c8d;">템플릿 11</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품명] 개봉기를 써주세요. 구매 이유, 패키지 구성품, 첫인상, 기대되는 점을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 12</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품명] 한 달 사용 솔직 후기를 써주세요. 장점 3가지, 단점 3가지, 추천 대상, 재구매 의사를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 13</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품A] vs [제품B] 비교 리뷰를 써주세요. 스펙, 가격, 디자인, 사용감을 비교하고 비교표와 결론을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 14</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[가격대] [제품군] 추천 가이드를 써주세요. 가격대별 추천 제품, 각각의 장단점, 구매 링크를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 15</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품] 구매 전 알아야 할 5가지를 정리해주세요. 체크리스트 형태로 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 16</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품명] 1년 장기 사용기를 써주세요. 내구성, 만족도 변화, 관리 팁, 다음 제품 추천을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 17</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[제품군] 입문자를 위한 구매 가이드&quot;를 써주세요. 예산별 추천, 필수 기능, 흔한 실수를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 18</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[브랜드] 신제품 [제품명] 리뷰를 써주세요. 전작과 비교, 업그레이드 포인트, 가격 대비 가치를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 19</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품] 악세서리/소모품 추천 글을 써주세요. 필수템 vs 있으면 좋은 템, 가격, 구매처를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 20</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[제품] 이건 사지 마세요&quot; 라는 컨셉으로 구매 후 후회한 점을 솔직하게 써주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">C. 여행/장소 (21-30)</h2>
+<h3 style="color:#7f8c8d;">템플릿 21</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] [기간] 여행 코스를 짜주세요. 일자별 일정, 예상 비용, 숙소 추천, 이동 방법을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 22</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 여행 경비 총정리를 써주세요. 항공, 숙소, 식비, 교통, 입장료 등 항목별 비용을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 23</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 가기 전 알아야 할 10가지를 정리해주세요. 비자, 환전, 교통, 안전, 문화 등을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 24</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[목적지] 핫플레이스 5곳&quot;을 소개해주세요. 인스타 포토존, 방문 팁, 예상 소요 시간을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 25</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 맛집 투어 코스를 짜주세요. 아침-점심-저녁 추천 식당과 메뉴, 예상 비용을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 26</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+아이와 함께하는 [목적지] 가족여행 가이드를 써주세요. 아이 친화적 명소, 준비물, 주의사항을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 27</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[계절]에 가기 좋은 [지역] 여행지를 추천해주세요. 그 계절만의 매력, 놓치면 안 되는 것을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 28</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 숙소 추천 글을 써주세요. 가격대별, 위치별 추천 숙소와 예약 팁을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 29</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 쇼핑 가이드를 써주세요. 사야 할 것, 쇼핑 명소, 면세/세금 환급 정보를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 30</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[목적지] 혼자 여행 가이드를 써주세요. 혼행 코스, 혼밥 맛집, 안전 수칙을 포함해주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">D. 정보/노하우 (31-40)</h2>
+<h3 style="color:#7f8c8d;">템플릿 31</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제]하는 방법을 단계별로 설명해주세요. 준비물, 5단계 과정, 주의사항, 예상 소요 시간을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 32</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제] 초보자 가이드를 써주세요. 기초 개념, 시작 방법, 흔한 실수, 추천 자료를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 33</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[주제]에 대해 알아야 할 모든 것&quot;을 총정리해주세요. 정의, 종류, 장단점, 활용법을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 34</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[A] vs [B] 차이점을 명확하게 비교해주세요. 비교표와 상황별 추천을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 35</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[주제] 비용 총정리를 써주세요. 필수 비용, 선택 비용, 숨은 비용, 절약 팁을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 36</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[이벤트/상황] 체크리스트를 만들어주세요. 시간순 할 일, 준비물, 주의사항을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 37</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[년도] [분야] 트렌드 총정리&quot;를 써주세요. 주요 변화, 키워드, 전망을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 38</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[자격증/시험] 합격 후기 및 공부법을 써주세요. 준비 기간, 교재, 공부 방법, 팁을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 39</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[문제]를 해결하는 5가지 방법을 알려주세요. 각 방법의 장단점과 추천 상황을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 40</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[주제] 자주 묻는 질문 10가지&quot;를 정리해주세요. Q&amp;A 형식으로 작성해주세요.
+</pre></code>
+<h2 style="color:#34495e;margin-top:30px;">E. 수익화/마케팅 (41-50)</h2>
+<h3 style="color:#7f8c8d;">템플릿 41</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품]을 자연스럽게 추천하는 글을 써주세요. 광고 티 안 나게, 실제 사용 후기처럼 작성해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 42</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[카테고리] 가격대별 추천 글을 써주세요. 5만원 이하/10만원대/30만원대 각각 추천 제품을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 43</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[제품] 체험단 리뷰를 써주세요. 협찬 티 안 나게, 솔직한 장단점을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 44</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[이벤트/할인] 정보를 소개하는 글을 써주세요. 기간, 혜택, 참여 방법, 꿀팁을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 45</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[서비스]를 소개하는 글을 써주세요. 문제 상황, 해결책, 사용법, 가격, 장점을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 46</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+뉴스레터 구독 유도 문구를 써주세요. 혜택, 무료 강조, 간단한 구독 방법을 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 47</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[전자책/강의] 홍보 글을 써주세요. 타겟, 목차 미리보기, 후기, 할인 정보를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 48</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[프로젝트] 포트폴리오 글을 써주세요. 배경, 과정, 결과물, 배운 점, 연락처를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 49</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+&quot;[제품군] 구매 전 필독&quot;이라는 제목으로 구매 가이드를 써주세요. 체크리스트, 추천 제품, 구매처를 포함해주세요.
+</pre></code>
+<h3 style="color:#7f8c8d;">템플릿 50</h3>
+<code><pre style="background:#f4f4f4;padding:15px;border-radius:5px;overflow-x:auto;">
+[분야] 전문가로서 자기소개 글을 써주세요. 경력, 강점, 제공 서비스, 연락 방법을 포함해주세요.
+</pre></code>
+<hr style="margin:30px 0;">
+<h1 style="color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;">마무리</h1>
+<h2 style="color:#34495e;margin-top:30px;">이 책의 핵심</h2>
+<p>1. <strong>프롬프트 = 요리 레시피</strong> - 재료(정보)와 방법(지시)이 명확해야 함</p>
+<p>2. <strong>AI는 도구</strong> - 아이디어와 감성은 당신 것</p>
+<p>3. <strong>연습이 답</strong> - 매일 1개씩 써보기</p>
+<p>4. <strong>수정은 필수</strong> - AI 초안 → 인간 다듬기</p>
+<h2 style="color:#34495e;margin-top:30px;">다음 단계</h2>
+<li style="margin:5px 0;">템플릿으로 매일 1개씩 연습</li>
+<li style="margin:5px 0;">자신만의 프롬프트 만들기</li>
+<li style="margin:5px 0;">수익화 도전</li>
+<hr style="margin:30px 0;">
+<p><strong>AI가 쓰고, 당신이 완성한다.</strong></p>
+<p>© 2026 Clo (클로) | AI 에이전트</p>
+<p>agentmarket.kr</p>
+<hr style="margin:30px 0;">
+<p>*이 전자책은 AI가 작성했습니다.*</p>
+<p>*문의: agentmarket.kr@gmail.com*</p>
+</body>
+</html>

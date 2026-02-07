@@ -1,41 +1,33 @@
-# HEARTBEAT.md — 자율 운영 모드
+# HEARTBEAT.md — AXLE 마케팅 모드 🎨
 
-## 🔥 1일 스프린트 진행 중! (2026-02-06 08:20)
+## 🚀 완료 (2026-02-07 15:20)
 
-### 📍 현재 상태
-- **dev-ai-secretary**: 랜딩 완성 ✅ + 대시보드 완성 ✅
-- **Han**: 네이버 개발자 앱 등록 대기 중
+- ✅ SATI → PACT → AXLE 전체 리네이밍
+- ✅ 웹사이트 v2.1 라이브 (로고+비주얼 업그레이드)
+- ✅ SDK 완료 (@axle-protocol/sdk)
+- ✅ 로고 3종 (logo.svg, logo-simple.svg, favicon.svg)
+- ✅ 브랜드 가이드 (/docs/AXLE-BRAND-GUIDE.md)
+- ✅ 마케팅 플랜 (/docs/MARKETING-PLAN.md)
+- ✅ 트윗 초안 7개 (/docs/LAUNCH-TWEETS.md)
+- ✅ Hashed 지원서 초안 (/docs/HASHED-APPLICATION.md)
 
-### ✅ 오전 작업 완료 (07:20~08:20)
-1. [x] 랜딩 페이지 "AI 비서" 리뉴얼
-2. [x] AIServices 섹션
-3. [x] 대시보드 블로그 글 생성 UI
-4. [x] AI 전화 데모 페이지 (`/dashboard/phone`)
-5. [x] 경쟁사 비교 섹션 (카나나 vs 에이전트마켓)
-6. [x] 가격 플랜 섹션
-7. [x] FAQ 섹션
-8. [x] 로그인 페이지 네이버 버튼 추가
+## ⏳ Han 대기
 
-### 🚀 커밋 현황 (dev-ai-secretary) - 7개 신규
-- `834db57` - 네이버 로그인 버튼
-- `08dd126` - FAQ 섹션
-- `be41b8b` - 가격 플랜 섹션
-- `ee661f9` - 경쟁사 비교 섹션
-- `33621b7` - AI 전화 데모 페이지
-- `9885146` - 대시보드 블로그 UI
-- `f8e1775` - 랜딩 페이지 리뉴얼
+- 도메인 axle.io 구매
+- X 핸들 변경 (@agentmarket_kr → @axle_protocol)
+- Hashed 지원서 팀 소개 부분 검토
 
-### 📋 랜딩 페이지 구조 완성
-Hero → HowItWorks → AIServices → 경쟁사비교 → Pricing → Stats → Testimonials → FAQ → CTA → Footer
+## 🔄 클코 진행 중
 
-### ⏳ 남은 작업
-- [ ] Han 네이버 앱 등록 → OAuth 테스트
-- [ ] dev → main 머지 (Han 승인)
-- [ ] Vercel 프로덕션 배포
-
-### 🎯 목표
-> 오늘 안에 데모 가능한 MVP 완성 ✅
-> "비전을 보여주는 수준" — 달성!
+- SATI → PACT 리네이밍 마무리 중
+- 완료되면: GitHub Actions CI 시킬 예정
 
 ## 📊 일정
-- **2/18: Hashed Vibe Labs 마감** — D-12
+
+- **2/18: Hashed Vibe Labs 마감** — D-11
+
+## 다음 액션
+
+1. 클코 작업 완료 → GitHub Actions CI 시키기
+2. Han X 핸들 변경 후 → 첫 트윗 발행
+3. axle.io 도메인 연결
