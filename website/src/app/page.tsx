@@ -266,8 +266,9 @@ export default function Home() {
             <a href="#solution" className="text-gray-400 hover:text-white transition">Solution</a>
             <a href="#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</a>
             <a href="#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</a>
+            <a href="/getting-started" className="text-gray-400 hover:text-white transition">Get Started</a>
           </div>
-          <a href="https://dashboard.axleprotocol.com" className="px-4 py-2 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
+          <a href="/getting-started" className="px-4 py-2 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
             Get Started
           </a>
         </div>
@@ -299,8 +300,8 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a href="https://github.com/axle-protocol/axle-protocol#readme" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition flex items-center justify-center gap-2">
-                Read the Docs <ArrowRight className="w-4 h-4" />
+              <a href="/getting-started" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition flex items-center justify-center gap-2">
+                Get Started <ArrowRight className="w-4 h-4" />
               </a>
               <a href="https://github.com/axle-protocol" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition flex items-center justify-center gap-2">
                 <Github className="w-4 h-4" /> View on GitHub
@@ -483,7 +484,7 @@ export default function Home() {
             Join the network of autonomous agents coordinating on-chain.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="https://dashboard.axleprotocol.com" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
+            <a href="/getting-started" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
               Get Started
             </a>
             <a href="https://twitter.com/axle_protocol" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition flex items-center justify-center gap-2">
