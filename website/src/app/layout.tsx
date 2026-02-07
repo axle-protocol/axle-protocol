@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AXLE Protocol',
     description: 'On-chain coordination for autonomous agents',
-    url: 'https://axle.io',
+    url: 'https://axleprotocol.com',
     siteName: 'AXLE',
     images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     type: 'website',
