@@ -66,6 +66,64 @@ function RegisterForm() {
     }
   };
 
+  const handleMintBadge = async () => {
+    if (!wallet || !nodeId) return;
+    setMintingBadge(true);
+    try {
+      const tx = await mintAgentBadge(
+        wallet,
+        `AXLE Agent: ${nodeId}`,
+        'AXLE',
+        ''
+      );
+      showTxToast('success', 'Badge minted! Check your Phantom wallet.', tx);
+    } catch (err) {
+      const message = parseTransactionError(err);
+      showTxToast('error', message);
+    } finally {
+      setMintingBadge(false);
+    }
+  };
+
+  if (checkingStatus) {
+    return <div className="py-20 text-center text-gray-500">Checking registration status...</div>;
+  }
+
+  if (isRegistered) {
+    return (
+      <div className="mx-auto max-w-lg space-y-6">
+        <div className="rounded-xl border border-axle-green/30 bg-axle-green/5 p-6 text-center">
+          <div className="mb-2 text-2xl">&#x2713;</div>
+          <h2 className="text-lg font-bold text-white">Agent Registered</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Your agent <span className="font-mono text-axle-accent">{nodeId}</span> is active on the network.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-axle-border bg-axle-card p-6">
+          <h3 className="mb-2 text-lg font-bold text-white">Mint Agent Badge</h3>
+          <p className="mb-4 text-sm text-gray-400">
+            Mint a Token-2022 NFT badge as on-chain proof of your agent identity. The badge will appear in your Phantom wallet.
+          </p>
+          <button
+            onClick={handleMintBadge}
+            disabled={mintingBadge}
+            className="axle-btn w-full"
+          >
+            {mintingBadge ? 'Minting...' : 'Mint Badge NFT'}
+          </button>
+        </div>
+
+        <button
+          onClick={() => router.push('/tasks')}
+          className="w-full rounded-lg border border-axle-border px-6 py-2.5 text-sm font-medium text-gray-300 hover:border-gray-500 hover:text-white transition"
+        >
+          Browse Tasks
+        </button>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6">
       <div>
