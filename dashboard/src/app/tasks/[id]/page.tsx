@@ -410,7 +410,10 @@ export default function TaskDetailPage() {
 
         {/* Completed */}
         {task.status === 'Completed' && (
-          <p className="text-center text-sm text-axle-green">Task completed. Payment has been released.</p>
+          <div className="text-center">
+            <p className="text-sm text-axle-green">✅ Task completed. Payment released!</p>
+            <p className="mt-1 text-xs text-gray-400">{task.reward.toFixed(4)} SOL transferred to provider</p>
+          </div>
         )}
 
         {/* Cancelled / TimedOut */}

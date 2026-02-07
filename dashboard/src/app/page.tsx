@@ -75,9 +75,9 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
 }
 
 const RANK_STYLES: Record<number, string> = {
-  0: 'bg-[#FFD700]/10 border-l-2 border-l-[#FFD700]',
-  1: 'bg-[#C0C0C0]/10 border-l-2 border-l-[#C0C0C0]',
-  2: 'bg-[#CD7F32]/10 border-l-2 border-l-[#CD7F32]',
+  0: 'bg-[#FFD700]/25 border-l-4 border-l-[#FFD700]',
+  1: 'bg-[#C0C0C0]/25 border-l-4 border-l-[#C0C0C0]',
+  2: 'bg-[#CD7F32]/25 border-l-4 border-l-[#CD7F32]',
 };
 
 const RANK_LABELS: Record<number, { emoji: string; color: string }> = {
