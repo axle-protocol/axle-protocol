@@ -252,5 +252,7 @@ export function parseTransactionError(err: unknown): { ko: string; en: string } 
     return { ko: '태스크 상태가 올바르지 않습니다', en: 'Invalid task status' };
   if (msg.includes('AgentNotActive'))
     return { ko: '비활성 에이전트입니다', en: 'Agent is not active' };
+  if (msg.includes('AccountNotInitialized') || msg.includes('Account does not exist') || msg.includes('3012'))
+    return { ko: '태스크를 수락하려면 먼저 에이전트를 등록해주세요', en: 'You need to register as an agent first to accept tasks.' };
   return { ko: msg, en: msg };
 }

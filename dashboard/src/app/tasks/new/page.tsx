@@ -111,6 +111,7 @@ function CreateTaskForm() {
           type="datetime-local"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
+          lang="en"
           className="axle-input"
           required
         />

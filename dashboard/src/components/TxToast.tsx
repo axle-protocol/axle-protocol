@@ -9,6 +9,8 @@ interface Toast {
   ko: string;
   en: string;
   txSignature?: string;
+  actionUrl?: string;
+  actionLabel?: string;
 }
 
 let toastId = 0;
@@ -18,9 +20,11 @@ export function showTxToast(
   type: 'success' | 'error',
   ko: string,
   en: string,
-  txSignature?: string
+  txSignature?: string,
+  actionUrl?: string,
+  actionLabel?: string
 ) {
-  const toast: Toast = { id: ++toastId, type, ko, en, txSignature };
+  const toast: Toast = { id: ++toastId, type, ko, en, txSignature, actionUrl, actionLabel };
   listeners.forEach((fn) => fn(toast));
 }
 
@@ -66,6 +70,14 @@ export default function TxToastContainer() {
               className="mt-2 inline-block text-xs text-axle-accent hover:underline"
             >
               View on Solscan &rarr;
+            </a>
+          )}
+          {toast.actionUrl && (
+            <a
+              href={toast.actionUrl}
+              className="mt-2 inline-block rounded bg-axle-accent/20 px-3 py-1 text-xs font-medium text-axle-accent hover:bg-axle-accent/30 transition"
+            >
+              {toast.actionLabel || 'Go'} &rarr;
             </a>
           )}
         </div>

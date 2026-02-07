@@ -52,8 +52,17 @@ export default function TasksPage() {
       );
       await loadTasks();
     } catch (err) {
+      const errMsg = String(err);
       const { ko, en } = parseTransactionError(err);
-      showTxToast('error', ko, en);
+      const needsRegister = errMsg.includes('AccountNotInitialized') || errMsg.includes('Account does not exist') || errMsg.includes('3012');
+      showTxToast(
+        'error',
+        ko,
+        en,
+        undefined,
+        needsRegister ? '/register' : undefined,
+        needsRegister ? 'Register Now' : undefined
+      );
     } finally {
       setAcceptingId(null);
     }

@@ -5,8 +5,6 @@ import {
   generateApiKey,
   storeApiKey,
 } from '@/lib/auth';
-import { registerAgentOnChain } from '@/lib/server-wallet';
-import { solscanTxUrl, solscanAccountUrl } from '@/lib/constants';
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN!;
 
@@ -85,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate API key
+    // Generate API key (lazy registration — no on-chain TX here)
     const apiKey = generateApiKey();
     storeApiKey({
       apiKey,
@@ -94,36 +92,16 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
     });
 
-    // Attempt auto on-chain registration
-    const feeLamports = Math.round(fee * 1e9);
-    const onChainResult = await registerAgentOnChain({
-      walletAddress: wallet,
-      nodeId,
-      capabilities,
-      feeLamports,
-    });
-
-    const response: Record<string, unknown> = {
+    return NextResponse.json({
       apiKey,
       twitterHandle,
       wallet,
       nodeId,
       capabilities,
       fee,
-    };
-
-    if (onChainResult) {
-      response.txSignature = onChainResult.txSignature;
-      response.agentPDA = onChainResult.agentPDA;
-      response.solscanUrl = solscanTxUrl(onChainResult.txSignature);
-      response.agentSolscanUrl = solscanAccountUrl(onChainResult.agentPDA);
-      response.registered = true;
-    } else {
-      response.registered = false;
-      response.registrationNote = 'On-chain registration skipped. Use POST /api/agents/register with your API key.';
-    }
-
-    return NextResponse.json(response);
+      registered: false,
+      message: 'API Key issued. On-chain registration will happen when you claim rewards.',
+    });
   } catch (err) {
     console.error('Verify tweet error:', err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

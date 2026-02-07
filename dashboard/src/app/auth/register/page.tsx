@@ -17,9 +17,6 @@ export default function AuthRegisterPage() {
   const [tweetUrl, setTweetUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [handle, setHandle] = useState('');
-  const [txSignature, setTxSignature] = useState('');
-  const [agentPDA, setAgentPDA] = useState('');
-  const [registered, setRegistered] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -71,9 +68,6 @@ export default function AuthRegisterPage() {
       }
       setApiKey(data.apiKey);
       setHandle(data.twitterHandle);
-      setRegistered(!!data.registered);
-      if (data.txSignature) setTxSignature(data.txSignature);
-      if (data.agentPDA) setAgentPDA(data.agentPDA);
       setStep('done');
     } catch {
       setError('Verification request failed');
@@ -284,7 +278,7 @@ export default function AuthRegisterPage() {
         <div className="rounded-xl border border-axle-border bg-axle-card p-6">
           <h2 className="mb-2 text-lg font-semibold text-white">Step 3: Verify Your Tweet</h2>
           <p className="mb-4 text-sm text-gray-400">
-            Paste the URL of your tweet. We&apos;ll verify it and automatically register your agent on-chain.
+            Paste the URL of your tweet. We&apos;ll verify it and issue your API key.
           </p>
 
           <div className="mb-4">
@@ -305,7 +299,7 @@ export default function AuthRegisterPage() {
             disabled={loading || !tweetUrl}
             className="axle-btn"
           >
-            {loading ? 'Verifying & Registering...' : 'Verify & Register Agent'}
+            {loading ? 'Verifying...' : 'Verify & Get API Key'}
           </button>
           <button
             onClick={() => setStep('tweet')}
@@ -319,51 +313,6 @@ export default function AuthRegisterPage() {
       {/* Step 4: Success */}
       {step === 'done' && (
         <div className="space-y-4">
-          {/* Registration result */}
-          {registered && txSignature && (
-            <div className="rounded-xl border border-axle-green/30 bg-axle-green/5 p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <svg className="h-5 w-5 text-axle-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="font-semibold text-axle-green">Agent Registered On-Chain</span>
-              </div>
-              <div className="space-y-1 text-xs text-gray-400">
-                <p>
-                  TX:{' '}
-                  <a
-                    href={`https://solscan.io/tx/${txSignature}?cluster=devnet`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-axle-accent hover:underline"
-                  >
-                    {txSignature.slice(0, 16)}...
-                  </a>
-                </p>
-                {agentPDA && (
-                  <p>
-                    Agent PDA:{' '}
-                    <a
-                      href={`https://solscan.io/account/${agentPDA}?cluster=devnet`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-axle-accent hover:underline"
-                    >
-                      {agentPDA.slice(0, 16)}...
-                    </a>
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!registered && (
-            <div className="rounded-xl border border-axle-yellow/30 bg-axle-yellow/5 p-4 text-sm text-axle-yellow">
-              On-chain registration was skipped. Use the API key below with{' '}
-              <code className="text-xs">POST /api/agents/register</code> to register manually.
-            </div>
-          )}
-
           {/* API Key + handle */}
           <div className="rounded-xl border border-axle-green/30 bg-axle-card p-6">
             <div className="mb-4 flex items-center gap-3">
@@ -396,6 +345,11 @@ export default function AuthRegisterPage() {
               <p className="mt-2 text-xs text-axle-yellow">
                 Save this key securely — it won&apos;t be shown again.
               </p>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-axle-border bg-axle-dark/50 p-3 text-sm text-gray-400">
+              Your API Key is ready. On-chain registration happens automatically when you claim your first reward.
+              No SOL needed to get started!
             </div>
 
             <div className="rounded-lg border border-axle-border bg-axle-dark p-4">
