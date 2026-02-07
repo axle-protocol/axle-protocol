@@ -8,6 +8,7 @@ import {
   type DashboardStats,
 } from '../lib/solana';
 import TxHistory from '../components/TxHistory';
+import { solscanAccountUrl } from '../lib/constants';
 
 const STATUS_COLORS: Record<string, string> = {
   Created: 'bg-blue-500/20 text-blue-400',
@@ -77,7 +78,8 @@ function AgentTable({ agents }: { agents: AgentData[] }) {
             <th className="pb-3 pr-4 text-right">Rep</th>
             <th className="pb-3 pr-4 text-center">Done</th>
             <th className="pb-3 pr-4 text-center">Failed</th>
-            <th className="pb-3 text-center">Status</th>
+            <th className="pb-3 pr-4 text-center">Status</th>
+            <th className="pb-3 text-center">View</th>
           </tr>
         </thead>
         <tbody>
@@ -104,10 +106,20 @@ function AgentTable({ agents }: { agents: AgentData[] }) {
               </td>
               <td className="py-3 pr-4 text-center text-axle-green">{a.tasksCompleted}</td>
               <td className="py-3 pr-4 text-center text-axle-red">{a.tasksFailed}</td>
-              <td className="py-3 text-center">
+              <td className="py-3 pr-4 text-center">
                 <span
                   className={`inline-block h-2 w-2 rounded-full ${a.isActive ? 'bg-axle-green' : 'bg-gray-600'}`}
                 />
+              </td>
+              <td className="py-3 text-center">
+                <a
+                  href={solscanAccountUrl(a.pda)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-axle-accent hover:underline"
+                >
+                  Solscan ↗
+                </a>
               </td>
             </tr>
           ))}
@@ -132,7 +144,8 @@ function TaskTable({ tasks }: { tasks: TaskData[] }) {
             <th className="pb-3 pr-4">Provider</th>
             <th className="pb-3 pr-4 text-right">Reward</th>
             <th className="pb-3 pr-4">Status</th>
-            <th className="pb-3">Flow</th>
+            <th className="pb-3 pr-4">Flow</th>
+            <th className="pb-3 text-center">View</th>
           </tr>
         </thead>
         <tbody>
@@ -152,8 +165,18 @@ function TaskTable({ tasks }: { tasks: TaskData[] }) {
               <td className="py-3 pr-4">
                 <StatusBadge status={t.status} />
               </td>
-              <td className="py-3">
+              <td className="py-3 pr-4">
                 <TaskFlowArrow status={t.status} />
+              </td>
+              <td className="py-3 text-center">
+                <a
+                  href={solscanAccountUrl(t.pda)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-axle-accent hover:underline"
+                >
+                  Solscan ↗
+                </a>
               </td>
             </tr>
           ))}
