@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
@@ -10,6 +10,7 @@ import {
   deliverTask,
   completeTask,
   acceptTask,
+  cancelTask,
   parseTransactionError,
   type TaskInfo,
 } from '../../../lib/protocol';
@@ -58,14 +59,16 @@ function isEmptyHash(hash: number[]): boolean {
 
 export default function TaskDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const wallet = useAnchorWallet();
   const [task, setTask] = useState<TaskInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showDeliverModal, setShowDeliverModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [resultText, setResultText] = useState('');
+  const [taskDescription, setTaskDescription] = useState<string | null>(null);
+  const [taskResult, setTaskResult] = useState<string | null>(null);
 
   const taskId = params.id as string;
 
@@ -85,9 +88,25 @@ export default function TaskDetailPage() {
     }
   }, [wallet, taskId]);
 
+  // Load off-chain data (description + result)
+  const loadOffChainData = useCallback(async () => {
+    if (!taskId) return;
+    try {
+      const res = await fetch(`/api/task-data?taskPda=${taskId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.description) setTaskDescription(data.description);
+        if (data.result) setTaskResult(data.result);
+      }
+    } catch {
+      // ignore
+    }
+  }, [taskId]);
+
   useEffect(() => {
     loadTask();
-  }, [loadTask]);
+    loadOffChainData();
+  }, [loadTask, loadOffChainData]);
 
   const isRequester = wallet && task && wallet.publicKey.toBase58() === task.requester;
   const isProvider = wallet && task && task.provider && wallet.publicKey.toBase58() === task.provider;
@@ -114,8 +133,15 @@ export default function TaskDetailPage() {
     setActionLoading(true);
     try {
       const tx = await deliverTask(wallet, new PublicKey(task.pda), resultText.trim());
+      // Save result text off-chain
+      fetch('/api/task-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskPda: task.pda, type: 'result', content: resultText.trim() }),
+      }).catch(() => {});
       showTxToast('success', 'Result submitted successfully!', tx);
       setShowDeliverModal(false);
+      setTaskResult(resultText.trim());
       setResultText('');
       await loadTask();
     } catch (err) {
@@ -138,6 +164,26 @@ export default function TaskDetailPage() {
       );
       showTxToast('success', 'Task approved! Payment released.', tx);
       setShowApproveModal(false);
+      await loadTask();
+    } catch (err) {
+      const message = parseTransactionError(err);
+      showTxToast('error', message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!wallet || !task) return;
+    setActionLoading(true);
+    try {
+      const tx = await cancelTask(
+        wallet,
+        new PublicKey(task.pda),
+        new Uint8Array(task.id)
+      );
+      showTxToast('success', 'Task cancelled. Escrow refunded.', tx);
+      setShowCancelModal(false);
       await loadTask();
     } catch (err) {
       const message = parseTransactionError(err);
@@ -198,6 +244,14 @@ export default function TaskDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Task Description */}
+      {taskDescription && (
+        <div className="mb-6 rounded-xl border border-axle-border bg-axle-card p-6">
+          <h2 className="mb-3 text-sm font-semibold text-white">Task Description</h2>
+          <p className="whitespace-pre-wrap text-sm text-gray-300">{taskDescription}</p>
+        </div>
+      )}
 
       {/* Task Info */}
       <div className="mb-6 rounded-xl border border-axle-border bg-axle-card p-6">
@@ -264,6 +318,14 @@ export default function TaskDetailPage() {
         )}
       </div>
 
+      {/* Result Content */}
+      {taskResult && (
+        <div className="mb-6 rounded-xl border border-axle-purple/30 bg-axle-card p-6">
+          <h2 className="mb-3 text-sm font-semibold text-white">Result</h2>
+          <p className="whitespace-pre-wrap text-sm text-gray-300">{taskResult}</p>
+        </div>
+      )}
+
       {/* Timeline */}
       <div className="mb-6 rounded-xl border border-axle-border bg-axle-card p-6">
         <h2 className="mb-4 text-sm font-semibold text-white">Timeline</h2>
@@ -290,9 +352,18 @@ export default function TaskDetailPage() {
           </button>
         )}
 
-        {/* Created: requester sees waiting message */}
+        {/* Created: requester can cancel */}
         {task.status === 'Created' && isRequester && (
-          <p className="text-center text-sm text-gray-500">Waiting for an agent to accept this task.</p>
+          <div className="space-y-3">
+            <p className="text-center text-sm text-gray-500">Waiting for an agent to accept this task.</p>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              disabled={actionLoading}
+              className="w-full rounded-lg border border-axle-red/30 px-4 py-2.5 text-sm font-medium text-axle-red transition hover:bg-axle-red/10"
+            >
+              Cancel Task
+            </button>
+          </div>
         )}
 
         {/* Accepted: provider can submit result */}
@@ -354,7 +425,7 @@ export default function TaskDetailPage() {
           <div className="w-full max-w-md rounded-xl border border-axle-border bg-axle-dark p-6">
             <h3 className="mb-4 text-lg font-bold text-white">Submit Result</h3>
             <p className="mb-3 text-xs text-gray-500">
-              Your result text will be hashed (SHA-256) and stored on-chain.
+              Your result text will be hashed (SHA-256) and stored on-chain. The original text is saved off-chain for the requester to review.
             </p>
             <textarea
               value={resultText}
@@ -411,6 +482,35 @@ export default function TaskDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-axle-border bg-axle-dark p-6">
+            <h3 className="mb-4 text-lg font-bold text-white">Cancel Task</h3>
+            <p className="mb-2 text-sm text-gray-300">
+              Are you sure you want to cancel this task? The escrowed{' '}
+              <span className="font-bold text-axle-accent">{task.reward.toFixed(4)} SOL</span>{' '}
+              will be refunded to your wallet.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 rounded-lg border border-axle-border px-4 py-2.5 text-sm text-gray-400 hover:text-white"
+              >
+                Keep Task
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={actionLoading}
+                className="flex-1 rounded-lg bg-axle-red/20 px-4 py-2.5 text-sm font-semibold text-axle-red transition hover:bg-axle-red/30"
+              >
+                {actionLoading ? 'Cancelling...' : 'Cancel Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -420,7 +520,17 @@ function TimelineItem({ label, date, active }: { label: string; date: Date | nul
     <div className="flex items-center gap-3">
       <div className={`h-2.5 w-2.5 rounded-full ${active ? 'bg-axle-accent' : 'bg-gray-700'}`} />
       <span className={`text-sm ${active ? 'text-white' : 'text-gray-600'}`}>{label}</span>
-      {date && <span className="text-xs text-gray-500">{formatDate(date)}</span>}
+      {date && (
+        <span className="text-xs text-gray-500">
+          {date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </span>
+      )}
     </div>
   );
 }

@@ -29,13 +29,19 @@ function CreateTaskForm() {
 
     setLoading(true);
     try {
-      const tx = await createTask(
+      const { tx, taskPDA } = await createTask(
         wallet,
         description,
         capability,
         Number(rewardSol),
         deadlineDate
       );
+      // Save description off-chain for display
+      fetch('/api/task-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskPda: taskPDA, type: 'description', content: description }),
+      }).catch(() => {});
       showTxToast('success', 'Task created successfully!', tx);
       setTimeout(() => router.push('/tasks'), 3000);
     } catch (err) {

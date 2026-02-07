@@ -18,11 +18,12 @@ function timeLeft(deadline: Date): string {
 
 interface TaskCardProps {
   task: TaskInfo;
+  description?: string;
   onAccept?: (task: TaskInfo) => void;
   accepting?: boolean;
 }
 
-export default function TaskCard({ task, onAccept, accepting }: TaskCardProps) {
+export default function TaskCard({ task, description, onAccept, accepting }: TaskCardProps) {
   return (
     <Link href={`/tasks/${task.pda}`} className="block">
       <div className="rounded-xl border border-axle-border bg-axle-card p-5 transition hover:border-axle-accent/30">
@@ -34,7 +35,7 @@ export default function TaskCard({ task, onAccept, accepting }: TaskCardProps) {
         </div>
 
         <p className="mb-3 text-sm text-gray-300 line-clamp-2">
-          Task {task.pda.slice(0, 8)}...
+          {description || `Task ${task.pda.slice(0, 8)}...`}
         </p>
 
         <div className="mb-4 space-y-1 text-xs text-gray-500">

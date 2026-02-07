@@ -63,68 +63,155 @@ function ConnectionDot({ connected, cluster }: { connected: boolean; cluster: st
   );
 }
 
-function AgentTable({ agents }: { agents: AgentData[] }) {
-  if (agents.length === 0) {
-    return <p className="py-8 text-center text-gray-600">No agents registered</p>;
-  }
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-axle-border text-left text-xs uppercase tracking-wider text-gray-500">
-            <th className="pb-3 pr-4">Node ID</th>
-            <th className="pb-3 pr-4">Capabilities</th>
-            <th className="pb-3 pr-4 text-right">Fee</th>
-            <th className="pb-3 pr-4 text-right">Rep</th>
-            <th className="pb-3 pr-4 text-center">Done</th>
-            <th className="pb-3 pr-4 text-center">Failed</th>
-            <th className="pb-3 pr-4 text-center">Status</th>
-            <th className="pb-3 text-center">View</th>
-          </tr>
-        </thead>
-        <tbody>
-          {agents.map((a) => (
-            <tr key={a.pda} className="border-b border-axle-border/50 hover:bg-white/[0.02]">
-              <td className="py-3 pr-4 font-mono text-axle-accent">{a.nodeId}</td>
-              <td className="py-3 pr-4">
-                <div className="flex flex-wrap gap-1">
-                  {a.capabilities.map((c) => (
-                    <span
-                      key={c}
-                      className="rounded bg-axle-purple/20 px-1.5 py-0.5 text-xs text-axle-purple"
-                    >
-                      {c}
+    <span className="group relative cursor-help">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2.5 py-1.5 text-xs font-normal normal-case tracking-normal text-gray-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+        {text}
+      </span>
+    </span>
+  );
+}
+
+const RANK_STYLES: Record<number, string> = {
+  0: 'bg-[#FFD700]/10 border-l-2 border-l-[#FFD700]',
+  1: 'bg-[#C0C0C0]/10 border-l-2 border-l-[#C0C0C0]',
+  2: 'bg-[#CD7F32]/10 border-l-2 border-l-[#CD7F32]',
+};
+
+const RANK_LABELS: Record<number, { emoji: string; color: string }> = {
+  0: { emoji: '1st', color: 'text-[#FFD700]' },
+  1: { emoji: '2nd', color: 'text-[#C0C0C0]' },
+  2: { emoji: '3rd', color: 'text-[#CD7F32]' },
+};
+
+function AgentTable({ agents, sortBy, filterCap, filterActive, onSortChange, onFilterCapChange, onFilterActiveChange }: {
+  agents: AgentData[];
+  sortBy: string;
+  filterCap: string;
+  filterActive: string;
+  onSortChange: (v: string) => void;
+  onFilterCapChange: (v: string) => void;
+  onFilterActiveChange: (v: string) => void;
+}) {
+  // Sort agents
+  const sorted = [...agents].sort((a, b) => {
+    if (sortBy === 'rep') return b.reputation - a.reputation;
+    if (sortBy === 'done') return b.tasksCompleted - a.tasksCompleted;
+    if (sortBy === 'fee') return a.feePerTask - b.feePerTask;
+    return b.reputation - a.reputation;
+  });
+
+  // Filter
+  const filtered = sorted.filter((a) => {
+    if (filterActive === 'active' && !a.isActive) return false;
+    if (filterCap !== 'all' && !a.capabilities.includes(filterCap)) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <select value={sortBy} onChange={(e) => onSortChange(e.target.value)} className="axle-select w-auto text-xs">
+          <option value="rep">Sort by REP</option>
+          <option value="done">Sort by DONE</option>
+          <option value="fee">Sort by FEE</option>
+        </select>
+        <select value={filterActive} onChange={(e) => onFilterActiveChange(e.target.value)} className="axle-select w-auto text-xs">
+          <option value="all">All Agents</option>
+          <option value="active">Active Only</option>
+        </select>
+        <select value={filterCap} onChange={(e) => onFilterCapChange(e.target.value)} className="axle-select w-auto text-xs">
+          <option value="all">All Capabilities</option>
+          <option value="text-generation">text-generation</option>
+          <option value="image-analysis">image-analysis</option>
+          <option value="data-scraping">data-scraping</option>
+          <option value="code-review">code-review</option>
+          <option value="translation">translation</option>
+        </select>
+        <span className="text-xs text-gray-500">{filtered.length} agent{filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-gray-600">No agents found</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-axle-border text-left text-xs uppercase tracking-wider text-gray-500">
+                <th className="pb-3 pr-4 w-8">#</th>
+                <th className="pb-3 pr-4">Node ID</th>
+                <th className="pb-3 pr-4">Capabilities</th>
+                <th className="pb-3 pr-4 text-right">
+                  <Tooltip text="Fee per task in lamports (1 SOL = 1,000,000,000 lamports)">Fee</Tooltip>
+                </th>
+                <th className="pb-3 pr-4 text-right">
+                  <Tooltip text="Reputation score (0-1000). Increases with successful tasks.">Rep</Tooltip>
+                </th>
+                <th className="pb-3 pr-4 text-center">
+                  <Tooltip text="Number of completed tasks">Done</Tooltip>
+                </th>
+                <th className="pb-3 pr-4 text-center">
+                  <Tooltip text="Number of failed or rejected tasks">Failed</Tooltip>
+                </th>
+                <th className="pb-3 pr-4 text-center">Status</th>
+                <th className="pb-3 text-center">View</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((a, idx) => (
+                <tr key={a.pda} className={`border-b border-axle-border/50 hover:bg-white/[0.02] ${RANK_STYLES[idx] || ''}`}>
+                  <td className="py-3 pr-4 text-center">
+                    {RANK_LABELS[idx] ? (
+                      <span className={`text-xs font-bold ${RANK_LABELS[idx].color}`}>{RANK_LABELS[idx].emoji}</span>
+                    ) : (
+                      <span className="text-xs text-gray-600">{idx + 1}</span>
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-axle-accent">{a.nodeId}</td>
+                  <td className="py-3 pr-4">
+                    <div className="flex flex-wrap gap-1">
+                      {a.capabilities.map((c) => (
+                        <span
+                          key={c}
+                          className="rounded bg-axle-purple/20 px-1.5 py-0.5 text-xs text-axle-purple"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-right font-mono">{a.feePerTask}</td>
+                  <td className="py-3 pr-4 text-right">
+                    <span className={a.reputation >= 100 ? 'text-axle-green' : 'text-axle-yellow'}>
+                      {a.reputation}
                     </span>
-                  ))}
-                </div>
-              </td>
-              <td className="py-3 pr-4 text-right font-mono">{a.feePerTask}</td>
-              <td className="py-3 pr-4 text-right">
-                <span className={a.reputation >= 100 ? 'text-axle-green' : 'text-axle-yellow'}>
-                  {a.reputation}
-                </span>
-              </td>
-              <td className="py-3 pr-4 text-center text-axle-green">{a.tasksCompleted}</td>
-              <td className="py-3 pr-4 text-center text-axle-red">{a.tasksFailed}</td>
-              <td className="py-3 pr-4 text-center">
-                <span
-                  className={`inline-block h-2 w-2 rounded-full ${a.isActive ? 'bg-axle-green' : 'bg-gray-600'}`}
-                />
-              </td>
-              <td className="py-3 text-center">
-                <a
-                  href={solscanAccountUrl(a.pda)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-axle-accent hover:underline"
-                >
-                  Solscan ↗
-                </a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="py-3 pr-4 text-center text-axle-green">{a.tasksCompleted}</td>
+                  <td className="py-3 pr-4 text-center text-axle-red">{a.tasksFailed}</td>
+                  <td className="py-3 pr-4 text-center">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${a.isActive ? 'bg-axle-green' : 'bg-gray-600'}`}
+                    />
+                  </td>
+                  <td className="py-3 text-center">
+                    <a
+                      href={solscanAccountUrl(a.pda)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-axle-accent hover:underline"
+                    >
+                      Solscan ↗
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -234,6 +321,9 @@ export default function DashboardPage() {
   const [connected, setConnected] = useState(false);
   const [cluster, setCluster] = useState('disconnected');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [agentSort, setAgentSort] = useState('rep');
+  const [agentFilterCap, setAgentFilterCap] = useState('all');
+  const [agentFilterActive, setAgentFilterActive] = useState('all');
 
   const refresh = useCallback(async () => {
     const data = await fetchDashboardData();
@@ -312,7 +402,15 @@ export default function DashboardPage() {
             ({agents.length})
           </span>
         </h2>
-        <AgentTable agents={agents} />
+        <AgentTable
+          agents={agents}
+          sortBy={agentSort}
+          filterCap={agentFilterCap}
+          filterActive={agentFilterActive}
+          onSortChange={setAgentSort}
+          onFilterCapChange={setAgentFilterCap}
+          onFilterActiveChange={setAgentFilterActive}
+        />
       </section>
 
       {/* Task Feed */}

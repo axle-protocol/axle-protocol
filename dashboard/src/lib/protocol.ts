@@ -77,7 +77,7 @@ export async function createTask(
   requiredCapability: string,
   rewardSol: number,
   deadlineDate: Date
-): Promise<string> {
+): Promise<{ tx: string; taskPDA: string }> {
   const program = createProgram(wallet);
 
   // Generate unique task ID from random bytes
@@ -111,7 +111,7 @@ export async function createTask(
     })
     .rpc();
 
-  return tx;
+  return { tx, taskPDA: taskPDA.toBase58() };
 }
 
 export async function acceptTask(
@@ -168,6 +168,27 @@ export async function completeTask(
       taskAccount: taskPDA,
       agentAccount: agentPDA,
       provider: providerPubkey,
+      escrow: escrowPDA,
+      requester: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+export async function cancelTask(
+  wallet: AnchorWallet,
+  taskPDA: PublicKey,
+  taskIdBytes: Uint8Array
+): Promise<string> {
+  const program = createProgram(wallet);
+  const [escrowPDA] = getEscrowPDA(taskIdBytes);
+
+  const tx = await (program.methods as any)
+    .cancelTask()
+    .accounts({
+      taskAccount: taskPDA,
       escrow: escrowPDA,
       requester: wallet.publicKey,
       systemProgram: SystemProgram.programId,
