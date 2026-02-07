@@ -245,7 +245,7 @@ export default function Home() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-axle-dark/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3 hover:opacity-80 transition">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#4F7BFF] via-[#7B68EE] to-[#9B6DFF] flex items-center justify-center shadow-lg shadow-purple-500/20">
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
@@ -260,11 +260,12 @@ export default function Home() {
               </svg>
             </div>
             <span className="text-2xl font-bold text-gradient">AXLE</span>
-          </div>
+          </a>
           <div className="hidden md:flex items-center gap-8">
             <a href="#problem" className="text-gray-400 hover:text-white transition">Problem</a>
             <a href="#solution" className="text-gray-400 hover:text-white transition">Solution</a>
             <a href="#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</a>
+            <a href="#integration" className="text-gray-400 hover:text-white transition">SDK</a>
             <a href="#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</a>
             <a href="/getting-started" className="text-gray-400 hover:text-white transition">Get Started</a>
           </div>
@@ -291,7 +292,7 @@ export default function Home() {
             
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               The Backend Infrastructure for{' '}
-              <span className="text-gradient">AI Agents</span>
+              <span className="text-gradient whitespace-nowrap">AI Agents</span>
             </h1>
 
             <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
@@ -431,81 +432,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SDK Integration */}
-      <section id="integration" className="py-20 px-6 bg-axle-gray/30">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">One-line Integration</h2>
-            <p className="text-xl text-gray-400">Drop AXLE into your agent framework in seconds</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* OpenClaw Plugin */}
-            <motion.div
-              className="rounded-2xl border border-white/5 bg-axle-dark p-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-axle-blue to-axle-purple flex items-center justify-center">
-                  <span className="text-xs font-bold">OC</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold">OpenClaw Plugin</h3>
-                  <p className="text-xs text-gray-500">For OpenClaw-based agents</p>
-                </div>
-              </div>
-              <pre className="overflow-x-auto rounded-xl bg-black/30 border border-white/5 p-4 text-sm text-gray-300 font-mono">
-                <code>{`import { AxlePlugin } from "@axle-protocol/plugin";
-
-const agent = new OpenClaw({
-  plugins: [new AxlePlugin({
-    keypairPath: "~/.config/solana/id.json",
-    cluster: "devnet"
-  })]
-});`}</code>
-              </pre>
-            </motion.div>
-
-            {/* Eliza Plugin */}
-            <motion.div
-              className="rounded-2xl border border-white/5 bg-axle-dark p-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <span className="text-xs font-bold">E</span>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Eliza Plugin</h3>
-                  <p className="text-xs text-gray-500">For ElizaOS agents</p>
-                </div>
-              </div>
-              <pre className="overflow-x-auto rounded-xl bg-black/30 border border-white/5 p-4 text-sm text-gray-300 font-mono">
-                <code>{`import { axlePlugin } from "@axle-protocol/eliza";
-
-const agent = new ElizaAgent({
-  plugins: [axlePlugin],
-  settings: {
-    SOLANA_CLUSTER: "devnet",
-    AXLE_API_KEY: process.env.AXLE_KEY
-  }
-});`}</code>
-              </pre>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* How it Works */}
       <section id="how-it-works" className="py-20 px-6">
         <div className="max-w-7xl mx-auto">
@@ -587,6 +513,130 @@ const agent = new ElizaAgent({
                 </div>
                 <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
                 <p className="text-gray-400 text-sm">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SDK Integration */}
+      <section id="integration" className="py-20 px-6 bg-axle-gray/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <h2 className="text-3xl md:text-5xl font-bold">One-line Integration</h2>
+              <span className="px-3 py-1 text-sm bg-green-500/20 text-green-400 rounded-full">Live on npm</span>
+            </div>
+            <p className="text-xl text-gray-400">Drop AXLE into your agent framework in seconds</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* OpenClaw Plugin */}
+            <motion.div
+              className="rounded-2xl border border-white/5 bg-axle-dark p-6"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-axle-blue to-axle-purple flex items-center justify-center">
+                  <span className="text-xs font-bold">OC</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold">OpenClaw Plugin</h3>
+                  <p className="text-xs text-gray-500">For OpenClaw-based agents</p>
+                </div>
+              </div>
+              <pre className="overflow-x-auto rounded-xl bg-black/30 border border-white/5 p-4 text-sm text-gray-300 font-mono">
+                <code>{`import { AxlePlugin } from "@axle-protocol/plugin-openclaw";
+
+const agent = new OpenClaw({
+  plugins: [AxlePlugin({
+    keypairPath: "~/.config/solana/id.json",
+    cluster: "devnet"
+  })]
+});`}</code>
+              </pre>
+            </motion.div>
+
+            {/* Eliza Plugin */}
+            <motion.div
+              className="rounded-2xl border border-white/5 bg-axle-dark p-6"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <span className="text-xs font-bold">E</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold">Eliza Plugin</h3>
+                  <p className="text-xs text-gray-500">For ElizaOS agents</p>
+                </div>
+              </div>
+              <pre className="overflow-x-auto rounded-xl bg-black/30 border border-white/5 p-4 text-sm text-gray-300 font-mono">
+                <code>{`import { axlePlugin } from "@axle-protocol/plugin-eliza";
+
+const agent = new ElizaAgent({
+  plugins: [axlePlugin],
+  settings: {
+    AXLE_CLUSTER: "devnet",
+    AXLE_SECRET_KEY: process.env.AXLE_KEY
+  }
+});`}</code>
+              </pre>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Roadmap Section */}
+      <section id="roadmap" className="py-20 px-6 bg-axle-gray/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Roadmap</h2>
+            <p className="text-xl text-gray-400">Building the rails for the agentic economy</p>
+          </motion.div>
+          
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { quarter: 'Q1 2026', title: 'Foundation', items: ['Core smart contracts', 'Devnet deployment', 'SDK alpha'], status: 'current' },
+              { quarter: 'Q2 2026', title: 'Launch', items: ['Mainnet beta', 'SDK v1.0 release', 'Documentation'], status: 'upcoming' },
+              { quarter: 'Q3 2026', title: 'Scale', items: ['Cross-chain messaging', 'Agent marketplace', 'Developer grants'], status: 'upcoming' },
+              { quarter: 'Q4 2026', title: 'Ecosystem', items: ['Reputation marketplace', 'Governance token', 'Partner integrations'], status: 'upcoming' },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className={`p-6 rounded-2xl border ${item.status === 'current' ? 'border-axle-blue bg-axle-blue/5' : 'border-white/5 bg-axle-dark'}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <div className={`text-sm font-medium mb-2 ${item.status === 'current' ? 'text-axle-cyan' : 'text-gray-500'}`}>
+                  {item.status === 'current' && '● '}{item.quarter}
+                </div>
+                <h3 className="text-xl font-semibold mb-4">{item.title}</h3>
+                <ul className="space-y-2">
+                  {item.items.map((task, j) => (
+                    <li key={j} className="text-gray-400 text-sm flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'current' ? 'bg-axle-cyan' : 'bg-gray-600'}`} />
+                      {task}
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             ))}
           </div>
@@ -678,56 +728,10 @@ const agent = new ElizaAgent({
         </div>
       </section>
 
-      {/* Roadmap Section */}
-      <section id="roadmap" className="py-20 px-6 bg-axle-gray/30">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Roadmap</h2>
-            <p className="text-xl text-gray-400">Building the rails for the agentic economy</p>
-          </motion.div>
-          
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { quarter: 'Q1 2026', title: 'Foundation', items: ['Core smart contracts', 'Devnet deployment', 'SDK alpha'], status: 'current' },
-              { quarter: 'Q2 2026', title: 'Launch', items: ['Mainnet beta', 'SDK v1.0 release', 'Documentation'], status: 'upcoming' },
-              { quarter: 'Q3 2026', title: 'Scale', items: ['Cross-chain messaging', 'Agent marketplace', 'Developer grants'], status: 'upcoming' },
-              { quarter: 'Q4 2026', title: 'Ecosystem', items: ['Reputation marketplace', 'Governance token', 'Partner integrations'], status: 'upcoming' },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                className={`p-6 rounded-2xl border ${item.status === 'current' ? 'border-axle-blue bg-axle-blue/5' : 'border-white/5 bg-axle-dark'}`}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <div className={`text-sm font-medium mb-2 ${item.status === 'current' ? 'text-axle-cyan' : 'text-gray-500'}`}>
-                  {item.status === 'current' && '● '}{item.quarter}
-                </div>
-                <h3 className="text-xl font-semibold mb-4">{item.title}</h3>
-                <ul className="space-y-2">
-                  {item.items.map((task, j) => (
-                    <li key={j} className="text-gray-400 text-sm flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'current' ? 'bg-axle-cyan' : 'bg-gray-600'}`} />
-                      {task}
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="py-10 px-6 border-t border-white/5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3 hover:opacity-80 transition">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4F7BFF] via-[#7B68EE] to-[#9B6DFF] flex items-center justify-center shadow-lg">
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
@@ -742,10 +746,11 @@ const agent = new ElizaAgent({
               </svg>
             </div>
             <span className="text-xl font-bold text-gradient">AXLE</span>
-          </div>
+          </a>
           <div className="flex items-center gap-6">
             <a href="https://dashboard.axleprotocol.com" className="text-gray-400 hover:text-white transition">Dashboard</a>
             <a href="https://github.com/axle-protocol" className="text-gray-400 hover:text-white transition">GitHub</a>
+            <a href="https://github.com/axle-protocol/axle-protocol/tree/main/sdk" className="text-gray-400 hover:text-white transition">SDK</a>
             <a href="https://twitter.com/axle_protocol" className="text-gray-400 hover:text-white transition">Twitter</a>
             <a href="https://github.com/axle-protocol/axle-protocol#readme" className="text-gray-400 hover:text-white transition">Docs</a>
           </div>

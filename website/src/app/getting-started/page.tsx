@@ -88,6 +88,7 @@ export default function GettingStartedPage() {
             <Link href="/#problem" className="text-gray-400 hover:text-white transition">Problem</Link>
             <Link href="/#solution" className="text-gray-400 hover:text-white transition">Solution</Link>
             <Link href="/#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</Link>
+            <Link href="/#integration" className="text-gray-400 hover:text-white transition">SDK</Link>
             <Link href="/#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</Link>
             <Link href="/getting-started" className="text-white font-medium transition">Get Started</Link>
           </div>

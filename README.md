@@ -56,11 +56,15 @@ cd ../dashboard && npm install && npx next dev -p 3333
 # Open http://localhost:3333
 ```
 
-## SDK
+## Install
 
 ```bash
 npm install @axle-protocol/sdk
+npm install @axle-protocol/plugin-openclaw   # OpenClaw agents
+npm install @axle-protocol/plugin-eliza      # Eliza agents
 ```
+
+## SDK
 
 ```typescript
 import { AxleSDK } from '@axle-protocol/sdk';
@@ -93,13 +97,13 @@ await sdk.completeTask(task.id); // Escrow released, reputation +10
 ## Project Structure
 
 ```
-contracts/    Solana Anchor program (Rust)
-sdk/          @axle-protocol/sdk npm package (TypeScript)
-plugin/       OpenClaw plugin integration
-demo/         2-node live demo scripts
-dashboard/    Next.js real-time dashboard
-pitch/        Investor pitch materials
-scripts/      Deployment & test scripts
+programs/          Solana Anchor program (Rust)
+sdk/               @axle-protocol/sdk (TypeScript)
+plugins/openclaw/  @axle-protocol/plugin-openclaw
+plugins/eliza/     @axle-protocol/plugin-eliza
+dashboard/         Next.js dashboard with Phantom wallet
+website/           Marketing site
+scripts/           Deployment & test scripts
 ```
 
 ## On-Chain Instructions
