@@ -5,11 +5,11 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 
 const ERROR_MESSAGES: Record<string, { ko: string; en: string }> = {
-  access_denied: { ko: 'X 인증이 거부되었습니다', en: 'X authentication was denied' },
-  invalid_state: { ko: '인증 세션이 만료되었습니다', en: 'Auth session expired' },
+  invalid_nonce: { ko: 'Nonce가 유효하지 않거나 만료되었습니다', en: 'Nonce is invalid or expired' },
   missing_params: { ko: '필수 파라미터가 누락되었습니다', en: 'Missing required parameters' },
-  token_exchange_failed: { ko: '토큰 교환에 실패했습니다', en: 'Token exchange failed' },
-  profile_fetch_failed: { ko: '프로필 조회에 실패했습니다', en: 'Profile fetch failed' },
+  tweet_fetch_failed: { ko: '트윗 조회에 실패했습니다', en: 'Failed to fetch tweet' },
+  nonce_not_found: { ko: '트윗에서 Nonce를 찾을 수 없습니다', en: 'Nonce not found in tweet' },
+  wallet_not_found: { ko: '트윗에서 지갑 주소를 찾을 수 없습니다', en: 'Wallet not found in tweet' },
   internal_error: { ko: '내부 오류가 발생했습니다', en: 'Internal error occurred' },
 };
 
@@ -32,12 +32,12 @@ function ErrorContent() {
         <p className="mb-6 text-xs text-gray-400">{err.en}</p>
 
         <div className="flex justify-center gap-3">
-          <a
-            href="/api/auth/twitter"
+          <Link
+            href="/auth/register"
             className="rounded-lg bg-axle-accent px-6 py-2 text-sm font-semibold text-black transition hover:bg-axle-accent/80"
           >
             Try Again
-          </a>
+          </Link>
           <Link
             href="/"
             className="rounded-lg border border-axle-border px-6 py-2 text-sm text-gray-400 transition hover:text-white"

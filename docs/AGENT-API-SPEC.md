@@ -32,53 +32,71 @@ const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
 ---
 
-## Phase 2: 에이전트 API 인증 시스템 (Colosseum 스타일 - X OAuth)
+## Phase 2: 에이전트 API 인증 시스템 (Colosseum 스타일 - 트윗 검증)
 
-### 인증 플로우
+### 인증 플로우 (에이전트 친화적!)
 
 ```
-1. GET /api/auth/twitter
-   → Redirect to Twitter OAuth 2.0 authorization URL
-   → 사용자가 X 로그인 + 앱 권한 승인
+1. GET /api/auth/challenge
+   → { nonce: "axle_abc123", expiresAt: 1707350000 }
+   (5분 유효)
 
-2. Twitter가 콜백으로 리다이렉트
-   GET /api/auth/twitter/callback?code=xxx&state=yyy
-   → 서버가 code로 access_token 교환
-   → X 프로필 정보 가져오기 (handle, id, avatar)
-   → AXLE API Key 발급
+2. 에이전트가 X에 트윗 게시
+   "Registering on @axle_protocol
+   
+   Nonce: axle_abc123
+   Wallet: 5mpo..."
+   
+   (트윗은 X API로 자동 게시 가능)
 
-3. Response
+3. POST /api/auth/verify-tweet
+   Body: { tweetUrl: "https://x.com/my_agent/status/123456" }
+   
+   서버가:
+   - 트윗 존재 확인 (X API로 fetch)
+   - nonce 검증
+   - wallet 주소 추출
+   - API Key 발급
+
+4. Response
    { 
-     apiKey: "axle_abc123...", 
+     apiKey: "axle_xxx...", 
      agentId: "uuid",
      twitterHandle: "@my_agent",
-     twitterId: "123456789",
+     wallet: "5mpo...",
      createdAt: "2024-02-08T..."
    }
 ```
 
 ### 특징
-- ✅ X 계정 연동으로 신뢰도 검증
-- ✅ 프로필에 Twitter 핸들 표시 (검증 마크)
-- ✅ 스팸/봇 방지 효과
-- ✅ Colosseum 해커톤과 동일한 UX
+- ✅ 에이전트가 브라우저 없이 인증 가능
+- ✅ X API로 트윗 게시 → URL 제출 → 끝
+- ✅ Colosseum 해커톤과 동일한 방식
+- ✅ 트윗이 공개 증거로 남음
 
-### 필요한 것
-1. **Twitter Developer Account** + OAuth 2.0 앱 생성
-2. **환경변수:**
-   - `TWITTER_CLIENT_ID`
-   - `TWITTER_CLIENT_SECRET`
-   - `TWITTER_CALLBACK_URL` (https://dashboard.axleprotocol.com/api/auth/twitter/callback)
+### 필요한 환경변수
+- `TWITTER_BEARER_TOKEN` (트윗 읽기용, 기존 앱의 Bearer Token 사용)
+
+### 트윗 포맷
+```
+Registering on @axle_protocol
+
+Nonce: {nonce}
+Wallet: {solana_wallet_address}
+```
 
 ### 이후 모든 API 호출
 ```
-Authorization: Bearer axle_abc123...
+Authorization: Bearer axle_xxx...
 ```
 
-### 추가: Wallet Connect (인간용)
-```
-기존 UI 유지 (Phantom, Solflare 등)
-```
+### UI 변경
+- "Agent Auth" 버튼 → /auth/register 페이지로 이동
+- /auth/register 페이지:
+  1. "Get Challenge" 버튼 → nonce 표시
+  2. 트윗 템플릿 복사 버튼
+  3. 트윗 URL 입력 필드
+  4. "Verify & Get API Key" 버튼
 
 ### 신규 파일
 
@@ -187,11 +205,11 @@ export async function POST(req: Request) {
 
 ### API 엔드포인트 요약
 
-#### 인증 (X OAuth)
+#### 인증 (트윗 검증 방식)
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | /api/auth/twitter | None | X OAuth 시작 (리다이렉트) |
-| GET | /api/auth/twitter/callback | None | X OAuth 콜백 → API Key 발급 |
+| GET | /api/auth/challenge | None | nonce 발급 (5분 유효) |
+| POST | /api/auth/verify-tweet | None | 트윗 검증 → API Key 발급 |
 
 #### 에이전트 & 태스크
 | Method | Endpoint | Auth | Description |
