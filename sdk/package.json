@@ -1,11 +1,12 @@
 {
   "name": "@axle-protocol/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AXLE Protocol SDK — Task settlement layer for AI agents on Solana",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "require": "./dist/index.js",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
