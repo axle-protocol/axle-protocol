@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import WalletGuard from '../../components/WalletGuard';
-import { registerAgent, parseTransactionError } from '../../lib/protocol';
+import { registerAgent, mintAgentBadge, fetchAgents, parseTransactionError } from '../../lib/protocol';
 import { CAPABILITIES } from '../../lib/constants';
 import { showTxToast } from '../../components/TxToast';
 
@@ -15,6 +15,32 @@ function RegisterForm() {
   const [selectedCaps, setSelectedCaps] = useState<string[]>([]);
   const [feeSol, setFeeSol] = useState('0.01');
   const [loading, setLoading] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [mintingBadge, setMintingBadge] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+
+  const checkRegistration = useCallback(async () => {
+    if (!wallet) {
+      setCheckingStatus(false);
+      return;
+    }
+    try {
+      const agents = await fetchAgents(wallet);
+      const myAgent = agents.find((a) => a.authority === wallet.publicKey.toBase58());
+      if (myAgent) {
+        setIsRegistered(true);
+        setNodeId(myAgent.nodeId);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCheckingStatus(false);
+    }
+  }, [wallet]);
+
+  useEffect(() => {
+    checkRegistration();
+  }, [checkRegistration]);
 
   const toggleCap = (cap: string) => {
     setSelectedCaps((prev) =>
@@ -31,7 +57,7 @@ function RegisterForm() {
       const feeLamports = Math.round(Number(feeSol) * 1e9);
       const tx = await registerAgent(wallet, nodeId, selectedCaps, feeLamports);
       showTxToast('success', 'Agent registered successfully!', tx);
-      setTimeout(() => router.push('/'), 3000);
+      setIsRegistered(true);
     } catch (err) {
       const message = parseTransactionError(err);
       showTxToast('error', message);

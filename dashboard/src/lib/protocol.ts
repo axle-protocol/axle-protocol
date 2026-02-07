@@ -198,6 +198,59 @@ export async function cancelTask(
   return tx;
 }
 
+export function getBadgeMintPDA(authority: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('badge'), authority.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
+const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
+function getAssociatedTokenAddressSync(
+  mint: PublicKey,
+  owner: PublicKey,
+  tokenProgramId: PublicKey
+): PublicKey {
+  const [address] = PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  return address;
+}
+
+export async function mintAgentBadge(
+  wallet: AnchorWallet,
+  name: string,
+  symbol: string,
+  uri: string
+): Promise<string> {
+  const program = createProgram(wallet);
+  const [agentPDA] = getAgentPDA(wallet.publicKey);
+  const [badgeMint] = getBadgeMintPDA(wallet.publicKey);
+  const tokenAccount = getAssociatedTokenAddressSync(
+    badgeMint,
+    wallet.publicKey,
+    TOKEN_2022_PROGRAM_ID
+  );
+
+  const tx = await (program.methods as any)
+    .mintAgentBadge(name, symbol, uri)
+    .accounts({
+      agentAccount: agentPDA,
+      badgeMint,
+      tokenAccount,
+      authority: wallet.publicKey,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
 export async function fetchTaskByPDA(
   wallet: AnchorWallet,
   taskPDA: PublicKey

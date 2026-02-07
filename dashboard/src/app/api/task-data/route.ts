@@ -36,7 +36,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'taskPda required' }, { status: 400 });
   }
 
+  const bulk = req.nextUrl.searchParams.get('bulk');
   const store = readStore();
+
+  if (bulk === 'true') {
+    const pdas = taskPda.split(',');
+    const result: Record<string, string> = {};
+    for (const pda of pdas) {
+      const entry = store[pda];
+      if (entry?.description) {
+        result[pda] = entry.description;
+      }
+    }
+    return NextResponse.json(result);
+  }
+
   const data = store[taskPda] || {};
   return NextResponse.json(data);
 }

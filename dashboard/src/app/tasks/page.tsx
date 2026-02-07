@@ -9,13 +9,17 @@ import { CAPABILITIES } from '../../lib/constants';
 import { showTxToast } from '../../components/TxToast';
 import { PublicKey } from '@solana/web3.js';
 
+type TabFilter = 'all' | 'my-requests' | 'my-work';
+
 export default function TasksPage() {
   const wallet = useAnchorWallet();
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [filterCap, setFilterCap] = useState('all');
   const [sortBy, setSortBy] = useState<'newest' | 'reward'>('newest');
+  const [tab, setTab] = useState<TabFilter>('all');
 
   const loadTasks = useCallback(async () => {
     if (!wallet) {
@@ -26,6 +30,20 @@ export default function TasksPage() {
     try {
       const data = await fetchTasks(wallet);
       setTasks(data);
+
+      // Fetch descriptions for all tasks
+      const pdas = data.map((t) => t.pda);
+      if (pdas.length > 0) {
+        try {
+          const res = await fetch(`/api/task-data?taskPda=${pdas.join(',')}&bulk=true`);
+          if (res.ok) {
+            const bulk = await res.json();
+            setDescriptions(bulk);
+          }
+        } catch {
+          // ignore
+        }
+      }
     } catch {
       setTasks([]);
     } finally {
@@ -62,12 +80,27 @@ export default function TasksPage() {
     }
   };
 
+  const myKey = wallet?.publicKey.toBase58() || '';
+
   const filtered = tasks
-    .filter((t) => filterCap === 'all' || t.requiredCapability === filterCap)
+    .filter((t) => {
+      // Tab filter
+      if (tab === 'my-requests' && t.requester !== myKey) return false;
+      if (tab === 'my-work' && t.provider !== myKey) return false;
+      // Capability filter
+      if (filterCap !== 'all' && t.requiredCapability !== filterCap) return false;
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === 'reward') return b.reward - a.reward;
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
+
+  const tabs: { key: TabFilter; label: string }[] = [
+    { key: 'all', label: 'All Tasks' },
+    { key: 'my-requests', label: 'My Requests' },
+    { key: 'my-work', label: 'My Work' },
+  ];
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
@@ -81,6 +114,23 @@ export default function TasksPage() {
         <Link href="/tasks/new" className="axle-btn">
           Create New Task
         </Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-4 flex gap-1 rounded-lg border border-axle-border bg-axle-dark p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+              tab === t.key
+                ? 'bg-axle-accent text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -121,10 +171,23 @@ export default function TasksPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-20 text-center text-gray-500">
-          No tasks found.{' '}
-          <Link href="/tasks/new" className="text-axle-accent hover:underline">
-            Create one
-          </Link>
+          {tab === 'all' ? (
+            <>
+              No tasks found.{' '}
+              <Link href="/tasks/new" className="text-axle-accent hover:underline">
+                Create one
+              </Link>
+            </>
+          ) : tab === 'my-requests' ? (
+            <>
+              You haven&apos;t created any tasks yet.{' '}
+              <Link href="/tasks/new" className="text-axle-accent hover:underline">
+                Create your first task
+              </Link>
+            </>
+          ) : (
+            'No tasks assigned to you yet.'
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -132,6 +195,7 @@ export default function TasksPage() {
             <TaskCard
               key={task.pda}
               task={task}
+              description={descriptions[task.pda]}
               onAccept={handleAccept}
               accepting={acceptingId === task.pda}
             />
