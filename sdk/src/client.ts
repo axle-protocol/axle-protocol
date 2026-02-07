@@ -68,6 +68,25 @@ export class AxleClient {
     return this.sdk.findAgents(capability);
   }
 
+  async submitTask(taskId: string, result: string): Promise<string> {
+    const task = await this.sdk.deliverTask(taskId, result);
+    return task.id;
+  }
+
+  async approveTask(taskId: string): Promise<string> {
+    const task = await this.sdk.completeTask(taskId);
+    return task.id;
+  }
+
+  async mintBadge(name: string, symbol: string, uri: string): Promise<string> {
+    return this.sdk.mintAgentBadge(name, symbol, uri);
+  }
+
+  async cancelTask(taskId: string): Promise<string> {
+    const task = await this.sdk.cancelTask(taskId);
+    return task.id;
+  }
+
   /** Access the underlying AxleSDK for advanced usage */
   get inner(): AxleSDK {
     return this.sdk;
