@@ -6,8 +6,7 @@ import { solscanTxUrl } from '../lib/constants';
 interface Toast {
   id: number;
   type: 'success' | 'error';
-  ko: string;
-  en: string;
+  message: string;
   txSignature?: string;
   actionUrl?: string;
   actionLabel?: string;
@@ -18,13 +17,12 @@ const listeners: Set<(toast: Toast) => void> = new Set();
 
 export function showTxToast(
   type: 'success' | 'error',
-  ko: string,
-  en: string,
+  message: string,
   txSignature?: string,
   actionUrl?: string,
   actionLabel?: string
 ) {
-  const toast: Toast = { id: ++toastId, type, ko, en, txSignature, actionUrl, actionLabel };
+  const toast: Toast = { id: ++toastId, type, message, txSignature, actionUrl, actionLabel };
   listeners.forEach((fn) => fn(toast));
 }
 
@@ -58,10 +56,7 @@ export default function TxToastContainer() {
               : 'border-axle-red/30 bg-axle-red/10'
           }`}
         >
-          <p className="text-sm font-medium text-white">{toast.ko}</p>
-          {toast.ko !== toast.en && (
-            <p className="mt-0.5 text-xs text-gray-400">{toast.en}</p>
-          )}
+          <p className="text-sm font-medium text-white">{toast.message}</p>
           {toast.txSignature && (
             <a
               href={solscanTxUrl(toast.txSignature)}

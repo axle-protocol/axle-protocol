@@ -44,21 +44,15 @@ export default function TasksPage() {
     setAcceptingId(task.pda);
     try {
       const tx = await acceptTask(wallet, new PublicKey(task.pda));
-      showTxToast(
-        'success',
-        '태스크를 수락했습니다!',
-        'Task accepted successfully!',
-        tx
-      );
+      showTxToast('success', 'Task accepted successfully!', tx);
       await loadTasks();
     } catch (err) {
       const errMsg = String(err);
-      const { ko, en } = parseTransactionError(err);
+      const message = parseTransactionError(err);
       const needsRegister = errMsg.includes('AccountNotInitialized') || errMsg.includes('Account does not exist') || errMsg.includes('3012');
       showTxToast(
         'error',
-        ko,
-        en,
+        message,
         undefined,
         needsRegister ? '/register' : undefined,
         needsRegister ? 'Register Now' : undefined

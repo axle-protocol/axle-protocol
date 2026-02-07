@@ -30,16 +30,11 @@ function RegisterForm() {
     try {
       const feeLamports = Math.round(Number(feeSol) * 1e9);
       const tx = await registerAgent(wallet, nodeId, selectedCaps, feeLamports);
-      showTxToast(
-        'success',
-        '에이전트가 등록되었습니다!',
-        'Agent registered successfully!',
-        tx
-      );
+      showTxToast('success', 'Agent registered successfully!', tx);
       setTimeout(() => router.push('/'), 3000);
     } catch (err) {
-      const { ko, en } = parseTransactionError(err);
-      showTxToast('error', ko, en);
+      const message = parseTransactionError(err);
+      showTxToast('error', message);
     } finally {
       setLoading(false);
     }

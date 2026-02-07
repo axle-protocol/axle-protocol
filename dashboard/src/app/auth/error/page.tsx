@@ -4,19 +4,19 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
 
-const ERROR_MESSAGES: Record<string, { ko: string; en: string }> = {
-  invalid_nonce: { ko: 'Nonce가 유효하지 않거나 만료되었습니다', en: 'Nonce is invalid or expired' },
-  missing_params: { ko: '필수 파라미터가 누락되었습니다', en: 'Missing required parameters' },
-  tweet_fetch_failed: { ko: '트윗 조회에 실패했습니다', en: 'Failed to fetch tweet' },
-  nonce_not_found: { ko: '트윗에서 Nonce를 찾을 수 없습니다', en: 'Nonce not found in tweet' },
-  wallet_not_found: { ko: '트윗에서 지갑 주소를 찾을 수 없습니다', en: 'Wallet not found in tweet' },
-  internal_error: { ko: '내부 오류가 발생했습니다', en: 'Internal error occurred' },
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_nonce: 'Nonce is invalid or expired',
+  missing_params: 'Missing required parameters',
+  tweet_fetch_failed: 'Failed to fetch tweet',
+  nonce_not_found: 'Nonce not found in tweet',
+  wallet_not_found: 'Wallet not found in tweet',
+  internal_error: 'Internal error occurred',
 };
 
 function ErrorContent() {
   const params = useSearchParams();
   const message = params.get('message') || 'internal_error';
-  const err = ERROR_MESSAGES[message] || { ko: message, en: message };
+  const errorMessage = ERROR_MESSAGES[message] || message;
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
@@ -28,8 +28,7 @@ function ErrorContent() {
         </div>
 
         <h1 className="mb-2 text-2xl font-bold text-white">Authentication Failed</h1>
-        <p className="mb-1 text-sm text-white">{err.ko}</p>
-        <p className="mb-6 text-xs text-gray-400">{err.en}</p>
+        <p className="mb-6 text-sm text-gray-400">{errorMessage}</p>
 
         <div className="flex justify-center gap-3">
           <Link

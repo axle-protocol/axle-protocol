@@ -23,7 +23,7 @@ function CreateTaskForm() {
 
     const deadlineDate = new Date(deadline);
     if (deadlineDate.getTime() <= Date.now()) {
-      showTxToast('error', '마감일은 미래여야 합니다', 'Deadline must be in the future');
+      showTxToast('error', 'Deadline must be in the future');
       return;
     }
 
@@ -36,16 +36,11 @@ function CreateTaskForm() {
         Number(rewardSol),
         deadlineDate
       );
-      showTxToast(
-        'success',
-        '태스크가 생성되었습니다!',
-        'Task created successfully!',
-        tx
-      );
+      showTxToast('success', 'Task created successfully!', tx);
       setTimeout(() => router.push('/tasks'), 3000);
     } catch (err) {
-      const { ko, en } = parseTransactionError(err);
-      showTxToast('error', ko, en);
+      const message = parseTransactionError(err);
+      showTxToast('error', message);
     } finally {
       setLoading(false);
     }

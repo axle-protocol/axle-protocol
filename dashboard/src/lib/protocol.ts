@@ -133,6 +133,81 @@ export async function acceptTask(
   return tx;
 }
 
+export async function deliverTask(
+  wallet: AnchorWallet,
+  taskPDA: PublicKey,
+  resultText: string
+): Promise<string> {
+  const program = createProgram(wallet);
+  const resultHash = await sha256(resultText);
+
+  const tx = await (program.methods as any)
+    .deliverTask(Array.from(resultHash))
+    .accounts({
+      taskAccount: taskPDA,
+      provider: wallet.publicKey,
+    })
+    .rpc();
+
+  return tx;
+}
+
+export async function completeTask(
+  wallet: AnchorWallet,
+  taskPDA: PublicKey,
+  providerPubkey: PublicKey,
+  taskIdBytes: Uint8Array
+): Promise<string> {
+  const program = createProgram(wallet);
+  const [agentPDA] = getAgentPDA(providerPubkey);
+  const [escrowPDA] = getEscrowPDA(taskIdBytes);
+
+  const tx = await (program.methods as any)
+    .completeTask()
+    .accounts({
+      taskAccount: taskPDA,
+      agentAccount: agentPDA,
+      provider: providerPubkey,
+      escrow: escrowPDA,
+      requester: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+export async function fetchTaskByPDA(
+  wallet: AnchorWallet,
+  taskPDA: PublicKey
+): Promise<TaskInfo | null> {
+  const program = createProgram(wallet);
+
+  try {
+    const d = await (program.account as any).taskAccount.fetch(taskPDA);
+    const isDefaultProvider =
+      d.provider.toBase58() === '11111111111111111111111111111111';
+
+    return {
+      pda: taskPDA.toBase58(),
+      id: Array.from(d.id as Uint8Array),
+      requester: d.requester.toBase58(),
+      provider: isDefaultProvider ? '' : d.provider.toBase58(),
+      requiredCapability: d.requiredCapability,
+      reward: d.reward.toNumber() / LAMPORTS_PER_SOL,
+      deadline: new Date(d.deadline.toNumber() * 1000),
+      status: parseStatus(d.status),
+      createdAt: new Date(d.createdAt.toNumber() * 1000),
+      resultHash: Array.from(d.resultHash as Uint8Array),
+      acceptedAt: d.acceptedAt ? new Date(d.acceptedAt.toNumber() * 1000) : null,
+      deliveredAt: d.deliveredAt ? new Date(d.deliveredAt.toNumber() * 1000) : null,
+      completedAt: d.completedAt ? new Date(d.completedAt.toNumber() * 1000) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ---------- Data Fetchers ----------
 
 export interface AgentInfo {
@@ -158,6 +233,10 @@ export interface TaskInfo {
   deadline: Date;
   status: string;
   createdAt: Date;
+  resultHash: number[];
+  acceptedAt: Date | null;
+  deliveredAt: Date | null;
+  completedAt: Date | null;
 }
 
 const STATUS_MAP: Record<string, string> = {
@@ -229,6 +308,10 @@ export async function fetchTasks(wallet: AnchorWallet): Promise<TaskInfo[]> {
         deadline: new Date(d.deadline.toNumber() * 1000),
         status: parseStatus(d.status),
         createdAt: new Date(d.createdAt.toNumber() * 1000),
+        resultHash: Array.from(d.resultHash as Uint8Array),
+        acceptedAt: d.acceptedAt ? new Date(d.acceptedAt.toNumber() * 1000) : null,
+        deliveredAt: d.deliveredAt ? new Date(d.deliveredAt.toNumber() * 1000) : null,
+        completedAt: d.completedAt ? new Date(d.completedAt.toNumber() * 1000) : null,
       };
     });
   } catch {
@@ -238,21 +321,15 @@ export async function fetchTasks(wallet: AnchorWallet): Promise<TaskInfo[]> {
 
 // ---------- Error Handling ----------
 
-export function parseTransactionError(err: unknown): { ko: string; en: string } {
+export function parseTransactionError(err: unknown): string {
   const msg = String(err);
-  if (msg.includes('already in use'))
-    return { ko: '이미 등록된 에이전트입니다', en: 'Agent already registered' };
-  if (msg.includes('insufficient funds') || msg.includes('0x1'))
-    return { ko: '잔액이 부족합니다', en: 'Insufficient SOL balance' };
-  if (msg.includes('User rejected'))
-    return { ko: '트랜잭션이 취소되었습니다', en: 'Transaction cancelled' };
-  if (msg.includes('CapabilityMismatch'))
-    return { ko: '요구 능력이 일치하지 않습니다', en: 'Capability mismatch' };
-  if (msg.includes('InvalidTaskStatus'))
-    return { ko: '태스크 상태가 올바르지 않습니다', en: 'Invalid task status' };
-  if (msg.includes('AgentNotActive'))
-    return { ko: '비활성 에이전트입니다', en: 'Agent is not active' };
+  if (msg.includes('already in use')) return 'Agent already registered';
+  if (msg.includes('insufficient funds') || msg.includes('0x1')) return 'Insufficient SOL balance';
+  if (msg.includes('User rejected')) return 'Transaction cancelled';
+  if (msg.includes('CapabilityMismatch')) return 'Capability mismatch';
+  if (msg.includes('InvalidTaskStatus')) return 'Invalid task status';
+  if (msg.includes('AgentNotActive')) return 'Agent is not active';
   if (msg.includes('AccountNotInitialized') || msg.includes('Account does not exist') || msg.includes('3012'))
-    return { ko: '태스크를 수락하려면 먼저 에이전트를 등록해주세요', en: 'You need to register as an agent first to accept tasks.' };
-  return { ko: msg, en: msg };
+    return 'You need to register as an agent first to accept tasks.';
+  return msg;
 }

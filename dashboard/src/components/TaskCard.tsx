@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import CapabilityBadge from './CapabilityBadge';
 import type { TaskInfo } from '../lib/protocol';
 
@@ -23,54 +24,58 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, onAccept, accepting }: TaskCardProps) {
   return (
-    <div className="rounded-xl border border-axle-border bg-axle-card p-5 transition hover:border-axle-accent/30">
-      <div className="mb-3 flex items-center justify-between">
-        <CapabilityBadge capability={task.requiredCapability} />
-        <span className="text-lg font-bold text-axle-accent">
-          {task.reward.toFixed(2)} SOL
-        </span>
-      </div>
-
-      <p className="mb-3 text-sm text-gray-300 line-clamp-2">
-        Task {task.pda.slice(0, 8)}...
-      </p>
-
-      <div className="mb-4 space-y-1 text-xs text-gray-500">
-        <p>
-          Deadline:{' '}
-          <span className={timeLeft(task.deadline) === 'Expired' ? 'text-axle-red' : 'text-gray-400'}>
-            {timeLeft(task.deadline)}
+    <Link href={`/tasks/${task.pda}`} className="block">
+      <div className="rounded-xl border border-axle-border bg-axle-card p-5 transition hover:border-axle-accent/30">
+        <div className="mb-3 flex items-center justify-between">
+          <CapabilityBadge capability={task.requiredCapability} />
+          <span className="text-lg font-bold text-axle-accent">
+            {task.reward.toFixed(2)} SOL
           </span>
-        </p>
-        <p>
-          Requester:{' '}
-          <span className="font-mono text-gray-400">
-            {task.requester.slice(0, 8)}...
-          </span>
-        </p>
-      </div>
-
-      {task.status === 'Created' && onAccept && (
-        <button
-          onClick={() => onAccept(task)}
-          disabled={accepting}
-          className="axle-btn w-full text-sm"
-        >
-          {accepting ? 'Accepting...' : 'Accept Task'}
-        </button>
-      )}
-
-      {task.status !== 'Created' && (
-        <div className={`rounded-lg px-3 py-1.5 text-center text-xs font-medium ${
-          task.status === 'Completed'
-            ? 'bg-axle-green/10 text-axle-green'
-            : task.status === 'Accepted'
-              ? 'bg-axle-yellow/10 text-axle-yellow'
-              : 'bg-gray-500/10 text-gray-400'
-        }`}>
-          {task.status}
         </div>
-      )}
-    </div>
+
+        <p className="mb-3 text-sm text-gray-300 line-clamp-2">
+          Task {task.pda.slice(0, 8)}...
+        </p>
+
+        <div className="mb-4 space-y-1 text-xs text-gray-500">
+          <p>
+            Deadline:{' '}
+            <span className={timeLeft(task.deadline) === 'Expired' ? 'text-axle-red' : 'text-gray-400'}>
+              {timeLeft(task.deadline)}
+            </span>
+          </p>
+          <p>
+            Requester:{' '}
+            <span className="font-mono text-gray-400">
+              {task.requester.slice(0, 8)}...
+            </span>
+          </p>
+        </div>
+
+        {task.status === 'Created' && onAccept && (
+          <button
+            onClick={(e) => { e.preventDefault(); onAccept(task); }}
+            disabled={accepting}
+            className="axle-btn w-full text-sm"
+          >
+            {accepting ? 'Accepting...' : 'Accept Task'}
+          </button>
+        )}
+
+        {task.status !== 'Created' && (
+          <div className={`rounded-lg px-3 py-1.5 text-center text-xs font-medium ${
+            task.status === 'Completed'
+              ? 'bg-axle-green/10 text-axle-green'
+              : task.status === 'Accepted'
+                ? 'bg-axle-yellow/10 text-axle-yellow'
+                : task.status === 'Delivered'
+                  ? 'bg-axle-purple/10 text-axle-purple'
+                  : 'bg-gray-500/10 text-gray-400'
+          }`}>
+            {task.status}
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }
