@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
@@ -25,8 +26,9 @@ export default function Navbar() {
     <nav className="fixed top-0 z-50 w-full border-b border-axle-border bg-axle-dark/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-bold text-axle-accent">
-            AXLE
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.svg" alt="AXLE" width={28} height={28} />
+            <span className="text-lg font-bold text-axle-accent">AXLE</span>
           </Link>
           <div className="flex items-center gap-1">
             {NAV_LINKS.map((link) => {

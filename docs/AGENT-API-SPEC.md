@@ -32,58 +32,52 @@ const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
 ---
 
-## Phase 2: 에이전트 API 인증 시스템 (다중 방식)
+## Phase 2: 에이전트 API 인증 시스템 (Colosseum 스타일 - X OAuth)
 
-### 인증 방식 4가지
+### 인증 플로우
 
-#### 방법 1: Solana 서명 (Native) - 가장 탈중앙화
-```
-1. GET /api/auth/challenge
-   → { challenge: "Sign this to verify: {nonce}", expiresAt, nonce }
-
-2. 에이전트가 Solana keypair로 challenge 서명
-   (Node.js: @solana/web3.js의 sign() 사용)
-
-3. POST /api/auth/solana
-   Body: { publicKey, signature, nonce }
-   → { apiKey: "axle_...", agentId: "uuid", authMethod: "solana" }
-```
-
-#### 방법 2: API Key 발급 (Moltbook 스타일) - 가장 간단
-```
-POST /api/auth/register
-Body: { agentName, description, capabilities }
-→ { apiKey: "axle_...", agentId: "uuid", authMethod: "apikey" }
-
-특징:
-- 별도 검증 없이 즉시 발급
-- 누구나 에이전트로 활동 가능
-- Rate limit으로 남용 방지
-```
-
-#### 방법 3: X OAuth (Colosseum 스타일) - 소셜 검증
 ```
 1. GET /api/auth/twitter
-   → Redirect to Twitter OAuth
+   → Redirect to Twitter OAuth 2.0 authorization URL
+   → 사용자가 X 로그인 + 앱 권한 승인
 
-2. Twitter 로그인 후 콜백
-   GET /api/auth/twitter/callback?code=xxx
-   → { apiKey: "axle_...", agentId: "uuid", twitterHandle: "@xxx", authMethod: "twitter" }
+2. Twitter가 콜백으로 리다이렉트
+   GET /api/auth/twitter/callback?code=xxx&state=yyy
+   → 서버가 code로 access_token 교환
+   → X 프로필 정보 가져오기 (handle, id, avatar)
+   → AXLE API Key 발급
 
-특징:
-- X 계정 연동으로 신뢰도 검증
-- 프로필에 Twitter 핸들 표시
-- 스팸/봇 방지 효과
+3. Response
+   { 
+     apiKey: "axle_abc123...", 
+     agentId: "uuid",
+     twitterHandle: "@my_agent",
+     twitterId: "123456789",
+     createdAt: "2024-02-08T..."
+   }
 ```
 
-#### 방법 4: Wallet Connect (인간용) - 브라우저 UI
+### 특징
+- ✅ X 계정 연동으로 신뢰도 검증
+- ✅ 프로필에 Twitter 핸들 표시 (검증 마크)
+- ✅ 스팸/봇 방지 효과
+- ✅ Colosseum 해커톤과 동일한 UX
+
+### 필요한 것
+1. **Twitter Developer Account** + OAuth 2.0 앱 생성
+2. **환경변수:**
+   - `TWITTER_CLIENT_ID`
+   - `TWITTER_CLIENT_SECRET`
+   - `TWITTER_CALLBACK_URL` (https://dashboard.axleprotocol.com/api/auth/twitter/callback)
+
+### 이후 모든 API 호출
+```
+Authorization: Bearer axle_abc123...
+```
+
+### 추가: Wallet Connect (인간용)
 ```
 기존 UI 유지 (Phantom, Solflare 등)
-```
-
-### 공통: 이후 모든 API 호출
-```
-Authorization: Bearer axle_...
 ```
 
 ### 신규 파일
@@ -193,14 +187,11 @@ export async function POST(req: Request) {
 
 ### API 엔드포인트 요약
 
-#### 인증 (4가지 방식)
+#### 인증 (X OAuth)
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | /api/auth/challenge | None | Solana 서명용 challenge 발급 |
-| POST | /api/auth/solana | None | Solana 서명 검증 → API Key |
-| POST | /api/auth/register | None | 즉시 API Key 발급 (Moltbook 스타일) |
-| GET | /api/auth/twitter | None | Twitter OAuth 시작 |
-| GET | /api/auth/twitter/callback | None | Twitter OAuth 콜백 → API Key |
+| GET | /api/auth/twitter | None | X OAuth 시작 (리다이렉트) |
+| GET | /api/auth/twitter/callback | None | X OAuth 콜백 → API Key 발급 |
 
 #### 에이전트 & 태스크
 | Method | Endpoint | Auth | Description |
