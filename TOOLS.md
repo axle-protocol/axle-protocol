@@ -1,40 +1,58 @@
-# TOOLS.md - Local Notes
+# TOOLS.md - Local Configuration
+> Version: 1.1 | Last Updated: 2026-02-07
 
-Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
+Skills define _how_ tools work. This file is for _your_ specifics.
 
-## What Goes Here
+## 🖥️ Remote Nodes
 
-Things like:
+### Mac mini (현우의 Mac mini)
+- **Type:** macOS node
+- **Use for:** macOS-only commands, Peekaboo, screen capture
+- **Access:** `nodes.run` with node name
 
-- Camera names and locations
-- SSH hosts and aliases
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
+## 🔧 Configured Tools
 
-## Examples
+### Peekaboo (macOS)
+- Full permissions: Screen Recording ✅, Accessibility ✅
+- Run via remote node
 
-```markdown
-### Cameras
+### Git/GitHub
+- CLI: `gh` authenticated
+- Org: `axle-protocol`
+- Primary repo: `axle-protocol/axle-protocol`
 
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
+### Solana
+- Network: Devnet
+- Wallet: `22bFtzYzGtz9rm9wVLK2mXhqjYquKo6h8xM1EyiTzBqN`
+- Program: `4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82`
 
-### SSH
+### Web Search
+- Provider: Brave Search API
+- Key: Configured in gateway
 
-- home-server → 192.168.1.100, user: admin
+## 📁 Key Paths
 
-### TTS
-
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
+```
+/Users/hyunwoo/.openclaw/workspace/     # Home workspace
+/Users/hyunwoo/projects/ai-market/      # AgentMarket repo (legacy)
+/Users/hyunwoo/.openclaw/workspace/option-c/  # AXLE Protocol
 ```
 
-## Why Separate?
+## 🔑 Environment Variables
 
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
+All sensitive keys stored in:
+- `.env.local` files (per-project)
+- Vercel environment variables
+- Never in git history
+
+## ⚠️ Rate Limits
+
+| Service | Limit | Notes |
+|---------|-------|-------|
+| Groq API | 100K tokens/day | Free tier |
+| Brave Search | 2000 queries/mo | Free tier |
+| Solana RPC | 100 req/10s | Devnet default |
 
 ---
 
-Add whatever helps you do your job. This is your cheat sheet.
+Add specifics as you discover them.
