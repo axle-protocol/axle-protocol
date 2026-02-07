@@ -1,11 +1,11 @@
 /**
- * @pact-protocol/sdk — Full Test Suite (localnet)
+ * @axle-protocol/sdk — Full Test Suite (localnet)
  * Tests ALL SDK methods including cancel, timeout, update, badge, and edge cases.
  *
  * Usage: npx tsx test/full.ts
  */
 
-import { PactSDK, TaskStatus } from '../src/index.js';
+import { AxleSDK, TaskStatus } from '../src/index.js';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 let passed = 0;
@@ -22,11 +22,11 @@ function assert(condition: boolean, name: string) {
 }
 
 async function main() {
-  console.log('=== @pact-protocol/sdk Full Test Suite ===\n');
+  console.log('=== @axle-protocol/sdk Full Test Suite ===\n');
 
-  const requester = new PactSDK({ cluster: 'localnet' });
-  const provider = new PactSDK({ cluster: 'localnet' });
-  const bystander = new PactSDK({ cluster: 'localnet' });
+  const requester = new AxleSDK({ cluster: 'localnet' });
+  const provider = new AxleSDK({ cluster: 'localnet' });
+  const bystander = new AxleSDK({ cluster: 'localnet' });
 
   const wA = requester.createWallet();
   const wB = provider.createWallet();

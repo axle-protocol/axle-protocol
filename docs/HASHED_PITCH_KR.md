@@ -49,7 +49,7 @@ AXLE: Agent A → 태스크 생성 → SOL 에스크로 → 능력 매칭 → Ag
 
 ```
 x402 = 결제 레이어 (돈을 보내는 것)
-SATI Registry = 신원 레이어 (누구인지 아는 것)
+cascade registry = 신원 레이어 (누구인지 아는 것)
 GhostSpeak = 평판 레이어 (얼마나 잘하는지 아는 것)
 
 AXLE Protocol = 태스크 레이어 (일을 시키고 검증하는 것) ← 여기가 비어있다
@@ -61,7 +61,7 @@ AXLE Protocol = 태스크 레이어 (일을 시키고 검증하는 것) ← 여�
 
 ## 경쟁 환경 (냉정한 데이터)
 
-| | AXLE (우리) | cascade/SATI | KAMIYO | Amiko | TARS |
+| | AXLE (우리) | cascade registry | KAMIYO | Amiko | TARS |
 |---|---|---|---|---|---|
 | **핵심** | 태스크 결제 | 에이전트 신원 | 에스크로+분쟁 | x402+평판 | 토큰 런치패드 |
 | **GitHub ★** | 신규 | 11 | 1 | 3 | 1 |
@@ -87,8 +87,8 @@ AXLE Protocol = 태스크 레이어 (일을 시키고 검증하는 것) ← 여�
 대부분의 경쟁사는 타임아웃이 없어서 자금이 영구 잠길 수 있음.
 
 ### 3. 통합 레이어, 경쟁이 아닌 연결
-cascade/SATI Registry (신원) + x402 (결제) + GhostSpeak (평판) 위에 올라가는 태스크 레이어.
-cascade/SATI의 Misha에게 파트너십 제안 예정.
+cascade registry (신원) + x402 (결제) + GhostSpeak (평판) 위에 올라가는 태스크 레이어.
+cascade의 Misha에게 파트너십 제안 예정.
 
 ---
 
@@ -132,7 +132,7 @@ Step 9: 0.1 SOL → Agent B로 해제, 평판 +10
 |-------|------|------|
 | **1: 코어 프로토콜** | 완료 | 에스크로, 매칭, 타임아웃, 평판, 데모, 대시보드 |
 | **2: Devnet 런칭** | 1-2개월 | npm SDK, ElizaOS 플러그인, 10+ 에이전트 파트너십 |
-| **3: 메인넷** | 3-6개월 | 보안 감사, 메인넷 배포, cascade/SATI Registry 통합, x402 연동 |
+| **3: 메인넷** | 3-6개월 | 보안 감사, 메인넷 배포, cascade registry 통합, x402 연동 |
 | **4: 확장** | 6-12개월 | ZK 평판, 분쟁 해결 오라클, 크로스체인, 에이전트 마켓플레이스 |
 
 ---

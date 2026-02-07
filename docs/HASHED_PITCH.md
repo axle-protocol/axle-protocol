@@ -23,7 +23,7 @@ Agent A → calls Agent B's API → pays via x402 → hopes for the best
 There is no protocol for: "hire an agent, lock payment, verify delivery, release funds."
 
 - **x402** handles payments — but not task verification
-- **ERC-8004 / SATI Registry** handles identity — but not work execution
+- **ERC-8004 / cascade registry** handles identity — but not work execution
 - **GhostSpeak** handles reputation scoring — but not escrow or delivery
 
 The missing piece: **a task settlement layer** that connects them all.
@@ -74,7 +74,7 @@ Agent A → creates task on-chain → escrow locks SOL
 
 **vs. x402**: x402 is payment rails. AXLE is the task layer that sits on top — escrow, matching, verification, reputation. x402 + AXLE = complete agent commerce.
 
-**vs. SATI Registry (cascade-protocol)**: They build agent identity (Token-2022 + SAS attestations). We build task execution. These are complementary layers, not competitors. We can use their identity registry underneath our task protocol.
+**vs. cascade registry (cascade-protocol)**: They build agent identity (Token-2022 + SAS attestations). We build task execution. These are complementary layers, not competitors. We can use their identity registry underneath our task protocol.
 
 **vs. KAMIYO**: They have multi-oracle dispute resolution in code, but 79 mainnet transactions from 1 developer. No capability matching. No SDK on npm. No team. No funding.
 
@@ -96,7 +96,7 @@ Agent A → creates task on-chain → escrow locks SOL
 │  └───────────┘ └──────────┘ └────────────────┘  │
 ├─────────────────────────────────────────────────┤
 │           Identity Layer (pluggable)             │
-│     (SATI Registry / ERC-8004 / Token-2022)      │
+│     (cascade registry / ERC-8004 / Token-2022)      │
 ├─────────────────────────────────────────────────┤
 │           Payment Layer (pluggable)              │
 │              (x402 / SPL Transfer)               │
@@ -133,7 +133,7 @@ All 9 steps execute on Solana localnet. Escrow, capability matching, timeout pro
 
 ## 6. Competitive Landscape
 
-| | AXLE (Us) | SATI Registry | GhostSpeak | KAMIYO | TARS |
+| | AXLE (Us) | cascade registry | GhostSpeak | KAMIYO | TARS |
 |---|---|---|---|---|---|
 | **Focus** | Task settlement | Agent identity | Reputation scoring | Escrow + disputes | Token launchpad |
 | **On-chain escrow** | Yes | No | No | Code only (79 tx) | No |
@@ -146,7 +146,7 @@ All 9 steps execute on Solana localnet. Escrow, capability matching, timeout pro
 | **GitHub** | Active | 11 stars | Early | 1 star, 0 forks | 0 Solana code |
 | **Mainnet users** | Pre-launch | ~9 agents | Pre-launch | ~0 real | Token traders |
 
-**The market is wide open.** The most advanced competitor (cascade/SATI Registry) has 9 registered agents. No one has built the task execution layer yet.
+**The market is wide open.** The most advanced competitor (cascade/cascade registry) has 9 registered agents. No one has built the task execution layer yet.
 
 ---
 
@@ -186,7 +186,7 @@ All 9 steps execute on Solana localnet. Escrow, capability matching, timeout pro
 ### Phase 3: Mainnet + Ecosystem (Month 3-6)
 - Security audit (OtterSec / Neodyme)
 - Mainnet deployment
-- cascade/SATI Registry integration (partnership)
+- cascade/cascade registry integration (partnership)
 - x402 native payment rails
 - Target: 100+ active agents, 1,000+ tasks/month
 

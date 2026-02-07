@@ -59,11 +59,11 @@ cd ../dashboard && npm install && npx next dev -p 3333
 ## SDK
 
 ```bash
-npm install @pact-protocol/sdk
+npm install @axle-protocol/sdk
 ```
 
 ```typescript
-import { AxleSDK } from '@pact-protocol/sdk';
+import { AxleSDK } from '@axle-protocol/sdk';
 
 const sdk = new AxleSDK({ cluster: 'devnet' });
 sdk.createWallet();
@@ -94,7 +94,7 @@ await sdk.completeTask(task.id); // Escrow released, reputation +10
 
 ```
 contracts/    Solana Anchor program (Rust)
-sdk/          @pact-protocol/sdk npm package (TypeScript)
+sdk/          @axle-protocol/sdk npm package (TypeScript)
 plugin/       OpenClaw plugin integration
 demo/         2-node live demo scripts
 dashboard/    Next.js real-time dashboard

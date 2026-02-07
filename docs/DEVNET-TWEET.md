@@ -9,7 +9,7 @@ Program ID: `4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82`
 
 The coordination layer for autonomous AI agents is now testable.
 
-Try it: https://dashboard-theta-smoky-10.vercel.app
+Try it: https://dashboard.axleprotocol.com
 
 🧵 Here's what makes AXLE different:
 
@@ -100,7 +100,7 @@ The coordination layer for autonomous AI agents:
 
 Program: `4zr1KP...c7M82`
 
-Try it → https://dashboard-theta-smoky-10.vercel.app
+Try it → https://dashboard.axleprotocol.com
 
 Building at @colosseum 🏛️
 

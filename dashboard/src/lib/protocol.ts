@@ -1,0 +1,256 @@
+/**
+ * Browser-compatible Anchor client for AXLE Protocol
+ */
+import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import type { AnchorWallet } from '@solana/wallet-adapter-react';
+import idl from './idl/agent_protocol.json';
+import { PROGRAM_ID, RPC_URL } from './constants';
+
+// ---------- PDA Helpers ----------
+
+export function getAgentPDA(authority: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('agent'), authority.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
+export function getTaskPDA(taskId: Uint8Array): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('task'), taskId],
+    PROGRAM_ID
+  );
+}
+
+export function getEscrowPDA(taskId: Uint8Array): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('escrow'), taskId],
+    PROGRAM_ID
+  );
+}
+
+// ---------- SHA-256 (Web Crypto) ----------
+
+export async function sha256(input: string): Promise<Uint8Array> {
+  const encoded = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  return new Uint8Array(hashBuffer);
+}
+
+// ---------- Program Factory ----------
+
+export function createProgram(wallet: AnchorWallet) {
+  const connection = new Connection(RPC_URL, 'confirmed');
+  const provider = new AnchorProvider(connection, wallet, {
+    commitment: 'confirmed',
+  });
+  return new Program(idl as any, provider);
+}
+
+// ---------- Instructions ----------
+
+export async function registerAgent(
+  wallet: AnchorWallet,
+  nodeId: string,
+  capabilities: string[],
+  feePerTask: number
+): Promise<string> {
+  const program = createProgram(wallet);
+  const [agentPDA] = getAgentPDA(wallet.publicKey);
+
+  const tx = await (program.methods as any)
+    .registerAgent(nodeId, JSON.stringify(capabilities), new BN(feePerTask))
+    .accounts({
+      agentAccount: agentPDA,
+      authority: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+export async function createTask(
+  wallet: AnchorWallet,
+  description: string,
+  requiredCapability: string,
+  rewardSol: number,
+  deadlineDate: Date
+): Promise<string> {
+  const program = createProgram(wallet);
+
+  // Generate unique task ID from random bytes
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+  const taskIdBytes = await sha256(
+    Array.from(randomBytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  );
+  const descriptionHash = await sha256(description);
+
+  const [taskPDA] = getTaskPDA(taskIdBytes);
+  const [escrowPDA] = getEscrowPDA(taskIdBytes);
+
+  const rewardLamports = new BN(Math.round(rewardSol * LAMPORTS_PER_SOL));
+  const deadline = new BN(Math.floor(deadlineDate.getTime() / 1000));
+
+  const tx = await (program.methods as any)
+    .createTask(
+      Array.from(taskIdBytes),
+      Array.from(descriptionHash),
+      requiredCapability,
+      rewardLamports,
+      deadline
+    )
+    .accounts({
+      taskAccount: taskPDA,
+      escrow: escrowPDA,
+      requester: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+export async function acceptTask(
+  wallet: AnchorWallet,
+  taskPDA: PublicKey
+): Promise<string> {
+  const program = createProgram(wallet);
+  const [agentPDA] = getAgentPDA(wallet.publicKey);
+
+  const tx = await (program.methods as any)
+    .acceptTask()
+    .accounts({
+      taskAccount: taskPDA,
+      agentAccount: agentPDA,
+      provider: wallet.publicKey,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ---------- Data Fetchers ----------
+
+export interface AgentInfo {
+  pda: string;
+  authority: string;
+  nodeId: string;
+  capabilities: string[];
+  feePerTask: number;
+  reputation: number;
+  isActive: boolean;
+  tasksCompleted: number;
+  tasksFailed: number;
+  registeredAt: Date;
+}
+
+export interface TaskInfo {
+  pda: string;
+  id: number[];
+  requester: string;
+  provider: string;
+  requiredCapability: string;
+  reward: number;
+  deadline: Date;
+  status: string;
+  createdAt: Date;
+}
+
+const STATUS_MAP: Record<string, string> = {
+  created: 'Created',
+  accepted: 'Accepted',
+  delivered: 'Delivered',
+  completed: 'Completed',
+  disputed: 'Disputed',
+  cancelled: 'Cancelled',
+  timedOut: 'TimedOut',
+};
+
+function parseStatus(statusObj: any): string {
+  if (!statusObj) return 'Unknown';
+  const key = Object.keys(statusObj)[0];
+  return STATUS_MAP[key] || key || 'Unknown';
+}
+
+export async function fetchAgents(wallet: AnchorWallet): Promise<AgentInfo[]> {
+  const program = createProgram(wallet);
+
+  try {
+    const accounts = await (program.account as any).agentState.all();
+    return accounts.map((acc: any) => {
+      const d = acc.account;
+      let capabilities: string[];
+      try {
+        capabilities = JSON.parse(d.capabilities);
+        if (!Array.isArray(capabilities)) capabilities = [d.capabilities];
+      } catch {
+        capabilities = [d.capabilities];
+      }
+
+      return {
+        pda: acc.publicKey.toBase58(),
+        authority: d.authority.toBase58(),
+        nodeId: d.nodeId,
+        capabilities,
+        feePerTask: d.feePerTask.toNumber(),
+        reputation: d.reputation.toNumber(),
+        isActive: d.isActive,
+        tasksCompleted: d.tasksCompleted.toNumber(),
+        tasksFailed: d.tasksFailed.toNumber(),
+        registeredAt: new Date(d.registeredAt.toNumber() * 1000),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTasks(wallet: AnchorWallet): Promise<TaskInfo[]> {
+  const program = createProgram(wallet);
+
+  try {
+    const accounts = await (program.account as any).taskAccount.all();
+    return accounts.map((acc: any) => {
+      const d = acc.account;
+      const isDefaultProvider =
+        d.provider.toBase58() === '11111111111111111111111111111111';
+
+      return {
+        pda: acc.publicKey.toBase58(),
+        id: Array.from(d.id as Uint8Array),
+        requester: d.requester.toBase58(),
+        provider: isDefaultProvider ? '' : d.provider.toBase58(),
+        requiredCapability: d.requiredCapability,
+        reward: d.reward.toNumber() / LAMPORTS_PER_SOL,
+        deadline: new Date(d.deadline.toNumber() * 1000),
+        status: parseStatus(d.status),
+        createdAt: new Date(d.createdAt.toNumber() * 1000),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// ---------- Error Handling ----------
+
+export function parseTransactionError(err: unknown): { ko: string; en: string } {
+  const msg = String(err);
+  if (msg.includes('already in use'))
+    return { ko: '이미 등록된 에이전트입니다', en: 'Agent already registered' };
+  if (msg.includes('insufficient funds') || msg.includes('0x1'))
+    return { ko: '잔액이 부족합니다', en: 'Insufficient SOL balance' };
+  if (msg.includes('User rejected'))
+    return { ko: '트랜잭션이 취소되었습니다', en: 'Transaction cancelled' };
+  if (msg.includes('CapabilityMismatch'))
+    return { ko: '요구 능력이 일치하지 않습니다', en: 'Capability mismatch' };
+  if (msg.includes('InvalidTaskStatus'))
+    return { ko: '태스크 상태가 올바르지 않습니다', en: 'Invalid task status' };
+  if (msg.includes('AgentNotActive'))
+    return { ko: '비활성 에이전트입니다', en: 'Agent is not active' };
+  return { ko: msg, en: msg };
+}

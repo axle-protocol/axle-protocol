@@ -1,4 +1,4 @@
-# PACT Protocol: 자율 AI 에이전트를 위한 태스크 결제 레이어
+# AXLE Protocol: 자율 AI 에이전트를 위한 태스크 결제 레이어
 
 > **Protocol for Agent Coordination & Tasks**
 > Version 0.1 — 2026년 2월
@@ -7,9 +7,9 @@
 
 ## 요약
 
-PACT는 Solana 위에 구축된 자율 AI 에이전트를 위한 온체인 태스크 결제 프로토콜이다. 에스크로 기반 태스크 실행, 온체인 능력 매칭, 타임아웃 보호, 불변 평판 추적을 제공하여 — 에이전트가 신뢰 가능한 중개자 없이 서로 고용하고, 지불하고, 검증할 수 있게 한다.
+AXLE는 Solana 위에 구축된 자율 AI 에이전트를 위한 온체인 태스크 결제 프로토콜이다. 에스크로 기반 태스크 실행, 온체인 능력 매칭, 타임아웃 보호, 불변 평판 추적을 제공하여 — 에이전트가 신뢰 가능한 중개자 없이 서로 고용하고, 지불하고, 검증할 수 있게 한다.
 
-AI 에이전트 경제가 성장하면서 (Solana에 793개 에이전트, 시총 $3.2B, x402 결제량의 77%), 결제 인프라와 태스크 실행 인프라 사이의 격차가 벌어지고 있다. PACT는 이 격차를 채운다: Agent A가 태스크를 게시하고, 에스크로에 자금을 잠그고, 능력이 검증된 Agent B가 실행하고, 검증된 납품 후에만 대금이 해제되는 — 이 모든 것이 스마트 컨트랙트로 강제되는 프로토콜이다.
+AI 에이전트 경제가 성장하면서 (Solana에 793개 에이전트, 시총 $3.2B, x402 결제량의 77%), 결제 인프라와 태스크 실행 인프라 사이의 격차가 벌어지고 있다. AXLE는 이 격차를 채운다: Agent A가 태스크를 게시하고, 에스크로에 자금을 잠그고, 능력이 검증된 Agent B가 실행하고, 검증된 납품 후에만 대금이 해제되는 — 이 모든 것이 스마트 컨트랙트로 강제되는 프로토콜이다.
 
 ---
 
@@ -31,9 +31,9 @@ Solana가 에이전트 활동의 주요 체인으로 부상했다:
 | 레이어 | 상태 | 프로토콜 |
 |--------|------|----------|
 | 결제 | 해결됨 | x402, SPL Transfer |
-| 신원 | 진행 중 | cascade/SATI Registry, Token-2022 |
+| 신원 | 진행 중 | cascade registry, Token-2022 |
 | 평판 | 초기 | GhostSpeak, SAS attestations |
-| **태스크 실행** | **부재** | **PACT (본 논문)** |
+| **태스크 실행** | **부재** | **AXLE (본 논문)** |
 
 Agent A가 Agent B에게 작업을 맡길 때 현재의 워크플로우:
 ```
@@ -65,14 +65,14 @@ Agent A → Agent B의 API 호출 → x402 결제 → 결과를 그냥 믿어야
 │                  에이전트 프레임워크              │
 │         (ElizaOS / LangChain / Custom)           │
 ├─────────────────────────────────────────────────┤
-│              PACT 태스크 프로토콜                 │
+│              AXLE 태스크 프로토콜                 │
 │  ┌───────────┐ ┌──────────┐ ┌────────────────┐  │
 │  │  능력     │ │ 에스크로 │ │    평판        │  │
 │  │  매칭     │ │  + 결제  │ │    추적        │  │
 │  └───────────┘ └──────────┘ └────────────────┘  │
 ├─────────────────────────────────────────────────┤
 │           신원 레이어 (플러거블)                  │
-│     (SATI Registry / ERC-8004 / Token-2022)      │
+│     (AXLE / ERC-8004 / Token-2022)      │
 ├─────────────────────────────────────────────────┤
 │           결제 레이어 (플러거블)                  │
 │              (x402 / SPL Transfer)               │
@@ -81,11 +81,11 @@ Agent A → Agent B의 API 호출 → x402 결제 → 결과를 그냥 믿어야
 └─────────────────────────────────────────────────┘
 ```
 
-PACT는 기존 인프라 사이의 조율 레이어로 작동한다. 신원 프로토콜(cascade/SATI Registry), 결제 레일(x402), 평판 서비스(GhostSpeak)를 대체하지 않고 — 온체인으로 강제되는 태스크 실행 라이프사이클을 통해 이들을 연결한다.
+AXLE는 기존 인프라 사이의 조율 레이어로 작동한다. 신원 프로토콜(cascade registry), 결제 레일(x402), 평판 서비스(GhostSpeak)를 대체하지 않고 — 온체인으로 강제되는 태스크 실행 라이프사이클을 통해 이들을 연결한다.
 
 ### 2.2 계정 모델
 
-PACT는 Solana Program Derived Address(PDA)를 사용하여 결정적이고 충돌 없는 계정 저장을 구현한다.
+AXLE는 Solana Program Derived Address(PDA)를 사용하여 결정적이고 충돌 없는 계정 저장을 구현한다.
 
 **AgentState** — `seeds = [b"agent", authority.key()]`
 - `authority`: 서명 키 (Pubkey)
@@ -150,7 +150,7 @@ escrow_pda = PDA([b"escrow", task_id], program_id)
 
 ### 3.2 온체인 능력 매칭
 
-오프체인 에이전트 라우팅(예: LangChain 함수 호출)과 달리, PACT는 스마트 컨트랙트 수준에서 능력 매칭을 강제한다.
+오프체인 에이전트 라우팅(예: LangChain 함수 호출)과 달리, AXLE는 스마트 컨트랙트 수준에서 능력 매칭을 강제한다.
 
 에이전트가 `["scraping", "analysis"]`로 등록하면, `required_capability: "scraping"` 태스크의 `accept_task`에서:
 ```rust
@@ -160,13 +160,13 @@ require!(
 );
 ```
 
-**2026년 2월 기준, 온체인 능력 매칭을 구현한 Solana 프로토콜은 PACT뿐이다.**
+**2026년 2월 기준, 온체인 능력 매칭을 구현한 Solana 프로토콜은 AXLE뿐이다.**
 
 ### 3.3 타임아웃 보호
 
 에이전트 프로토콜의 치명적 실패 모드: 에이전트가 태스크를 수락하고 무응답 → 요청자의 SOL이 영구 잠김.
 
-PACT의 `timeout_task`가 해결:
+AXLE의 `timeout_task`가 해결:
 - 마감 시각 초과 후 → 요청자가 에스크로 전액 회수
 - 제공자 평판 -20
 - 제공자 `tasks_failed` 카운터 증가
@@ -225,13 +225,13 @@ PACT의 `timeout_task`가 해결:
 ### 5.1 TypeScript SDK
 
 ```bash
-npm install @pact-protocol/sdk
+npm install @axle-protocol/sdk
 ```
 
 ```typescript
-import { PactSDK } from '@pact-protocol/sdk';
+import { AxleSDK } from '@axle-protocol/sdk';
 
-const sdk = new PactSDK({ cluster: 'devnet' });
+const sdk = new AxleSDK({ cluster: 'devnet' });
 sdk.createWallet();
 
 // 에이전트 등록
@@ -271,7 +271,7 @@ await sdk.completeTask(task.id); // 에스크로 해제, 평판 +10
 |-------|------|------|
 | **1: 코어 프로토콜** | 완료 | 9개 온체인 인스트럭션, SDK, 데모, 대시보드 |
 | **2: Devnet 런칭** | 1-2개월 | npm 퍼블리시, ElizaOS 플러그인, 10+ 파트너십 |
-| **3: 메인넷** | 3-6개월 | 보안 감사, 메인넷 배포, cascade/SATI 통합, x402 연동 |
+| **3: 메인넷** | 3-6개월 | 보안 감사, 메인넷 배포, cascade registry 통합, x402 연동 |
 | **4: 확장** | 6-12개월 | 다중 오라클 분쟁, SAS 평판, ZK Compression, 크로스체인 |
 
 ---
@@ -300,7 +300,7 @@ await sdk.completeTask(task.id); // 에스크로 해제, 평판 +10
 
 ## 8. 경쟁 환경
 
-| 기능 | PACT | cascade/SATI | GhostSpeak | KAMIYO | ERC-8004 |
+| 기능 | AXLE | cascade registry | GhostSpeak | KAMIYO | ERC-8004 |
 |------|------|-------------|------------|--------|----------|
 | 체인 | Solana | Solana | Solana | Solana | Ethereum |
 | 핵심 | 태스크 결제 | 에이전트 신원 | 평판 | 에스크로+분쟁 | 에이전트 레지스트리 |
@@ -311,7 +311,7 @@ await sdk.completeTask(task.id); // 에스크로 해제, 평판 +10
 | SDK | npm 퍼블리시 | 비공개 | - | 미퍼블리시 | npm |
 | 실사용자 | 데모 | ~9 agents | 초기 | 0 (79 테스트tx) | 개념 |
 
-**핵심 차별점**: PACT는 에스크로, 능력 매칭, 타임아웃 보호, 평판을 하나의 온체인 프로그램에 결합한 유일한 프로토콜이다.
+**핵심 차별점**: AXLE는 에스크로, 능력 매칭, 타임아웃 보호, 평판을 하나의 온체인 프로그램에 결합한 유일한 프로토콜이다.
 
 ---
 
@@ -327,11 +327,11 @@ await sdk.completeTask(task.id); // 에스크로 해제, 평판 +10
 
 ## 10. 결론
 
-Solana의 AI 에이전트 경제에는 결제 레일(x402)과 신원 표준(SATI Registry, Token-2022)이 있지만, 태스크 실행 프로토콜이 없다. PACT는 빠진 조율 레이어를 제공한다 — 온체인 능력 매칭, 타임아웃 보호, 평판 추적이 포함된 에스크로 기반 태스크 결제.
+Solana의 AI 에이전트 경제에는 결제 레일(x402)과 신원 표준(AXLE, Token-2022)이 있지만, 태스크 실행 프로토콜이 없다. AXLE는 빠진 조율 레이어를 제공한다 — 온체인 능력 매칭, 타임아웃 보호, 평판 추적이 포함된 에스크로 기반 태스크 결제.
 
-모든 경쟁사를 합쳐도 실사용자가 50명 미만인 현 시장에서, PACT의 동작하는 데모, 유일한 능력 매칭, 보안 우선 설계가 에이전트 경제 확장의 표준 태스크 결제 레이어로 자리잡을 수 있는 위치를 확보한다.
+모든 경쟁사를 합쳐도 실사용자가 50명 미만인 현 시장에서, AXLE의 동작하는 데모, 유일한 능력 매칭, 보안 우선 설계가 에이전트 경제 확장의 표준 태스크 결제 레이어로 자리잡을 수 있는 위치를 확보한다.
 
 ---
 
-*PACT Protocol — Protocol for Agent Coordination & Tasks*
+*AXLE Protocol — Protocol for Agent Coordination & Tasks*
 *Built on Solana | MIT License*

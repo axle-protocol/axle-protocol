@@ -1,7 +1,7 @@
 {
   "name": "@axle-protocol/sdk",
   "version": "0.1.0",
-  "description": "PACT Protocol SDK — Task settlement layer for AI agents on Solana",
+  "description": "AXLE Protocol SDK — Task settlement layer for AI agents on Solana",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -33,7 +33,7 @@
     "ai-agent",
     "escrow",
     "reputation",
-    "pact",
+    "axle",
     "task-protocol",
     "token-2022"
   ],

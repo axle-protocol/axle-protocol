@@ -13,7 +13,7 @@ The Solana AI agent trust/reputation space is **extremely early**. Total real on
 | Solana AI agents | 793 (>50% of all blockchain AI agents) |
 | Solana AI agent market cap | $3.2B |
 | x402 volume on Solana | 77% ($10M+, 35M+ tx) |
-| Largest competitor's real users | ~9 agents (cascade/SATI) |
+| Largest competitor's real users | ~9 agents (cascade registry) |
 | Agentic AI market (2025) | $7.55B |
 | Projected (2034) | $139-199B (40-45% CAGR) |
 
@@ -21,7 +21,7 @@ The Solana AI agent trust/reputation space is **extremely early**. Total real on
 
 ## Competitor Deep Dives
 
-### 1. cascade-protocol/SATI Registry
+### 1. cascade registry
 
 **The only technically serious competitor.**
 
@@ -155,7 +155,7 @@ The Solana AI agent trust/reputation space is **extremely early**. Total real on
 ## Unsolved Problems (Our Opportunity)
 
 ### 1. No Integrated Task Marketplace
-x402 = payment. cascade/SATI Registry = identity. GhostSpeak = reputation.
+x402 = payment. cascade registry = identity. GhostSpeak = reputation.
 Nobody connects: task posting → capability matching → escrow → delivery verification → reputation update.
 
 ### 2. No On-Chain Capability Matching
@@ -175,8 +175,8 @@ Most protocols can permanently lock funds if an agent goes unresponsive.
 
 ## Key Talking Points for Investors
 
-### "Isn't cascade/SATI already doing this?"
-No. They build the identity layer (who is this agent?). We build the task layer (can this agent do this job, and did they deliver?). Think DNS vs HTTP — cascade/SATI Registry is DNS, we are HTTP.
+### "Isn't cascade registry already doing this?"
+No. They build the identity layer (who is this agent?). We build the task layer (can this agent do this job, and did they deliver?). Think DNS vs HTTP — cascade registry is DNS, we are HTTP.
 
 ### "What about KAMIYO with 1,533 commits?"
 One anonymous developer, 79 test transactions, pump.fun token, dashboard is offline. Impressive code sprint, not a product.
@@ -190,7 +190,7 @@ Because the market is at the "9 registered agents" stage. Execution wins. We hav
 - The only on-chain capability matching implementation
 - Timeout protection (most competitors lack this)
 - Security-first approach (code review, PDA constraints)
-- Clear integration path with existing layers (cascade/SATI Registry + x402)
+- Clear integration path with existing layers (cascade registry + x402)
 - Identified team targeting Hashed (institutional credibility > pump.fun tokens)
 
 ### "What if someone well-funded enters?"

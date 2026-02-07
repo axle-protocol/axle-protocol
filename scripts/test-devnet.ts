@@ -1,5 +1,5 @@
 /**
- * PACT Protocol — Devnet Integration Test
+ * AXLE Protocol — Devnet Integration Test
  * Tests the full task lifecycle on Solana devnet.
  *
  * Usage: npx tsx scripts/test-devnet.ts
@@ -8,7 +8,7 @@
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Use SDK from local path
-import { PactSDK, TaskStatus } from '../sdk/src/index.js';
+import { AxleSDK, TaskStatus } from '../sdk/src/index.js';
 
 const PROGRAM_ID = '4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82';
 
@@ -17,11 +17,11 @@ async function sleep(ms: number) {
 }
 
 async function main() {
-  console.log('=== PACT Devnet Integration Test ===\n');
+  console.log('=== AXLE Devnet Integration Test ===\n');
 
   // Initialize two SDK instances (requester + provider)
-  const requester = new PactSDK({ cluster: 'devnet', programId: PROGRAM_ID });
-  const provider = new PactSDK({ cluster: 'devnet', programId: PROGRAM_ID });
+  const requester = new AxleSDK({ cluster: 'devnet', programId: PROGRAM_ID });
+  const provider = new AxleSDK({ cluster: 'devnet', programId: PROGRAM_ID });
 
   // Step 1: Create wallets
   console.log('[1/9] Creating wallets...');
@@ -88,7 +88,7 @@ async function main() {
   // Step 6: Deliver task
   console.log('\n[6/9] Provider delivering result...');
   const result = {
-    projects: ['PACT', 'cascade/PACT', 'GhostSpeak', 'KAMIYO', 'Amiko'],
+    projects: ['AXLE', 'cascade/AXLE', 'GhostSpeak', 'KAMIYO', 'Amiko'],
     scrapedAt: new Date().toISOString(),
   };
   const delivered = await provider.deliverTask(task.id, result);
