@@ -23,6 +23,8 @@ custom-panic = []
 [dependencies]
 anchor-lang = "0.32.1"
 anchor-spl = "0.32.1"
+blake3 = { path = "/tmp/constant_time_eq_fix/blake3" }
+constant_time_eq = { path = "/tmp/constant_time_eq_fix/constant_time_eq" }
 
 
 [lints.rust]

@@ -30,7 +30,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="glow-border rounded-xl bg-pact-card p-5">
+    <div className="glow-border rounded-xl bg-axle-card p-5">
       <p className="text-xs uppercase tracking-wider text-gray-500">{label}</p>
       <p className={`mt-1 text-3xl font-bold ${accent || 'text-white'}`}>{value}</p>
       {sub && <p className="mt-1 text-xs text-gray-500">{sub}</p>}
@@ -52,7 +52,7 @@ function ConnectionDot({ connected, cluster }: { connected: boolean; cluster: st
   return (
     <div className="flex items-center gap-2">
       <span
-        className={`inline-block h-2.5 w-2.5 rounded-full ${connected ? 'bg-pact-green pulse-green' : 'bg-red-500'}`}
+        className={`inline-block h-2.5 w-2.5 rounded-full ${connected ? 'bg-axle-green pulse-green' : 'bg-red-500'}`}
       />
       <span className="text-sm text-gray-400">
         {connected ? cluster : 'disconnected'}
@@ -69,7 +69,7 @@ function AgentTable({ agents }: { agents: AgentData[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-pact-border text-left text-xs uppercase tracking-wider text-gray-500">
+          <tr className="border-b border-axle-border text-left text-xs uppercase tracking-wider text-gray-500">
             <th className="pb-3 pr-4">Node ID</th>
             <th className="pb-3 pr-4">Capabilities</th>
             <th className="pb-3 pr-4 text-right">Fee</th>
@@ -81,14 +81,14 @@ function AgentTable({ agents }: { agents: AgentData[] }) {
         </thead>
         <tbody>
           {agents.map((a) => (
-            <tr key={a.pda} className="border-b border-pact-border/50 hover:bg-white/[0.02]">
-              <td className="py-3 pr-4 font-mono text-pact-accent">{a.nodeId}</td>
+            <tr key={a.pda} className="border-b border-axle-border/50 hover:bg-white/[0.02]">
+              <td className="py-3 pr-4 font-mono text-axle-accent">{a.nodeId}</td>
               <td className="py-3 pr-4">
                 <div className="flex flex-wrap gap-1">
                   {a.capabilities.map((c) => (
                     <span
                       key={c}
-                      className="rounded bg-pact-purple/20 px-1.5 py-0.5 text-xs text-pact-purple"
+                      className="rounded bg-axle-purple/20 px-1.5 py-0.5 text-xs text-axle-purple"
                     >
                       {c}
                     </span>
@@ -97,15 +97,15 @@ function AgentTable({ agents }: { agents: AgentData[] }) {
               </td>
               <td className="py-3 pr-4 text-right font-mono">{a.feePerTask}</td>
               <td className="py-3 pr-4 text-right">
-                <span className={a.reputation >= 100 ? 'text-pact-green' : 'text-pact-yellow'}>
+                <span className={a.reputation >= 100 ? 'text-axle-green' : 'text-axle-yellow'}>
                   {a.reputation}
                 </span>
               </td>
-              <td className="py-3 pr-4 text-center text-pact-green">{a.tasksCompleted}</td>
-              <td className="py-3 pr-4 text-center text-pact-red">{a.tasksFailed}</td>
+              <td className="py-3 pr-4 text-center text-axle-green">{a.tasksCompleted}</td>
+              <td className="py-3 pr-4 text-center text-axle-red">{a.tasksFailed}</td>
               <td className="py-3 text-center">
                 <span
-                  className={`inline-block h-2 w-2 rounded-full ${a.isActive ? 'bg-pact-green' : 'bg-gray-600'}`}
+                  className={`inline-block h-2 w-2 rounded-full ${a.isActive ? 'bg-axle-green' : 'bg-gray-600'}`}
                 />
               </td>
             </tr>
@@ -124,7 +124,7 @@ function TaskTable({ tasks }: { tasks: TaskData[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-pact-border text-left text-xs uppercase tracking-wider text-gray-500">
+          <tr className="border-b border-axle-border text-left text-xs uppercase tracking-wider text-gray-500">
             <th className="pb-3 pr-4">ID</th>
             <th className="pb-3 pr-4">Capability</th>
             <th className="pb-3 pr-4">Requester</th>
@@ -136,16 +136,16 @@ function TaskTable({ tasks }: { tasks: TaskData[] }) {
         </thead>
         <tbody>
           {tasks.map((t) => (
-            <tr key={t.pda} className="border-b border-pact-border/50 hover:bg-white/[0.02]">
+            <tr key={t.pda} className="border-b border-axle-border/50 hover:bg-white/[0.02]">
               <td className="py-3 pr-4 font-mono text-xs text-gray-400">{t.id}</td>
               <td className="py-3 pr-4">
-                <span className="rounded bg-pact-purple/20 px-1.5 py-0.5 text-xs text-pact-purple">
+                <span className="rounded bg-axle-purple/20 px-1.5 py-0.5 text-xs text-axle-purple">
                   {t.requiredCapability}
                 </span>
               </td>
               <td className="py-3 pr-4 font-mono text-xs">{t.requester}</td>
               <td className="py-3 pr-4 font-mono text-xs">{t.provider || '—'}</td>
-              <td className="py-3 pr-4 text-right font-mono text-pact-accent">
+              <td className="py-3 pr-4 text-right font-mono text-axle-accent">
                 {t.reward.toFixed(4)} SOL
               </td>
               <td className="py-3 pr-4">
@@ -175,7 +175,7 @@ function TaskFlowArrow({ status }: { status: string }) {
               isFinal
                 ? 'bg-red-500/50'
                 : i <= idx
-                  ? 'bg-pact-green'
+                  ? 'bg-axle-green'
                   : 'bg-gray-700'
             }`}
           />
@@ -185,7 +185,7 @@ function TaskFlowArrow({ status }: { status: string }) {
                 isFinal
                   ? 'bg-red-500/30'
                   : i < idx
-                    ? 'bg-pact-green/60'
+                    ? 'bg-axle-green/60'
                     : 'bg-gray-700'
               }`}
             />
@@ -233,7 +233,7 @@ export default function DashboardPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            PACT <span className="text-pact-accent">Dashboard</span>
+            AXLE <span className="text-axle-accent">Dashboard</span>
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             Protocol for Agent Coordination & Tasks — God View
@@ -248,7 +248,7 @@ export default function DashboardPage() {
           )}
           <button
             onClick={refresh}
-            className="rounded-lg border border-pact-border bg-pact-card px-3 py-1.5 text-xs text-gray-400 transition hover:border-pact-accent hover:text-pact-accent"
+            className="rounded-lg border border-axle-border bg-axle-card px-3 py-1.5 text-xs text-gray-400 transition hover:border-axle-accent hover:text-axle-accent"
           >
             Refresh
           </button>
@@ -261,30 +261,30 @@ export default function DashboardPage() {
           label="Agents"
           value={stats.totalAgents}
           sub={`${stats.activeAgents} active`}
-          accent="text-pact-accent"
+          accent="text-axle-accent"
         />
         <StatCard
           label="Tasks"
           value={stats.totalTasks}
           sub={`${stats.completedTasks} completed`}
-          accent="text-pact-purple"
+          accent="text-axle-purple"
         />
         <StatCard
           label="Escrow Locked"
           value={`${stats.totalEscrowLocked.toFixed(4)}`}
           sub="SOL"
-          accent="text-pact-yellow"
+          accent="text-axle-yellow"
         />
         <StatCard
           label="Avg Reputation"
           value={stats.averageReputation}
           sub="/ 1000"
-          accent="text-pact-green"
+          accent="text-axle-green"
         />
       </div>
 
       {/* Agent Registry */}
-      <section className="mb-8 rounded-xl border border-pact-border bg-pact-card p-6">
+      <section className="mb-8 rounded-xl border border-axle-border bg-axle-card p-6">
         <h2 className="mb-4 text-lg font-semibold text-white">
           Agent Registry
           <span className="ml-2 text-sm font-normal text-gray-500">
@@ -295,7 +295,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Task Feed */}
-      <section className="rounded-xl border border-pact-border bg-pact-card p-6">
+      <section className="rounded-xl border border-axle-border bg-axle-card p-6">
         <h2 className="mb-4 text-lg font-semibold text-white">
           Task Feed
           <span className="ml-2 text-sm font-normal text-gray-500">
@@ -307,7 +307,7 @@ export default function DashboardPage() {
 
       {/* Footer */}
       <footer className="mt-8 text-center text-xs text-gray-600">
-        PACT Protocol &middot; Program{' '}
+        AXLE Protocol &middot; Program{' '}
         <span className="font-mono text-gray-500">4zr1KP...c7M82</span>
       </footer>
     </main>

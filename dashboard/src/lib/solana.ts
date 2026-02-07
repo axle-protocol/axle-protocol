@@ -1,10 +1,10 @@
 /**
- * Solana on-chain data fetching for PACT dashboard
+ * Solana on-chain data fetching for AXLE dashboard
  */
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 const PROGRAM_ID = new PublicKey('4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82');
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8899';
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
 
 // Anchor account discriminators (first 8 bytes of SHA-256 of "account:<Name>")
 const AGENT_DISCRIMINATOR = Buffer.from([140, 154, 67, 252, 116, 79, 127, 51]); // placeholder

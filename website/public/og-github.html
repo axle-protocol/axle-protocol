@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1280px;
+      height: 640px;
+      background: linear-gradient(180deg, #0d1117 0%, #0a0e14 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    /* Grid background */
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    
+    /* Glow orbs - matching Twitter header */
+    .orb1 {
+      position: absolute;
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(0, 217, 255, 0.15) 0%, transparent 60%);
+      top: -100px;
+      right: 100px;
+      border-radius: 50%;
+    }
+    .orb2 {
+      position: absolute;
+      width: 500px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(139, 92, 246, 0.12) 0%, transparent 60%);
+      bottom: -150px;
+      left: 100px;
+      border-radius: 50%;
+    }
+    
+    .container {
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      z-index: 10;
+    }
+    
+    /* Square icon matching Twitter header */
+    .logo-box {
+      width: 140px;
+      height: 140px;
+      background: linear-gradient(135deg, #4F7BFF 0%, #7B68EE 50%, #9B6DFF 100%);
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 60px rgba(79, 123, 255, 0.3);
+    }
+    
+    .logo-icon {
+      width: 70px;
+      height: 70px;
+    }
+    
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .title {
+      font-size: 72px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #4F9EFF 0%, #00D9FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+    
+    .tagline {
+      font-size: 28px;
+      color: #8B9BB4;
+      font-weight: 400;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      background: transparent;
+      border: 1px solid rgba(0, 217, 255, 0.4);
+      border-radius: 24px;
+      color: #00D9FF;
+      font-size: 16px;
+      font-weight: 500;
+      margin-top: 16px;
+      width: fit-content;
+    }
+    
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      background: #00D9FF;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="orb1"></div>
+  <div class="orb2"></div>
+  
+  <div class="container">
+    <div class="logo-box">
+      <svg class="logo-icon" viewBox="0 0 48 48" fill="none">
+        <!-- Simplified axle icon matching Twitter -->
+        <circle cx="24" cy="24" r="6" stroke="white" stroke-width="2.5" fill="none"/>
+        <line x1="24" y1="6" x2="24" y2="14" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="24" y1="34" x2="24" y2="42" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="6" y1="24" x2="14" y2="24" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="34" y1="24" x2="42" y2="24" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Small dots at ends -->
+        <circle cx="24" cy="6" r="2" fill="white"/>
+        <circle cx="24" cy="42" r="2" fill="white"/>
+        <circle cx="6" cy="24" r="2" fill="white"/>
+        <circle cx="42" cy="24" r="2" fill="white"/>
+      </svg>
+    </div>
+    
+    <div class="content">
+      <h1 class="title">AXLE</h1>
+      <p class="tagline">On-chain Coordination for Autonomous Agents</p>
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Built on Solana
+      </div>
+    </div>
+  </div>
+</body>
+</html>

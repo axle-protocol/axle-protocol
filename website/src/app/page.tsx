@@ -245,14 +245,18 @@ export default function Home() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-axle-dark/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-axle-blue to-axle-purple flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="white" strokeWidth="2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#4F7BFF] via-[#7B68EE] to-[#9B6DFF] flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
-                <line x1="12" y1="3" x2="12" y2="6" />
-                <line x1="12" y1="18" x2="12" y2="21" />
-                <line x1="3" y1="12" x2="6" y2="12" />
-                <line x1="18" y1="12" x2="21" y2="12" />
+                <line x1="12" y1="3" x2="12" y2="7" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+                <line x1="3" y1="12" x2="7" y2="12" />
+                <line x1="17" y1="12" x2="21" y2="12" />
+                <circle cx="12" cy="3" r="1.5" fill="white" stroke="none" />
+                <circle cx="12" cy="21" r="1.5" fill="white" stroke="none" />
+                <circle cx="3" cy="12" r="1.5" fill="white" stroke="none" />
+                <circle cx="21" cy="12" r="1.5" fill="white" stroke="none" />
               </svg>
             </div>
             <span className="text-2xl font-bold text-gradient">AXLE</span>
@@ -261,7 +265,7 @@ export default function Home() {
             <a href="#problem" className="text-gray-400 hover:text-white transition">Problem</a>
             <a href="#solution" className="text-gray-400 hover:text-white transition">Solution</a>
             <a href="#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</a>
-            <a href="https://github.com/axle-protocol" className="text-gray-400 hover:text-white transition">GitHub</a>
+            <a href="#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</a>
           </div>
           <a href="https://dashboard-theta-smoky-10.vercel.app" className="px-4 py-2 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
             Get Started
@@ -489,20 +493,129 @@ export default function Home() {
         </motion.div>
       </section>
 
+      {/* Built With Section */}
+      <section className="py-16 px-6 border-t border-white/5">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-gray-500 text-sm uppercase tracking-wider mb-8">Built With</p>
+            <div className="flex flex-wrap items-center justify-center gap-12 md:gap-16">
+              {/* Solana */}
+              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition">
+                <svg viewBox="0 0 397.7 311.7" className="h-8 w-auto">
+                  <linearGradient id="solanaGrad1" x1="360.879" x2="141.213" y1="351.455" y2="-69.294" gradientTransform="matrix(1 0 0 -1 0 314)" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stopColor="#00FFA3"/>
+                    <stop offset="1" stopColor="#DC1FFF"/>
+                  </linearGradient>
+                  <path fill="url(#solanaGrad1)" d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/>
+                  <path fill="url(#solanaGrad1)" d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/>
+                  <path fill="url(#solanaGrad1)" d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/>
+                </svg>
+                <span className="text-gray-400 font-medium">Solana</span>
+              </div>
+              {/* Anchor */}
+              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition">
+                <svg viewBox="0 0 48 48" className="h-8 w-8">
+                  <circle cx="24" cy="24" r="24" fill="#3B82F6"/>
+                  <circle cx="24" cy="13" r="4" fill="none" stroke="white" strokeWidth="2.5"/>
+                  <line x1="24" y1="17" x2="24" y2="38" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                  <line x1="14" y1="38" x2="34" y2="38" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M12 28 Q12 34 20 38" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                  <path d="M36 28 Q36 34 28 38" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+                <span className="text-gray-400 font-medium">Anchor</span>
+              </div>
+              {/* Token-2022 */}
+              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">T22</span>
+                </div>
+                <span className="text-gray-400 font-medium">Token-2022</span>
+              </div>
+              {/* TypeScript */}
+              <div className="flex items-center gap-3 opacity-60 hover:opacity-100 transition">
+                <svg viewBox="0 0 400 400" className="h-8 w-8">
+                  <rect fill="#3178C6" width="400" height="400" rx="50"/>
+                  <path fill="#fff" d="M87 200.3V217H147v183h36V217h60v-16.7c0-9.2-.3-17-1-17-.3-.3-37.8-.3-83.3-.3H87v.3zm236.3-1.3c14.7 3.7 25.2 10.2 34.2 21.2 4.7 5.8 11.5 16.7 12 18.5.2.7-21.5 15-34.7 23-1.7 1.2-3.2-.8-5.5-4-5.5-7.7-11-11-19.7-12-12.8-1.5-21 5-21 16.5 0 3.5.5 5.5 2 8.5 3.3 6.2 9.5 10 29 17.7 35.8 14.2 51.2 23.5 61.2 37 11 15 13.5 39 6 57.2-8.2 20-28.8 33.7-58 38.5-9 1.5-30.3 1.3-40-.5-21-3.8-41-14.2-53-27.7-4.7-5.3-13.8-19-13.5-20 .3-.3 1.7-1.3 3-2l12.5-7.2 9.7-5.7 2 3c2.8 4.2 9 10.2 13 12.7 11.5 7 27.3 6 35.3-2.2 3.5-3.5 5-7 5-12 0-5.2-.5-7.2-3-11-3-4.5-9.3-8.2-31-18.2-25-11.5-35.7-18.5-44.5-29.2-5.2-6.2-10-16-11.5-23.2-1.3-6.3-1.7-22-.5-28.5 4-21 18.5-35.7 41-41.5 9.3-2.5 30.8-1.5 41 1.7z"/>
+                </svg>
+                <span className="text-gray-400 font-medium">TypeScript</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Roadmap Section */}
+      <section id="roadmap" className="py-20 px-6 bg-axle-gray/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">Roadmap</h2>
+            <p className="text-xl text-gray-400">Building the rails for the agentic economy</p>
+          </motion.div>
+          
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { quarter: 'Q1 2026', title: 'Foundation', items: ['Core smart contracts', 'Devnet deployment', 'SDK alpha'], status: 'current' },
+              { quarter: 'Q2 2026', title: 'Launch', items: ['Mainnet beta', 'SDK v1.0 release', 'Documentation'], status: 'upcoming' },
+              { quarter: 'Q3 2026', title: 'Scale', items: ['Cross-chain messaging', 'Agent marketplace', 'Developer grants'], status: 'upcoming' },
+              { quarter: 'Q4 2026', title: 'Ecosystem', items: ['Reputation marketplace', 'Governance token', 'Partner integrations'], status: 'upcoming' },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className={`p-6 rounded-2xl border ${item.status === 'current' ? 'border-axle-blue bg-axle-blue/5' : 'border-white/5 bg-axle-dark'}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <div className={`text-sm font-medium mb-2 ${item.status === 'current' ? 'text-axle-cyan' : 'text-gray-500'}`}>
+                  {item.status === 'current' && '● '}{item.quarter}
+                </div>
+                <h3 className="text-xl font-semibold mb-4">{item.title}</h3>
+                <ul className="space-y-2">
+                  {item.items.map((task, j) => (
+                    <li key={j} className="text-gray-400 text-sm flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'current' ? 'bg-axle-cyan' : 'bg-gray-600'}`} />
+                      {task}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-10 px-6 border-t border-white/5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-axle-blue to-axle-purple flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="white" strokeWidth="2">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4F7BFF] via-[#7B68EE] to-[#9B6DFF] flex items-center justify-center shadow-lg">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
-                <line x1="12" y1="3" x2="12" y2="6" />
-                <line x1="12" y1="18" x2="12" y2="21" />
+                <line x1="12" y1="3" x2="12" y2="7" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+                <line x1="3" y1="12" x2="7" y2="12" />
+                <line x1="17" y1="12" x2="21" y2="12" />
+                <circle cx="12" cy="3" r="1.5" fill="white" stroke="none" />
+                <circle cx="12" cy="21" r="1.5" fill="white" stroke="none" />
+                <circle cx="3" cy="12" r="1.5" fill="white" stroke="none" />
+                <circle cx="21" cy="12" r="1.5" fill="white" stroke="none" />
               </svg>
             </div>
             <span className="text-xl font-bold text-gradient">AXLE</span>
           </div>
           <div className="flex items-center gap-6">
+            <a href="https://dashboard-theta-smoky-10.vercel.app" className="text-gray-400 hover:text-white transition">Dashboard</a>
             <a href="https://github.com/axle-protocol" className="text-gray-400 hover:text-white transition">GitHub</a>
             <a href="https://twitter.com/axle_protocol" className="text-gray-400 hover:text-white transition">Twitter</a>
             <a href="https://github.com/axle-protocol/axle-protocol#readme" className="text-gray-400 hover:text-white transition">Docs</a>

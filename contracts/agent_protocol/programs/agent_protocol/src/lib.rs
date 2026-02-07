@@ -276,10 +276,37 @@ pub mod agent_protocol {
         require!(symbol.len() <= 16, ErrorCode::BadgeSymbolTooLong);
         require!(uri.len() <= 200, ErrorCode::BadgeUriTooLong);
 
+        // Pre-fund badge_mint for metadata rent via system_program transfer.
+        // Anchor's init allocated space for Mint + MetadataPointer extension only.
+        // token_metadata_initialize will realloc to append metadata content,
+        // requiring additional lamports for rent-exemption at the expanded size.
+        let metadata_extra: usize = 4          // TLV header: type(u16) + length(u16)
+            + 32                                // update_authority (OptionalNonZeroPubkey)
+            + 32                                // mint (Pubkey)
+            + (4 + name.len())                  // name (borsh String)
+            + (4 + symbol.len())                // symbol
+            + (4 + uri.len())                   // uri
+            + 4                                 // additional_metadata (empty Vec)
+            + 64;                               // safety buffer for alignment/padding
+        let rent = Rent::get()?;
+        let badge_info = ctx.accounts.badge_mint.to_account_info();
+        let needed = rent.minimum_balance(badge_info.data_len() + metadata_extra);
+        let current = badge_info.lamports();
+        if needed > current {
+            let deficit = needed - current;
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.authority.to_account_info(),
+                        to: badge_info.clone(),
+                    },
+                ),
+                deficit,
+            )?;
+        }
+
         // Initialize metadata on the mint (self-referential: metadata lives on mint account)
-        // NOTE: The Reallocate + token_metadata_initialize CPI sequence has a known issue
-        // with same-instruction account creation on some validator versions.
-        // For production, use a 2-instruction flow: create mint, then init metadata.
         token_metadata_initialize(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -290,10 +317,7 @@ pub mod agent_protocol {
                     mint_authority: ctx.accounts.authority.to_account_info(),
                     update_authority: ctx.accounts.authority.to_account_info(),
                 },
-            ).with_remaining_accounts(vec![
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ]),
+            ),
             name.clone(),
             symbol,
             uri,

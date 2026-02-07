@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        pact: {
+        axle: {
           dark: '#0a0e17',
           card: '#111827',
           border: '#1f2937',
