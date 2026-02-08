@@ -1,0 +1,15 @@
+{
+  "name": "@some/llm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@some/runtime": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/validateCli.ts --format esm --dts",
+    "validate": "node dist/validateCli.js"
+  }
+}
