@@ -1,0 +1,14 @@
+{
+  "name": "@some/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts src/devDemo.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/devDemo.ts --watch --format esm --dts",
+    "demo": "node dist/devDemo.js",
+    "test": "node -e \"console.log('TODO')\""
+  }
+}

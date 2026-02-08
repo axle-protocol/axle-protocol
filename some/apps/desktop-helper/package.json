@@ -1,0 +1,13 @@
+{
+  "name": "@some/desktop-helper",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@some/telegram-panel": "workspace:*"
+  }
+}
