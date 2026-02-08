@@ -97,9 +97,12 @@ Risk taxonomy(라벨 목록)도 함께 정의:
 
 ---
 
-## 산출물 형식
+## 산출물 형식 (Opus는 **문서만** 생성)
 - `some/docs/LLM_PROMPTS.md` (프롬프트 템플릿 + 예시)
 - `some/docs/STYLE_RULES_KR.md` (토글/프리셋 룰표)
 - `some/docs/SAFETY_POLICY.md` (boundaryFilter/금칙)
 
-(가능하면) 각 문서에 예시 3개씩 포함.
+✅ **코드 수정 금지** (Clo가 명령어로 붙임)
+
+## Opus에게 그대로 전달할 프롬프트
+- `some/docs/OPUS_DROPIN_PROMPT.md`
