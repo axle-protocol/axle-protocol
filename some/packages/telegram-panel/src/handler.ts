@@ -2,6 +2,7 @@ import { createSession, DEFAULT_PROFILE, type SomeModePreset } from '@some/runti
 import { fmtEvent, fmtRunState } from './ko.js';
 import { applyCommand, helpKo, parseCommand, type ParsedCommand } from './commands.js';
 import { loadOrInit, save, type PanelPersisted } from './persist.js';
+import { appendAudit } from './audit.js';
 
 export type HandleResult = {
   handled: boolean;
@@ -22,9 +23,11 @@ function tailEvents(st: PanelPersisted, limit = 8): string {
   return st.session.events.slice(start).map(fmtEvent).join('\n');
 }
 
-export function handleText(text: string, statePath: string): HandleResult {
+export function handleText(text: string, statePath: string, auditPath = '.state/audit.jsonl'): HandleResult {
   const cmd = parseCommand(text);
   if (!cmd) return { handled: false };
+
+  appendAudit(auditPath, { at: new Date().toISOString(), kind: 'COMMAND', text });
 
   if (cmd.kind === 'HELP') {
     return { handled: true, replyText: helpKo() };
@@ -34,6 +37,7 @@ export function handleText(text: string, statePath: string): HandleResult {
     const session = createSession({ approvalRequired: 20 });
     const st: PanelPersisted = { version: 1, session, profile: DEFAULT_PROFILE, cursor: 0 };
     save(statePath, st);
+    appendAudit(auditPath, { at: new Date().toISOString(), kind: 'STATE_SAVED', statePath });
     return {
       handled: true,
       replyText: `세션 초기화 완료\n상태: ${fmtRunState(session.runState)}\n\n${fmtProfileKo(st)}\n\n${tailEvents(st)}`
@@ -63,6 +67,7 @@ export function handleText(text: string, statePath: string): HandleResult {
   }
 
   save(statePath, st);
+  appendAudit(auditPath, { at: new Date().toISOString(), kind: 'STATE_SAVED', statePath });
 
   return {
     handled: true,

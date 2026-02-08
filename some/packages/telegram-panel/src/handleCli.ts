@@ -2,7 +2,8 @@ import { handleText } from './handler.js';
 
 const text = process.argv.slice(2).join(' ').trim();
 const statePath = process.env.SOME_PANEL_STATE || '.state/telegram-panel.json';
-const res = handleText(text, statePath);
+const auditPath = process.env.SOME_PANEL_AUDIT || '.state/audit.jsonl';
+const res = handleText(text, statePath, auditPath);
 if (!res.handled) {
   process.exit(2);
 }
