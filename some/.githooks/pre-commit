@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# SOME pre-commit: privacy + correctness gate
+
+# 1) block staging raw chat logs / import dumps
+blocked_paths_regex='(^|/)(\.state/import/|KakaoTalkChats\.txt$)'
+
+staged_files=$(git diff --cached --name-only)
+
+if echo "$staged_files" | grep -E "$blocked_paths_regex" -n >/dev/null 2>&1; then
+  echo "[pre-commit] ERROR: raw chat/import file staged. Remove it from git index." >&2
+  echo "Blocked patterns: $blocked_paths_regex" >&2
+  exit 1
+fi
+
+# 2) block large files (>5MB) in commit
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if [ -f "$f" ]; then
+    size=$(wc -c <"$f" | tr -d ' ')
+    if [ "$size" -gt 5242880 ]; then
+      echo "[pre-commit] ERROR: file too large (>5MB): $f ($size bytes)" >&2
+      exit 1
+    fi
+  fi
+done <<<"$staged_files"
+
+# 3) run verify gate (fast build + smoke)
+if [ -x "scripts/verify.sh" ]; then
+  scripts/verify.sh
+fi
