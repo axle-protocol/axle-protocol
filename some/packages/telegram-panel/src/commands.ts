@@ -5,6 +5,8 @@ export type ParsedCommand =
   | { kind: 'RESET' }
   | { kind: 'STATUS' }
   | { kind: 'APPROVE' }
+  | { kind: 'APPROVE5' }
+  | { kind: 'APPROVE10' }
   | { kind: 'START'; minutes: 10 | 30 | 60 }
   | { kind: 'EXTEND_10' }
   | { kind: 'PAUSE' }
@@ -23,6 +25,8 @@ export function parseCommand(text: string): ParsedCommand | null {
   if (rest === 'reset') return { kind: 'RESET' };
   if (rest === 'status') return { kind: 'STATUS' };
   if (rest === 'approve') return { kind: 'APPROVE' };
+  if (rest === 'approve5') return { kind: 'APPROVE5' } as any;
+  if (rest === 'approve10') return { kind: 'APPROVE10' } as any;
   if (rest.startsWith('preset ')) {
     const p = rest.replace(/^preset\s+/, '') as any;
     if (p === 'default' || p === 'warm' || p === 'cool' || p === 'empathic') return { kind: 'SET_PRESET', preset: p };
@@ -53,6 +57,12 @@ export function applyCommand(sess: SomeSession, cmd: ParsedCommand) {
   switch (cmd.kind) {
     case 'APPROVE':
       approveOne(sess);
+      return;
+    case 'APPROVE5':
+      for (let i = 0; i < 5; i++) approveOne(sess);
+      return;
+    case 'APPROVE10':
+      for (let i = 0; i < 10; i++) approveOne(sess);
       return;
     case 'START':
       startAutopilot(sess, { minutes: cmd.minutes });
