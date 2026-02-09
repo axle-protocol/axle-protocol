@@ -1,7 +1,7 @@
 import { createSession, DEFAULT_PROFILE, type SomeModePreset } from '@some/runtime';
 import { fmtEvent, fmtRunState } from './ko.js';
 import { applyCommand, helpKo, parseCommand, type ParsedCommand } from './commands.js';
-import { loadOrInit, save, type PanelPersisted } from './persist.js';
+import { DEFAULT_AVATAR, loadOrInit, save, type PanelPersisted } from './persist.js';
 import { appendAudit } from './audit.js';
 
 export type HandleResult = {
@@ -11,7 +11,10 @@ export type HandleResult = {
 
 function fmtProfileKo(st: PanelPersisted): string {
   const p = st.profile;
+  const a = st.avatar;
+  const who = a ? `상대: ${a.partner.displayName} (${a.partner.key})` : '상대: (미설정)';
   return [
+    who,
     `스타일: ${p.modePreset}`,
     `길이: ${p.toggles.length} / 웃음(ㅋㅋ): ${p.toggles.laugh} / 이모지: ${p.toggles.emoji}`,
     `줄바꿈: ${p.toggles.lineBreak} / 플러팅: ${p.toggles.flirting} / 경계필터: ${p.toggles.boundaryFilter ? 'on' : 'off'}`
@@ -35,7 +38,7 @@ export function handleText(text: string, statePath: string, auditPath = '.state/
 
   if (cmd.kind === 'RESET') {
     const session = createSession({ approvalRequired: 20 });
-    const st: PanelPersisted = { version: 1, session, profile: DEFAULT_PROFILE, cursor: 0 };
+    const st: PanelPersisted = { version: 1, session, profile: DEFAULT_PROFILE, avatar: DEFAULT_AVATAR, cursor: 0 };
     save(statePath, st);
     appendAudit(auditPath, { at: new Date().toISOString(), kind: 'STATE_SAVED', statePath });
     return {
@@ -62,6 +65,13 @@ export function handleText(text: string, statePath: string, auditPath = '.state/
     st.profile.toggles.laugh = cmd.laugh;
   } else if (cmd.kind === 'SET_EMOJI') {
     st.profile.toggles.emoji = cmd.emoji;
+  } else if (cmd.kind === 'SET_PARTNER') {
+    const current = st.avatar ?? DEFAULT_AVATAR;
+    st.avatar = {
+      partner: { key: cmd.key, displayName: cmd.displayName ?? cmd.key },
+      rules: current.rules,
+      policy: current.policy
+    };
   } else {
     applyCommand(st.session, cmd as ParsedCommand);
   }

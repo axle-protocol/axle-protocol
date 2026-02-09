@@ -15,7 +15,8 @@ export type ParsedCommand =
   | { kind: 'SET_PRESET'; preset: 'default' | 'warm' | 'cool' | 'empathic' }
   | { kind: 'SET_LENGTH'; length: 'S' | 'M' | 'L' }
   | { kind: 'SET_LAUGH'; laugh: 'off' | 'low' | 'high' }
-  | { kind: 'SET_EMOJI'; emoji: 'off' | 'low' | 'high' };
+  | { kind: 'SET_EMOJI'; emoji: 'off' | 'low' | 'high' }
+  | { kind: 'SET_PARTNER'; key: string; displayName?: string };
 
 export function parseCommand(text: string): ParsedCommand | null {
   const t = text.trim().toLowerCase();
@@ -42,6 +43,13 @@ export function parseCommand(text: string): ParsedCommand | null {
   if (rest.startsWith('emoji ')) {
     const v = rest.replace(/^emoji\s+/, '') as any;
     if (v === 'off' || v === 'low' || v === 'high') return { kind: 'SET_EMOJI', emoji: v };
+  }
+  if (rest.startsWith('partner ')) {
+    const v = rest.replace(/^partner\s+/, '').trim();
+    if (!v) return { kind: 'HELP' };
+    // allow: some partner mm1 / some partner mm1|먀먀묭
+    const parts = v.split('|');
+    return { kind: 'SET_PARTNER', key: parts[0]!, displayName: parts[1] };
   }
   if (rest === 'pause') return { kind: 'PAUSE' };
   if (rest === 'stop') return { kind: 'STOP' };
@@ -86,6 +94,7 @@ export function applyCommand(sess: SomeSession, cmd: ParsedCommand) {
     case 'SET_LENGTH':
     case 'SET_LAUGH':
     case 'SET_EMOJI':
+    case 'SET_PARTNER':
       return;
   }
 }
@@ -103,6 +112,10 @@ export function helpKo() {
     '- some stop    (정지/해제)',
     '- some tick    (시간 경과 처리 시뮬)',
     '- some reset   (세션 초기화)',
+    '',
+    '[Partner]',
+    '- some partner <code>  (상대 코드 선택, 예: some partner mm1)',
+    '- some partner mm1|먀먀묭  (표시 이름까지 지정)',
     '',
     '[Style Mode]',
     '- some preset default|warm|cool|empathic',
