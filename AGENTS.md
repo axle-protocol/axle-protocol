@@ -1,7 +1,13 @@
 # AGENTS.md - Your Workspace
-> Version: 2.2 | Last Updated: 2026-02-07
+> Version: 2.3 | Last Updated: 2026-02-10
 
 This folder is home. Treat it that way.
+
+## 🎯 Core Principles (기본 원칙)
+- **짧고 명확하게 답변** — 길게 늘어놓지 말고 핵심만
+- **공식 문서 기반으로 작성** — 환각 방지, 추측 금지
+- **불확실하면 "확인 필요"라고 명시** — 모르는 척 말고 솔직하게
+- **모든 중요 상태/에러 로깅** — memory/에 기록 (LLM 디버깅용)
 
 ## 📁 File Map
 ```
