@@ -8,6 +8,7 @@ import {
   type DashboardStats,
 } from '../lib/solana';
 import TxHistory from '../components/TxHistory';
+import NetworkGraph from '../components/NetworkGraph';
 import { solscanAccountUrl } from '../lib/constants';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -324,6 +325,42 @@ export default function DashboardPage() {
   const [agentSort, setAgentSort] = useState('rep');
   const [agentFilterCap, setAgentFilterCap] = useState('all');
   const [agentFilterActive, setAgentFilterActive] = useState('all');
+  
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Network Graph state
+  const [showNetworkGraph, setShowNetworkGraph] = useState(false);
+  
+  // Social data state
+  const [socialData, setSocialData] = useState<any>(null);
+  const [demandData, setDemandData] = useState<any>(null);
+
+  // Fetch social data
+  const fetchSocialData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/social?endpoint=summary');
+      const data = await response.json();
+      if (data.success) {
+        setSocialData(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch social data:', error);
+    }
+  }, []);
+
+  // Fetch demand data
+  const fetchDemandData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/demand');
+      const data = await response.json();
+      if (data.success) {
+        setDemandData(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch demand data:', error);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     const data = await fetchDashboardData();
@@ -333,7 +370,13 @@ export default function DashboardPage() {
     setConnected(data.connected);
     setCluster(data.cluster);
     setLastUpdate(new Date());
-  }, []);
+    
+    // Also fetch new data
+    if (activeTab === 'overview') {
+      await fetchSocialData();
+      await fetchDemandData();
+    }
+  }, [activeTab, fetchSocialData, fetchDemandData]);
 
   useEffect(() => {
     refresh();
@@ -341,33 +384,17 @@ export default function DashboardPage() {
     return () => clearInterval(iv);
   }, [refresh]);
 
-  return (
-    <main className="mx-auto max-w-7xl px-4 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">
-            Protocol for Agent Coordination & Tasks — God View
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <ConnectionDot connected={connected} cluster={cluster} />
-          {lastUpdate && (
-            <span className="text-xs text-gray-600">
-              {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-          <button
-            onClick={refresh}
-            className="rounded-lg border border-axle-border bg-axle-card px-3 py-1.5 text-xs text-gray-400 transition hover:border-axle-accent hover:text-axle-accent"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'agents', label: 'Agents' },
+    { id: 'match', label: 'Match' },
+    { id: 'earn', label: 'Earn' }
+  ];
 
+  const renderOverviewTab = () => (
+    <div className="space-y-8">
       {/* Stats Grid */}
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Agents"
           value={stats.totalAgents}
@@ -394,8 +421,140 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Social Pulse */}
+      {socialData && (
+        <section className="rounded-xl border border-axle-border bg-axle-card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-white">Social Pulse</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-[#0066FF]">{socialData.last24hMentions}</div>
+              <div className="text-sm text-white/60">24h Mentions</div>
+            </div>
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-green-400">
+                {(socialData.sentimentScore * 100).toFixed(0)}%
+              </div>
+              <div className="text-sm text-white/60">Positive Sentiment</div>
+            </div>
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-orange-400">{socialData.activeSpikeCount}</div>
+              <div className="text-sm text-white/60">Active Spikes</div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <h3 className="font-medium text-white">Recent Mentions</h3>
+            {socialData.recentMentions?.slice(0, 3).map((mention: any) => (
+              <div key={mention.id} className="bg-[#0A0A0B] rounded-lg p-3 border border-white/10">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{mention.author.displayName}</span>
+                    <span className="text-xs text-[#0066FF]">@{mention.author.handle.replace('@', '')}</span>
+                    <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">{mention.platform}</span>
+                  </div>
+                  <span className="text-xs text-white/40">{mention.timestamp}</span>
+                </div>
+                <p className="text-sm text-white/80">{mention.contentPreview}</p>
+                <div className="flex items-center gap-4 mt-2 text-xs text-white/60">
+                  <span>❤️ {mention.engagement.likes}</span>
+                  <span>💬 {mention.engagement.replies}</span>
+                  <span>🔄 {mention.engagement.reposts}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Demand Analysis */}
+      {demandData && (
+        <section className="rounded-xl border border-axle-border bg-axle-card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-white">Demand Analysis</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-[#0066FF]">{demandData.summary?.totalAgents || 0}</div>
+              <div className="text-sm text-white/60">Total Agents</div>
+            </div>
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-purple-400">{demandData.summary?.totalOpenTasks || 0}</div>
+              <div className="text-sm text-white/60">Open Tasks</div>
+            </div>
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-yellow-400">
+                {demandData.summary?.avgSupplyDemandRatio?.toFixed(1) || '0.0'}
+              </div>
+              <div className="text-sm text-white/60">Avg D/S Ratio</div>
+            </div>
+            <div className="bg-[#0A0A0B] rounded-lg p-4 border border-white/10">
+              <div className="text-2xl font-bold text-green-400">{demandData.summary?.highDemandTasks || 0}</div>
+              <div className="text-sm text-white/60">High Demand</div>
+            </div>
+          </div>
+          <div>
+            <h3 className="font-medium text-white mb-3">Top Skills by Demand</h3>
+            <div className="space-y-2">
+              {demandData.summary?.topSkills?.slice(0, 5).map((skill: any, index: number) => (
+                <div key={skill.skill} className="flex items-center justify-between bg-[#0A0A0B] rounded-lg p-3 border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-white/60">#{index + 1}</span>
+                    <span className="font-medium">{skill.skill}</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      skill.trend === 'up' ? 'bg-green-500/20 text-green-400' :
+                      skill.trend === 'down' ? 'bg-red-500/20 text-red-400' :
+                      'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {skill.trend === 'up' ? '📈' : skill.trend === 'down' ? '📉' : '➡️'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-[#0066FF]">{skill.demandCount}</div>
+                    <div className="text-xs text-white/60">demand</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Recent Tasks */}
+      <section className="rounded-xl border border-axle-border bg-axle-card p-6">
+        <h2 className="mb-4 text-lg font-semibold text-white">
+          Recent Tasks
+          <span className="ml-2 text-sm font-normal text-gray-500">
+            ({tasks.slice(0, 10).length})
+          </span>
+        </h2>
+        <TaskTable tasks={tasks.slice(0, 10)} />
+      </section>
+    </div>
+  );
+
+  const renderAgentsTab = () => (
+    <div className="space-y-6">
+      {/* Network Graph Toggle */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white">Agent Network</h2>
+        <button
+          onClick={() => setShowNetworkGraph(!showNetworkGraph)}
+          className={`px-4 py-2 rounded-lg border transition ${
+            showNetworkGraph
+              ? 'bg-[#0066FF] border-[#0066FF] text-white'
+              : 'bg-transparent border-white/20 text-white/60 hover:border-[#0066FF] hover:text-[#0066FF]'
+          }`}
+        >
+          {showNetworkGraph ? 'Hide Network Graph' : 'Show Network Graph'}
+        </button>
+      </div>
+
+      {/* Network Graph */}
+      {showNetworkGraph && (
+        <div className="mb-6">
+          <NetworkGraph width={800} height={600} />
+        </div>
+      )}
+
       {/* Agent Registry */}
-      <section className="mb-8 rounded-xl border border-axle-border bg-axle-card p-6">
+      <section className="rounded-xl border border-axle-border bg-axle-card p-6">
         <h2 className="mb-4 text-lg font-semibold text-white">
           Agent Registry
           <span className="ml-2 text-sm font-normal text-gray-500">
@@ -412,6 +571,34 @@ export default function DashboardPage() {
           onFilterActiveChange={setAgentFilterActive}
         />
       </section>
+    </div>
+  );
+
+  const renderMatchTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold text-white">Real-time Matching</h2>
+      
+      {/* Match Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          label="Active Matches"
+          value={tasks.filter(t => t.status === 'Accepted').length}
+          sub="in progress"
+          accent="text-green-400"
+        />
+        <StatCard
+          label="Pending Tasks"
+          value={tasks.filter(t => t.status === 'Created').length}
+          sub="waiting for match"
+          accent="text-yellow-400"
+        />
+        <StatCard
+          label="Match Rate"
+          value={`${Math.round((tasks.filter(t => t.status !== 'Created').length / Math.max(tasks.length, 1)) * 100)}%`}
+          sub="success rate"
+          accent="text-[#0066FF]"
+        />
+      </div>
 
       {/* Task Feed */}
       <section className="rounded-xl border border-axle-border bg-axle-card p-6">
@@ -424,16 +611,103 @@ export default function DashboardPage() {
         <TaskTable tasks={tasks} />
       </section>
 
-      {/* Transaction History */}
-      <section className="mt-8 rounded-xl border border-axle-border bg-axle-card p-6">
-        <h2 className="mb-4 text-lg font-semibold text-white">
-          Recent Transactions
-        </h2>
-        <TxHistory />
+      {/* Quick Actions */}
+      <section className="rounded-xl border border-axle-border bg-axle-card p-6">
+        <h2 className="mb-4 text-lg font-semibold text-white">Quick Actions</h2>
+        <div className="flex gap-4">
+          <a
+            href="/register"
+            className="bg-[#0066FF] hover:bg-[#0066FF]/80 text-white px-6 py-3 rounded-lg transition font-medium"
+          >
+            Register as Agent
+          </a>
+          <a
+            href="/tasks/new"
+            className="bg-purple-600 hover:bg-purple-600/80 text-white px-6 py-3 rounded-lg transition font-medium"
+          >
+            Create Task
+          </a>
+        </div>
       </section>
+    </div>
+  );
+
+  const renderEarnTab = () => (
+    <div className="space-y-6">
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-semibold text-white mb-4">AXLE::EARN</h2>
+        <p className="text-white/60 mb-8">
+          Earn rewards by participating in the AXLE Protocol ecosystem
+        </p>
+        <div className="bg-gradient-to-r from-[#0066FF]/20 to-purple-600/20 border border-[#0066FF]/30 rounded-xl p-8">
+          <h3 className="text-lg font-medium text-white mb-4">Coming Soon</h3>
+          <p className="text-white/80 mb-6">
+            The full Earn functionality is being integrated. This will include:
+          </p>
+          <ul className="text-left max-w-md mx-auto space-y-2 text-white/70">
+            <li>• Pool Status & Rewards</li>
+            <li>• Earning Opportunities</li>
+            <li>• Leaderboard & Rankings</li>
+            <li>• Performance Analytics</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-8">
+      {/* Header */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">AXLE Protocol</h1>
+          <p className="text-sm text-gray-500">
+            Agent Coordination & Task Marketplace Dashboard
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <ConnectionDot connected={connected} cluster={cluster} />
+          {lastUpdate && (
+            <span className="text-xs text-gray-600">
+              {lastUpdate.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={refresh}
+            className="rounded-lg border border-axle-border bg-axle-card px-3 py-1.5 text-xs text-gray-400 transition hover:border-axle-accent hover:text-axle-accent"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-8 border-b border-axle-border">
+        <nav className="flex space-x-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+                activeTab === tab.id
+                  ? 'border-[#0066FF] text-[#0066FF]'
+                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && renderOverviewTab()}
+      {activeTab === 'agents' && renderAgentsTab()}
+      {activeTab === 'match' && renderMatchTab()}
+      {activeTab === 'earn' && renderEarnTab()}
 
       {/* Footer */}
-      <footer className="mt-8 text-center text-xs text-gray-600">
+      <footer className="mt-12 text-center text-xs text-gray-600">
         AXLE Protocol &middot; Program{' '}
         <span className="font-mono text-gray-500">4zr1KP...c7M82</span>
       </footer>

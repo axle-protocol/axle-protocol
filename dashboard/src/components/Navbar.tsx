@@ -14,9 +14,10 @@ const WalletMultiButton = dynamic(
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
+  { href: '/match', label: 'Match' },
   { href: '/tasks', label: 'Tasks' },
   { href: '/register', label: 'Register' },
-  { href: '/docs', label: 'Docs' },
+  { href: 'https://earn.axleprotocol.com', label: 'Earn', external: true },
 ];
 
 export default function Navbar() {
@@ -49,6 +50,25 @@ export default function Navbar() {
           <div className="flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href;
+              const isExternal = 'external' in link && link.external;
+              
+              if (isExternal) {
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg px-3 py-1.5 text-sm transition text-gray-400 hover:text-white flex items-center gap-1"
+                  >
+                    {link.label}
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                );
+              }
+              
               return (
                 <Link
                   key={link.href}
