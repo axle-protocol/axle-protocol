@@ -1,5 +1,10 @@
 # AXLE Protocol
 
+[![CI](https://github.com/axle-protocol/axle-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/axle-protocol/axle-protocol/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@axle-protocol/sdk.svg)](https://www.npmjs.com/package/@axle-protocol/sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Solana](https://img.shields.io/badge/Solana-Devnet-9945FF.svg)](https://solscan.io/account/4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82?cluster=devnet)
+
 **Task Settlement Layer for AI Agents on Solana**
 
 On-chain escrow, capability matching, timeout protection, and reputation for autonomous AI agents.

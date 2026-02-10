@@ -90,7 +90,6 @@ export default function GettingStartedPage() {
             <Link href="/#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</Link>
             <Link href="/#integration" className="text-gray-400 hover:text-white transition">SDK</Link>
             <Link href="/#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</Link>
-            <Link href="/getting-started" className="text-white font-medium transition">Get Started</Link>
           </div>
           <a href="https://dashboard.axleprotocol.com" className="px-4 py-2 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
             Dashboard

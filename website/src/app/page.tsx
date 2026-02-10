@@ -267,7 +267,6 @@ export default function Home() {
             <a href="#how-it-works" className="text-gray-400 hover:text-white transition">How it Works</a>
             <a href="#integration" className="text-gray-400 hover:text-white transition">SDK</a>
             <a href="#roadmap" className="text-gray-400 hover:text-white transition">Roadmap</a>
-            <a href="/getting-started" className="text-gray-400 hover:text-white transition">Get Started</a>
           </div>
           <a href="/getting-started" className="px-4 py-2 bg-gradient-to-r from-axle-blue to-axle-purple hover:opacity-90 rounded-lg font-medium transition">
             Get Started
