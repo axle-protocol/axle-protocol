@@ -115,9 +115,13 @@ pub mod agent_protocol {
             ErrorCode::TaskExpired
         );
 
-        // Verify agent has the required capability
+        // Verify agent has the required capability (exact match in JSON array)
+        // capabilities format: '["scraping","browser","coding"]'
+        // String::contains is vulnerable to substring attacks (e.g. "decoding" contains "coding")
+        // Instead, iterate comma-separated entries between '[' and ']', strip quotes + whitespace,
+        // and compare each element exactly.
         require!(
-            agent.capabilities.contains(&task.required_capability),
+            has_capability(&agent.capabilities, &task.required_capability),
             ErrorCode::CapabilityMismatch
         );
 
@@ -156,6 +160,10 @@ pub mod agent_protocol {
         let agent = &mut ctx.accounts.agent_account;
 
         require!(task.status == TaskStatus::Delivered, ErrorCode::InvalidTaskStatus);
+        require!(
+            task.provider == ctx.accounts.provider.key(),
+            ErrorCode::NotTaskProvider
+        );
         require!(
             task.requester == ctx.accounts.requester.key(),
             ErrorCode::NotTaskRequester
@@ -352,6 +360,32 @@ pub mod agent_protocol {
         msg!("Agent Badge NFT minted: {}", name);
         Ok(())
     }
+}
+
+// ============ Helpers ============
+
+/// Check if a JSON-array-formatted capabilities string contains an exact match for `target`.
+/// Expected format: `["scraping","browser","coding"]`
+/// Splits on ',' between the outer '[' and ']', trims whitespace and quotes from each element,
+/// then compares with exact equality — preventing substring attacks like "decoding" matching "coding".
+fn has_capability(capabilities: &str, target: &str) -> bool {
+    let trimmed = capabilities.trim();
+    // Strip surrounding brackets
+    let inner = match trimmed.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        Some(s) => s,
+        None => return false,
+    };
+    // Empty array
+    if inner.trim().is_empty() {
+        return false;
+    }
+    for entry in inner.split(',') {
+        let element = entry.trim().trim_matches('"').trim();
+        if element == target {
+            return true;
+        }
+    }
+    false
 }
 
 // ============ Account Structures ============
