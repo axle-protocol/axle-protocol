@@ -721,46 +721,80 @@ class NOLTicketing:
             self._log('예매 버튼 못찾음', LogLevel.WARN)
             return False
         
-        # ⭐ 팝업/새 탭 핸들링 (핵심!)
-        self._log('🚀 예매 버튼 클릭 + 팝업 대기...')
+        # 날짜/회차 버튼 클릭 → 모달 열림
+        self._log('🚀 날짜/회차 버튼 클릭...')
+        btn.click()
+        adaptive_sleep(2)  # 모달 열림 대기
         
-        try:
-            # 방법 1: expect_popup으로 팝업 캐치
-            with self.page.expect_popup(timeout=30000) as popup_info:
-                btn.click()
+        # ⭐ 모달 내 예매 버튼 찾기 + 클릭
+        self._log('📋 모달 내 예매 버튼 검색...')
+        
+        modal_booking_selectors = [
+            # 모달 내 예매 버튼 패턴
+            '.modal button:has-text("예매")',
+            '.modal a:has-text("예매")',
+            '[class*="modal"] button:has-text("예매")',
+            '[class*="modal"] a:has-text("예매")',
+            '[class*="Modal"] button:has-text("예매")',
+            '[class*="popup"] button:has-text("예매")',
+            '[role="dialog"] button:has-text("예매")',
+            '[role="dialog"] a:has-text("예매")',
             
-            self.booking_page = popup_info.value
-            self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
+            # 일반 예매 버튼 (모달 포함)
+            'button:has-text("예매하기")',
+            'a:has-text("예매하기")',
+            'button:has-text("선예매")',
+            'a:has-text("선예매")',
+            'button:has-text("티켓예매")',
             
-            self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
-            return True
-            
-        except Exception as e:
-            self._log(f'팝업 캐치 실패: {e}', LogLevel.WARN)
-            
-            # 방법 2: context에서 새 페이지 찾기
+            # 모달 아이템 클릭 (날짜 선택 후 해당 항목)
+            '[class*="item"]:has-text("예매")',
+            '[class*="schedule"]:has-text("예매")',
+        ]
+        
+        for selector in modal_booking_selectors:
             try:
-                pages = self.context.pages
-                self._log(f'📋 열린 페이지 수: {len(pages)}')
-                
-                for p in pages:
-                    url = p.url.lower()
-                    if 'book' in url or 'ticket' in url or 'seat' in url:
-                        if p != self.page:
-                            self.booking_page = p
-                            self._log(f'✅ 예매 페이지 발견: {p.url[:50]}...', LogLevel.SUCCESS)
-                            return True
-                
-                # 방법 3: 현재 페이지 URL 변경 확인
-                current_url = self.page.url.lower()
-                if 'book' in current_url or 'seat' in current_url:
-                    self.booking_page = self.page  # 같은 페이지에서 진행
-                    self._log(f'✅ 현재 페이지에서 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
-                    return True
+                modal_btn = self.page.locator(selector).first
+                if modal_btn.is_visible(timeout=2000):
+                    text = modal_btn.text_content() or ""
+                    self._log(f'모달 예매 버튼 발견: {selector[:30]} (텍스트: {text[:20]})')
                     
-            except Exception as e2:
-                self._log(f'페이지 검색 실패: {e2}', LogLevel.ERROR)
+                    # 팝업 대기 + 클릭
+                    try:
+                        with self.page.expect_popup(timeout=15000) as popup_info:
+                            modal_btn.click()
+                        
+                        self.booking_page = popup_info.value
+                        self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
+                        self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
+                        return True
+                        
+                    except Exception as popup_err:
+                        self._log(f'팝업 안 열림, 페이지 이동 확인: {popup_err}', LogLevel.DEBUG)
+                        
+                        # 같은 탭에서 이동한 경우
+                        adaptive_sleep(3)
+                        current_url = self.page.url.lower()
+                        if 'book' in current_url or 'seat' in current_url or 'onestop' in current_url:
+                            self.booking_page = self.page
+                            self._log(f'✅ 같은 탭에서 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
+                            return True
+            except:
+                continue
         
+        # 폴백: 모달이 아닌 일반 페이지 변경 확인
+        adaptive_sleep(2)
+        current_url = self.page.url.lower()
+        self._log(f'현재 URL: {current_url[:60]}')
+        
+        if 'book' in current_url or 'seat' in current_url or 'onestop' in current_url:
+            self.booking_page = self.page
+            self._log(f'✅ 예매 페이지 진입: {self.page.url[:50]}...', LogLevel.SUCCESS)
+            return True
+        
+        # 디버깅
+        self._dump_page_buttons()
+        self._log('모달 예매 버튼 못찾음', LogLevel.WARN)
         return False
     
     def _get_active_page(self) -> Page:
