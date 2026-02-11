@@ -15,7 +15,7 @@ BTS 티켓팅 매크로 v5.1 - 딥 리뷰 기반 완전 재작성
 - Rate limiting 적응형 대응
 """
 
-__version__ = "5.1.0"
+__version__ = "5.2.0"
 __author__ = "BTS Ticketing Bot"
 
 import nodriver as nd
@@ -518,14 +518,21 @@ async def human_type(page, element, text: str, with_mistakes: bool = True):
             await press_key(page, 'Backspace', 8)
             await asyncio.sleep(random.uniform(0.05, 0.1))
         
-        # 문자 입력
-        try:
-            await element.send_keys(char)
-        except Exception:
-            # 특수문자 실패 시 JS로 직접 입력 (모든 특수문자 escape)
-            escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r')
+        # 문자 입력 - 특수문자(@#$`등)는 JS로 직접 입력
+        special_chars = '@#$%^&*()[]{}|;:,.<>?/~`'
+        if char in special_chars:
+            # 특수문자는 send_keys가 불안정하므로 JS로 직접 입력
+            escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r').replace('`', '\\`')
             script = f'document.activeElement.value += "{escaped_char}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
             await evaluate_js(page, script)
+        else:
+            try:
+                await element.send_keys(char)
+            except Exception:
+                # 일반 문자도 실패 시 JS로
+                escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r').replace('`', '\\`')
+                script = f'document.activeElement.value += "{escaped_char}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
+                await evaluate_js(page, script)
         
         # 불규칙 딜레이
         if char in ' .,@':
@@ -790,6 +797,9 @@ async def _wait_for_turnstile(page, timeout: float = 60.0) -> bool:
                 const iframes = document.querySelectorAll('iframe[src*="turnstile"], iframe[src*="challenges.cloudflare"]');
                 for (const iframe of iframes) {
                     try {
+                        // 먼저 뷰포트로 스크롤
+                        iframe.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        
                         const rect = iframe.getBoundingClientRect();
                         if (rect.width > 0 && rect.height > 0) {
                             return {
@@ -1293,14 +1303,19 @@ async def _click_canvas_seat(page) -> bool:
             const canvas = document.querySelector('canvas');
             if (!canvas) return { error: 'no_canvas' };
             
+            // 먼저 Canvas를 뷰포트로 스크롤
+            canvas.scrollIntoView({ behavior: 'instant', block: 'center' });
+            
             const ctx = canvas.getContext('2d');
             if (!ctx) return { error: 'no_context' };
             
             const width = canvas.width;
             const height = canvas.height;
             
-            // Canvas 위치 정보 (CORS 에러 시에도 사용 가능)
+            // Canvas 위치 정보 (CORS 에러 시에도 사용 가능) + 스크롤 오프셋
             const rect = canvas.getBoundingClientRect();
+            const scrollX = window.scrollX || window.pageXOffset || 0;
+            const scrollY = window.scrollY || window.pageYOffset || 0;
             const baseInfo = {
                 rect: {
                     left: rect.left,
@@ -1308,7 +1323,9 @@ async def _click_canvas_seat(page) -> bool:
                     width: rect.width,
                     height: rect.height,
                     scaleX: rect.width / width,
-                    scaleY: rect.height / height
+                    scaleY: rect.height / height,
+                    scrollX: scrollX,
+                    scrollY: scrollY
                 }
             };
             

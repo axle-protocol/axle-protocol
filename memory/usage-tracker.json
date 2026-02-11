@@ -1,10 +1,10 @@
 {
   "sessionKey": "agent:main:main",
   "model": "anthropic/claude-opus-4-5",
-  "lastStatusAtKST": "2026-02-11T14:42:00+09:00",
-  "contextUsedPercent": 87,
-  "lastNotifiedUsedPercent": 80,
-  "nextNotifyUsedPercent": 90,
-  "compactions": 2,
-  "note": "87% 도달. 90% 임계치 접근 중. 곧 컴팩션 예상."
+  "lastStatusAtKST": "2026-02-11T15:57:00+09:00",
+  "contextUsedPercent": 50,
+  "lastNotifiedUsedPercent": 50,
+  "nextNotifyUsedPercent": 60,
+  "compactions": 3,
+  "note": "50% 도달. 다음 알림 60%."
 }

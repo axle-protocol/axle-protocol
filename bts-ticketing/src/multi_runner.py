@@ -35,6 +35,8 @@ from config import (
 
 # ============ 글로벌 상태 (스레드 안전) ============
 
+import threading
+
 @dataclass
 class RunnerState:
     """멀티 러너 전역 상태 (원자적 연산 지원)"""
@@ -44,17 +46,19 @@ class RunnerState:
     active_tasks: Dict[int, asyncio.Task] = None
     results: Dict[int, str] = None  # 인스턴스별 결과
     _lock: asyncio.Lock = None  # 상태 변경 락
+    _init_lock: threading.Lock = None  # Lock 초기화 보호용
     
     def __post_init__(self):
         """Lock 초기화 (dataclass 호환)"""
-        # asyncio.Lock()은 이벤트 루프 컨텍스트에서 생성해야 함
-        # 초기화는 async 함수에서 수행
-        pass
+        # threading.Lock은 이벤트 루프 없이 생성 가능
+        self._init_lock = threading.Lock()
     
     def _ensure_lock(self):
-        """Lock 지연 초기화 (이벤트 루프 내에서)"""
+        """Lock 지연 초기화 (Race condition 방지)"""
         if self._lock is None:
-            self._lock = asyncio.Lock()
+            with self._init_lock:  # threading.Lock으로 동기화
+                if self._lock is None:  # Double-check
+                    self._lock = asyncio.Lock()
         return self._lock
     
     async def claim_victory(self, instance_id: int) -> bool:
@@ -172,11 +176,17 @@ async def run_instance(
     Returns:
         bool: 성공 여부
     """
-    # 동적 import (순환 참조 방지)
-    from main_camoufox import (
-        init_browser, login, navigate_to_concert,
-        wait_for_open, click_booking, handle_captcha, select_seat
+    # 동적 import (순환 참조 방지) - main_nodriver_v5 사용
+    from main_nodriver_v5 import (
+        init_browser, step_login, step_navigate_concert,
+        step_wait_open, step_select_seat, handle_turnstile
     )
+    # 호환성 별칭
+    login = step_login
+    navigate_to_concert = step_navigate_concert
+    wait_for_open = step_wait_open
+    select_seat = step_select_seat
+    handle_captcha = handle_turnstile
     
     logger.info(f"인스턴스 시작 - 계정: {account.name or account.user_id[:4]}***")
     
@@ -214,9 +224,9 @@ async def run_instance(
         else:
             instance_config.proxy.enabled = False
         
-        # 전역 config 대체 (main_camoufox 모듈용)
-        import main_camoufox
-        main_camoufox.config = instance_config
+        # 전역 config 대체 (main_nodriver_v5 모듈용)
+        import main_nodriver_v5
+        main_nodriver_v5.config = instance_config
         
         # 브라우저 시작
         browser, page = await init_browser()
