@@ -759,26 +759,43 @@ class NOLTicketing:
                     text = modal_btn.text_content() or ""
                     self._log(f'모달 예매 버튼 발견: {selector[:30]} (텍스트: {text[:20]})')
                     
-                    # 팝업 대기 + 클릭
+                    # ⭐ force 클릭 (backdrop 차단 우회)
                     try:
-                        with self.page.expect_popup(timeout=15000) as popup_info:
-                            modal_btn.click()
+                        # 방법 1: force=True로 강제 클릭
+                        self._log('강제 클릭 시도 (force=True)...')
                         
-                        self.booking_page = popup_info.value
-                        self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
-                        self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
-                        return True
+                        try:
+                            with self.page.expect_popup(timeout=10000) as popup_info:
+                                modal_btn.click(force=True, timeout=5000)
+                            
+                            self.booking_page = popup_info.value
+                            self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
+                            self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
+                            return True
+                        except:
+                            pass
                         
-                    except Exception as popup_err:
-                        self._log(f'팝업 안 열림, 페이지 이동 확인: {popup_err}', LogLevel.DEBUG)
+                        # 방법 2: JavaScript로 직접 클릭
+                        self._log('JS 클릭 시도...')
+                        self.page.evaluate('''
+                            var links = document.querySelectorAll('a, button');
+                            for (var link of links) {
+                                if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
+                                    link.click();
+                                    break;
+                                }
+                            }
+                        ''')
                         
-                        # 같은 탭에서 이동한 경우
                         adaptive_sleep(3)
                         current_url = self.page.url.lower()
                         if 'book' in current_url or 'seat' in current_url or 'onestop' in current_url:
                             self.booking_page = self.page
-                            self._log(f'✅ 같은 탭에서 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
+                            self._log(f'✅ JS 클릭 후 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
                             return True
+                            
+                    except Exception as click_err:
+                        self._log(f'클릭 실패: {click_err}', LogLevel.DEBUG)
             except:
                 continue
         
