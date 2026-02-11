@@ -417,58 +417,80 @@ class TicketingMacro:
         return True
     
     def _rapid_click_booking(self) -> bool:
-        """예매 버튼 연타"""
+        """예매 버튼 연타 - 최적화 v4"""
         self._log('📍 예매 버튼 연타 시작...')
         
         # 로그인 후 페이지 로드 대기 (중요!)
-        adaptive_sleep(Timing.LONG)  # 0.8초 대기
+        adaptive_sleep(Timing.MEDIUM)  # 0.4초로 단축
         
         # 현재 URL 확인 - 이미 좌석 페이지면 스킵
         current_url = self.sb.get_current_url()
-        if 'seat' in current_url.lower() or 'book' in current_url.lower():
+        if self._is_booking_page(current_url):
             self._log('✅ 이미 예매 페이지!')
             return True
         
-        # 페이지 새로고침 (선택적)
-        # self.sb.refresh()
         adaptive_sleep(Timing.SHORT)
         
-        for attempt in range(20):
+        for attempt in range(15):  # 20 → 15 (더 빠른 실패 감지)
             self.stats['booking_attempts'] += 1
             
             try:
                 self.sb.click_link('예매하기')
                 self._log(f'🔘 예매 클릭 #{attempt+1}')
                 
-                # 대기열/좌석 페이지 대기 (최대 30초)
-                for _ in range(60):
-                    adaptive_sleep(0.5)
+                # 대기열/좌석 페이지 대기 (최대 45초, 체크 간격 0.3초)
+                wait_start = time.time()
+                max_wait = 45  # 30초 → 45초 (대기열 충분히 대기)
+                check_interval = 0.3  # 0.5초 → 0.3초 (더 빠른 반응)
+                last_status = ""
+                
+                while time.time() - wait_start < max_wait:
+                    adaptive_sleep(check_interval)
                     current_url = self.sb.get_current_url()
                     
-                    # 좌석 페이지 도달
-                    if 'seat' in current_url.lower() or 'onestop' in current_url.lower():
-                        self._log('✅ 좌석 선택 페이지 진입!')
+                    # 1) 좌석 페이지 도달 → 즉시 성공
+                    if self._is_booking_page(current_url):
+                        elapsed = time.time() - wait_start
+                        self._log(f'✅ 좌석 선택 페이지 진입! ({elapsed:.1f}초)')
                         self._tracker.checkpoint('booking_page_entered')
                         return True
                     
-                    # 대기열 페이지 (계속 대기)
-                    if 'waiting' in current_url.lower():
+                    # 2) 대기열 페이지 → 상태 표시하며 대기
+                    if 'waiting' in current_url.lower() or 'queue' in current_url.lower():
+                        elapsed = time.time() - wait_start
+                        status = f'⏳ 대기열 ({elapsed:.0f}s)'
+                        if status != last_status:
+                            self._log(status)
+                            last_status = status
                         continue
                     
-                    # 예매 관련 페이지
-                    if 'book' in current_url.lower():
-                        self._log('✅ 예매 페이지 진입!')
-                        self._tracker.checkpoint('booking_page_entered')
-                        return True
+                    # 3) 에러 페이지 체크
+                    if 'error' in current_url.lower() or 'fail' in current_url.lower():
+                        self._log('⚠️ 에러 페이지 감지, 재시도...')
+                        break
                 
-                # 30초 후에도 안 되면 다음 시도
-                break
+                # 타임아웃 - 다음 시도로
+                elapsed = time.time() - wait_start
+                self._log(f'⚠️ 대기 타임아웃 ({elapsed:.1f}초)')
                     
             except Exception as e:
                 if attempt % 5 == 0:
                     self._log(f'⚠️ 예매 클릭 에러: {e}')
+                adaptive_sleep(Timing.SHORT)
         
         return False
+    
+    def _is_booking_page(self, url: str) -> bool:
+        """예매/좌석 페이지인지 확인"""
+        url_lower = url.lower()
+        booking_indicators = ['seat', 'onestop', 'booking', 'reserve', 'step']
+        exclude_indicators = ['waiting', 'queue', 'login']
+        
+        # 제외 조건 먼저 체크
+        if any(ex in url_lower for ex in exclude_indicators):
+            return False
+        
+        return any(ind in url_lower for ind in booking_indicators)
     
     def _handle_modals(self):
         """모달 처리"""
@@ -486,7 +508,7 @@ class TicketingMacro:
             adaptive_sleep(Timing.MEDIUM)
     
     def _select_seats(self) -> bool:
-        """좌석 선택"""
+        """좌석 선택 + 결제 페이지 이동 확인"""
         self._log('📍 좌석 선택...')
         
         if not SeatSelector:
@@ -511,9 +533,13 @@ class TicketingMacro:
             
             if selector.select_best_seats():
                 if selector.complete_selection():
-                    self._tracker.checkpoint('seats_selected', selector.get_selection_status())
-                    self.stats['seat_clicks'] = len(selector.selected_seats)
-                    return True
+                    # 선택 완료 후 결제 페이지 이동 확인
+                    if self._verify_seat_selection_success(selector):
+                        self._tracker.checkpoint('seats_selected', selector.get_selection_status())
+                        self.stats['seat_clicks'] = len(selector.selected_seats)
+                        return True
+                    else:
+                        self._log('⚠️ 좌석 선택 확인 실패, 재시도...')
             
             # 새로고침 후 재시도
             selector.refresh_seats()
@@ -523,19 +549,74 @@ class TicketingMacro:
         self._log('⚠️ 일반 선택 실패, 긴급 모드...')
         return self._fallback_seat_select()
     
+    def _verify_seat_selection_success(self, selector) -> bool:
+        """좌석 선택 성공 확인 (결제 페이지 이동 or 선택 확정)"""
+        try:
+            # 1. URL 변경 확인
+            current_url = self.sb.get_current_url().lower()
+            seat_keywords = ['seat', 'ifrmSeat']
+            payment_keywords = ['delivery', 'payment', 'order', 'checkout', 'step2', 'step3']
+            
+            # 좌석 페이지에서 벗어났으면 성공
+            if not any(kw in current_url for kw in seat_keywords):
+                self._log('✅ 좌석 페이지 이탈 확인')
+                return True
+            
+            # 결제 관련 키워드 있으면 성공
+            if any(kw in current_url for kw in payment_keywords):
+                self._log('✅ 결제 페이지 URL 확인')
+                return True
+            
+            # 2. DOM에서 결제 관련 요소 확인
+            payment_elements = [
+                '#YYMMDD',
+                'select[id*="Price"]',
+                '[class*="delivery"]',
+                '[class*="payment"]',
+            ]
+            
+            for sel in payment_elements:
+                try:
+                    elem = self.sb.find_element(sel)
+                    if elem and elem.is_displayed():
+                        self._log(f'✅ 결제 요소 발견: {sel}')
+                        return True
+                except:
+                    pass
+            
+            # 3. 선택된 좌석 수 확인
+            if len(selector.selected_seats) >= self.config.num_seats:
+                self._log(f'✅ 좌석 {len(selector.selected_seats)}개 선택됨')
+                return True
+            
+            return False
+            
+        except Exception as e:
+            self._log(f'⚠️ 좌석 선택 확인 에러: {e}')
+            return True  # 에러 시에도 진행
+    
     def _fallback_seat_select(self) -> bool:
-        """폴백 좌석 선택"""
+        """폴백 좌석 선택 - 최적화 v4"""
         self._log('🔍 폴백 좌석 선택...')
         
+        # 셀렉터 우선순위 (실제 인터파크 구조 기반)
         seat_selectors = [
+            # 인터파크 SVG 좌석 (가장 일반적)
             "circle[class*='seat'][class*='available']",
-            "circle[class*='seat']:not([class*='sold'])",
+            "circle[fill]:not([class*='sold']):not([class*='disabled'])",
             "rect[class*='seat'][class*='available']",
-            "[class*='seat']:not([class*='sold']):not([class*='disabled'])",
+            # 데이터 속성 기반
             "[data-seat-status='available']",
             "[data-available='true']",
+            "[data-seat-id]:not([data-sold='true'])",
+            # 일반 CSS 클래스
+            "[class*='seat']:not([class*='sold']):not([class*='disabled']):not([class*='reserved'])",
+            # 이미지 좌석
             "img[src*='seat'][src*='on']",
+            "img[src*='seat'][src*='available']",
+            # 스탠딩
             "[class*='standing'][class*='available']",
+            "[class*='standing']:not([class*='sold'])",
         ]
         
         for retry in range(self.config.max_retries):
@@ -545,27 +626,78 @@ class TicketingMacro:
                     if not seats:
                         continue
                     
-                    available = [s for s in seats if s.is_displayed()]
+                    # 표시된 좌석만 필터 (최대 100개 - 성능 최적화)
+                    available = []
+                    for s in seats[:200]:  # 200개까지만 체크
+                        try:
+                            if s.is_displayed():
+                                available.append(s)
+                                if len(available) >= 100:
+                                    break
+                        except:
+                            continue
+                    
                     if available:
                         self._log(f'✅ 좌석 {len(available)}개 발견 - {sel[:40]}')
                         
-                        # 클릭 시도
-                        for seat in available[:self.config.num_seats]:
+                        # 좌석 위치 기반 정렬 (앞줄 우선)
+                        try:
+                            available.sort(key=lambda s: (s.location.get('y', 0), s.location.get('x', 0)))
+                        except:
+                            pass
+                        
+                        # 클릭 시도 (목표 수 + 여유분)
+                        target_clicks = self.config.num_seats
+                        click_attempts = 0
+                        
+                        for seat in available[:target_clicks + 3]:
                             try:
+                                # 스크롤 + 클릭
+                                self.sb.execute_script(
+                                    "arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});",
+                                    seat
+                                )
+                                human_delay(30, 60)
                                 seat.click()
-                                self._log('🪑 좌석 클릭!')
+                                self._log(f'🪑 좌석 클릭 #{self.stats["seat_clicks"]+1}')
                                 self.stats['seat_clicks'] += 1
-                                human_delay(100, 200)
-                            except:
+                                human_delay(80, 150)
+                                
+                                if self.stats['seat_clicks'] >= target_clicks:
+                                    break
+                            except Exception as e:
+                                click_attempts += 1
+                                if click_attempts > 10:
+                                    break
                                 continue
                         
-                        if self.stats['seat_clicks'] > 0:
-                            # 선택 완료 버튼
-                            try:
-                                self.sb.click('button:contains("선택 완료"), #NextStepImage', timeout=3)
-                                adaptive_sleep(Timing.MEDIUM)
-                            except:
-                                pass
+                        if self.stats['seat_clicks'] >= target_clicks:
+                            # 선택 완료 버튼 (다중 시도)
+                            complete_selectors = [
+                                '#NextStepImage',
+                                '#SmallNextBtnImage',
+                                'button:contains("선택 완료")',
+                                'button:contains("다음")',
+                                'a:contains("다음")',
+                            ]
+                            
+                            pre_url = self.sb.get_current_url()
+                            
+                            for cs in complete_selectors:
+                                try:
+                                    self.sb.click(cs, timeout=2)
+                                    self._log('✅ 선택 완료 클릭')
+                                    adaptive_sleep(Timing.LONG)
+                                    break
+                                except:
+                                    continue
+                            
+                            # 결제 페이지 이동 확인
+                            if self._verify_moved_to_payment_page(pre_url):
+                                self._log('✅ 결제 페이지 이동 확인')
+                            else:
+                                self._log('⚠️ 결제 페이지 이동 미확인 (계속 진행)')
+                            
                             return True
                             
                 except Exception as e:
@@ -573,19 +705,82 @@ class TicketingMacro:
             
             if retry < self.config.max_retries - 1:
                 self._log(f'🔄 좌석 재검색 (시도 {retry+2})')
-                adaptive_sleep(Timing.SHORT)
+                # 페이지 새로고침 시도
+                try:
+                    refresh_selectors = ['a[onclick*="refresh"]', 'img[onclick*="refresh"]', '[class*="refresh"]']
+                    for rs in refresh_selectors:
+                        try:
+                            self.sb.click(rs, timeout=1)
+                            break
+                        except:
+                            continue
+                except:
+                    pass
+                adaptive_sleep(Timing.MEDIUM)
         
-        # 좌표 기반 최후 시도
+        # 좌표 기반 최후 시도 (Canvas/SVG 클릭)
+        self._log('⚠️ 좌표 기반 최후 시도...')
         try:
-            seat_map = self.sb.find_element('[class*="seat-map"], svg, canvas')
-            if seat_map:
-                self.sb.execute_script("arguments[0].click();", seat_map)
-                self._log('🪑 좌석 맵 클릭')
-                return True
+            seat_maps = self.sb.find_elements('[class*="seat-map"], svg[id*="seat"], canvas')
+            for seat_map in seat_maps:
+                try:
+                    if seat_map.is_displayed():
+                        size = seat_map.size
+                        if size and size.get('width', 0) > 100:
+                            # 맵 중앙 앞쪽 클릭
+                            x = size['width'] // 2
+                            y = int(size['height'] * 0.3)  # 앞쪽 30% 위치
+                            self.sb.execute_script(
+                                """arguments[0].dispatchEvent(new MouseEvent('click', {
+                                    clientX: arguments[1], 
+                                    clientY: arguments[2], 
+                                    bubbles: true
+                                }));""",
+                                seat_map, x, y
+                            )
+                            self._log(f'🪑 좌석 맵 클릭 ({x}, {y})')
+                            return True
+                except:
+                    continue
         except:
             pass
         
         return False
+    
+    def _verify_moved_to_payment_page(self, pre_url: str, timeout: float = 5.0) -> bool:
+        """결제/배송 페이지로 이동했는지 확인"""
+        try:
+            payment_indicators = ['delivery', 'payment', 'order', 'checkout', 'step2', 'step3']
+            
+            start = time.time()
+            while time.time() - start < timeout:
+                try:
+                    current_url = self.sb.get_current_url().lower()
+                    
+                    # URL 변경됐고, 결제 관련 키워드 포함
+                    if current_url != pre_url.lower():
+                        if any(ind in current_url for ind in payment_indicators):
+                            return True
+                        if 'seat' not in current_url:
+                            return True
+                    
+                    # DOM에서 결제 관련 요소 확인
+                    payment_dom = ['[class*="payment"]', '[class*="delivery"]', '#YYMMDD', 'select[id*="Price"]']
+                    for sel in payment_dom:
+                        try:
+                            elem = self.sb.find_element(sel)
+                            if elem and elem.is_displayed():
+                                return True
+                        except:
+                            pass
+                except:
+                    pass
+                
+                adaptive_sleep(0.3)
+            
+            return False
+        except:
+            return False
     
     def _process_payment(self) -> bool:
         """결제 처리"""
@@ -632,8 +827,10 @@ class TicketingMacro:
         """티켓팅 실행"""
         from seleniumbase import SB
         
+        self._start_time = time.time()
+        
         self._log('=' * 60)
-        self._log('🎫 BTS 티켓팅 매크로 v3 시작')
+        self._log('🎫 BTS 티켓팅 매크로 v4 시작')
         self._log(f'🎯 URL: {self.config.url[:50]}...')
         self._log(f'⏰ 목표 시간: {self.config.target_hour:02d}:{self.config.target_minute:02d}')
         self._log(f'🪑 좌석: {self.config.num_seats}석, 연석={self.config.consecutive}')
@@ -698,6 +895,13 @@ class TicketingMacro:
                 self._tracker.checkpoint('success')
                 self._tracker.save_to_file('/tmp/ticketing_state.json')
                 
+                # 최종 URL 로깅
+                try:
+                    final_url = self.sb.get_current_url()
+                    self._log(f'📍 최종 URL: {final_url[:80]}...')
+                except:
+                    pass
+                
                 return True
                 
             except Exception as e:
@@ -708,14 +912,24 @@ class TicketingMacro:
                 import traceback
                 traceback.print_exc()
                 
-                self.sb.save_screenshot('/tmp/ticketing_error.png')
+                # 에러 스크린샷 + URL
+                try:
+                    self.sb.save_screenshot('/tmp/ticketing_error.png')
+                    error_url = self.sb.get_current_url()
+                    self._log(f'📍 에러 URL: {error_url[:80]}')
+                except:
+                    pass
+                
                 return False
             
             finally:
                 # 통계 출력
-                self._log('📊 통계:')
+                elapsed = time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
+                self._log('=' * 50)
+                self._log(f'📊 최종 통계 (소요: {elapsed:.1f}초):')
                 for key, value in self.stats.items():
-                    self._log(f'  {key}: {value}')
+                    self._log(f'  • {key}: {value}')
+                self._log('=' * 50)
 
 
 def run_ticketing(

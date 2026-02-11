@@ -175,32 +175,45 @@ class PaymentHandler:
         'input[value*="결제"]',
     ]
     
-    # 가격 선택
+    # 가격 선택 - 인터파크 실제 DOM
     PRICE_SELECTORS = [
+        # 인터파크 실제: #PriceRow001 > td:nth-child(3) > select
+        '#PriceRow001 > td:nth-child(3) > select',
         '#PriceRow001 td select',
+        '#PriceRow001 select',
+        'tr[id*="PriceRow"] td select',
         'select[id*="Price"]',
         'select[name*="price"]',
         '[class*="price"] select',
+        'select[name*="Discount"]',  # 할인 선택도 같이
     ]
     
     DISCOUNT_SELECTORS = [
         'select[id*="Discount"]',
         'select[name*="discount"]',
         '[class*="discount"] select',
+        '#DiscountCode',
     ]
     
-    # 예매자 정보
+    # 예매자 정보 - 인터파크 실제 DOM
     BIRTH_SELECTORS = [
-        '#YYMMDD',
+        '#YYMMDD',  # 인터파크 메인
+        'input#YYMMDD',
+        'input[name="YYMMDD"]',
         '#birthDate',
         'input[name*="birth"]',
         'input[placeholder*="생년월일"]',
         'input[placeholder*="YYMMDD"]',
+        'input[maxlength="6"][type="text"]',  # 6자리 제한 필드
     ]
     
     PHONE_SELECTORS = [
         '#ordererTel',
+        '#ordererTel1',
+        '#ordererTel2', 
+        '#ordererTel3',
         '#phone',
+        'input[name*="ordererTel"]',
         'input[name*="phone"]',
         'input[name*="tel"]',
         'input[placeholder*="연락처"]',
@@ -208,9 +221,11 @@ class PaymentHandler:
     
     EMAIL_SELECTORS = [
         '#ordererEmail',
+        'input#ordererEmail',
         '#email',
         'input[type="email"]',
         'input[name*="email"]',
+        'input[name*="Email"]',
     ]
     
     # 수령 방법
@@ -228,47 +243,81 @@ class PaymentHandler:
         '#receiveDelivery',
     ]
     
-    # 결제수단 (우선순위별 다중 셀렉터)
+    # 결제수단 (우선순위별 다중 셀렉터) - 인터파크 실제 DOM 기반 (2024-2026)
     PAYMENT_METHOD_SELECTORS = {
         PaymentMethod.CREDIT_CARD: [
+            # 인터파크 실제 셀렉터 (테이블 내 input)
+            '#Payment_22001 td input',
+            '#Payment_22001 input',
             '#Payment_22001',
+            'input[id*="Payment"][id*="22001"]',
             'input[value*="카드"]',
             'label:contains("신용카드")',
             '[class*="card"][class*="pay"]',
+            'td:contains("신용카드") input[type="radio"]',
         ],
         PaymentMethod.BANK_TRANSFER: [
+            # 인터파크 실제 셀렉터
+            '#Payment_22004 td input',
+            '#Payment_22004 input',
             '#Payment_22004',
+            'input[id*="Payment"][id*="22004"]',
             'input[value*="이체"]',
             'label:contains("계좌이체")',
             '[class*="bank"]',
+            'td:contains("계좌이체") input[type="radio"]',
         ],
         PaymentMethod.KAKAO_PAY: [
+            # 간편결제 셀렉터
+            '#Payment_22019 td input',
+            '#Payment_22019 input',
+            '#Payment_22019',
+            'input[id*="kakao"]',
             '[class*="kakao"]',
             'input[value*="kakao"]',
             'label:contains("카카오페이")',
             'img[alt*="카카오"]',
+            'img[src*="kakao"]',
             '#kakaopay',
+            'td:contains("카카오페이") input[type="radio"]',
         ],
         PaymentMethod.NAVER_PAY: [
+            '#Payment_22020 td input',
+            '#Payment_22020 input',
+            '#Payment_22020',
+            'input[id*="naver"]',
             '[class*="naver"]',
             'input[value*="naver"]',
             'label:contains("네이버페이")',
             'img[alt*="네이버"]',
+            'img[src*="naver"]',
             '#naverpay',
+            'td:contains("네이버페이") input[type="radio"]',
         ],
         PaymentMethod.PAYCO: [
+            '#Payment_22021 td input',
+            '#Payment_22021 input',
+            '#Payment_22021',
             '[class*="payco"]',
             'input[value*="payco"]',
             'label:contains("PAYCO")',
             'img[alt*="PAYCO"]',
+            'img[src*="payco"]',
         ],
         PaymentMethod.TOSS: [
+            '#Payment_22022 td input',
+            '#Payment_22022 input',
+            '#Payment_22022',
             '[class*="toss"]',
             'input[value*="toss"]',
             'label:contains("토스")',
             'img[alt*="토스"]',
+            'img[src*="toss"]',
         ],
         PaymentMethod.SAMSUNG_PAY: [
+            '#Payment_22023 td input',
+            '#Payment_22023 input',
+            '#Payment_22023',
             '[class*="samsung"]',
             'input[value*="samsung"]',
             'label:contains("삼성페이")',
@@ -534,11 +583,13 @@ class PaymentHandler:
     
     @retry(max_attempts=3, delay=0.3)
     def select_payment_method(self) -> bool:
-        """결제수단 선택"""
+        """결제수단 선택 - 인터파크 프레임 구조 대응"""
         self._log('💳 결제수단 선택...')
         
         try:
-            self.switch_to_book_frame()
+            # 프레임 전환 (여러 시도)
+            if not self.switch_to_book_frame():
+                self._log('⚠️ 예매 프레임 전환 실패, 현재 컨텍스트에서 시도')
             
             # 우선순위대로 결제수단 시도
             for method in self.config.payment_methods:
@@ -546,30 +597,59 @@ class PaymentHandler:
                 if not selectors:
                     continue
                 
-                selector = self._multi_select(selectors, f'결제수단:{method.value}')
-                elem = selector.find_element()
+                self._log(f'🔍 {method.value} 결제수단 찾는 중...')
                 
-                if elem and elem.is_displayed():
+                # 각 셀렉터 직접 시도 (더 안정적)
+                for sel in selectors:
                     try:
-                        AntiDetection.human_click(self.sb, elem)
-                        self._log(f'✅ 결제수단 선택: {method.value}')
-                        adaptive_sleep(Timing.MEDIUM)
+                        # JS로 요소 찾기 (더 안정적)
+                        elem = self.sb.execute_script(f"""
+                            var elem = document.querySelector('{sel}');
+                            if (elem && elem.offsetParent !== null) return elem;
+                            
+                            // input 타입이면 부모 행 찾아서 input 클릭
+                            var row = document.querySelector('tr[id*="Payment"]');
+                            if (row) {{
+                                var input = row.querySelector('input[type="radio"]');
+                                if (input) return input;
+                            }}
+                            return null;
+                        """)
                         
-                        # 추가 선택
-                        if method == PaymentMethod.CREDIT_CARD:
-                            self._select_card_options()
-                        elif method == PaymentMethod.BANK_TRANSFER:
-                            self._select_bank_options()
+                        if not elem:
+                            elem = self.sb.find_element(sel)
                         
-                        # 체크포인트
-                        self._tracker.checkpoint('payment_method_selected', {'method': method.value})
-                        
-                        return True
+                        if elem and elem.is_displayed():
+                            # 라디오 버튼이면 클릭, 아니면 부모 클릭
+                            tag = elem.tag_name.lower() if hasattr(elem, 'tag_name') else ''
+                            input_type = elem.get_attribute('type') or ''
+                            
+                            if tag == 'input' and input_type == 'radio':
+                                # 라디오 버튼은 JS 클릭이 더 안정적
+                                self.sb.execute_script("arguments[0].click();", elem)
+                            else:
+                                AntiDetection.human_click(self.sb, elem)
+                            
+                            self._log(f'✅ 결제수단 선택: {method.value} ({sel[:30]}...)')
+                            adaptive_sleep(Timing.MEDIUM)
+                            
+                            # 추가 선택
+                            if method == PaymentMethod.CREDIT_CARD:
+                                self._select_card_options()
+                            elif method == PaymentMethod.BANK_TRANSFER:
+                                self._select_bank_options()
+                            
+                            # 체크포인트
+                            self._tracker.checkpoint('payment_method_selected', {'method': method.value})
+                            
+                            return True
+                            
                     except Exception as e:
-                        self._log(f'⚠️ {method.value} 클릭 실패: {e}')
                         continue
+                
+                self._log(f'⚠️ {method.value} 결제수단 없음')
             
-            self._log('⚠️ 결제수단 선택 실패')
+            self._log('⚠️ 모든 결제수단 선택 실패')
             return False
             
         except Exception as e:
@@ -812,6 +892,10 @@ class PaymentHandler:
         self._log('💳 결제 프로세스 시작')
         self.status = PaymentStatus.PROCESSING
         
+        # 결제 페이지 진입 확인 (중요!)
+        if not self._verify_payment_page_entry():
+            self._log('⚠️ 결제 페이지 진입 미확인, 계속 진행')
+        
         steps = [
             ('가격선택', self.select_price, False),         # 필수 아님
             ('다음단계1', self.click_next_step, False),     # 실패해도 계속
@@ -833,6 +917,8 @@ class PaymentHandler:
                 try:
                     if step_func():
                         success = True
+                        # 단계별 상태 확인
+                        self._verify_step_completed(step_name)
                         break
                 except Exception as e:
                     self._log(f'⚠️ {step_name} 에러 (시도 {attempt+1}): {e}')
@@ -844,6 +930,9 @@ class PaymentHandler:
                 if is_required:
                     self.status = PaymentStatus.FAILED
                     self.error_message = f'{step_name} 실패'
+                    # 에러 복구 시도
+                    if self._try_recovery(step_name):
+                        continue
                     return False
         
         # 결제 완료 대기
@@ -853,6 +942,118 @@ class PaymentHandler:
             self._log('✅ 결제 페이지 도달 - 수동 결제 필요')
             self.status = PaymentStatus.PENDING
             return True
+    
+    def _verify_payment_page_entry(self) -> bool:
+        """결제 페이지 진입 확인"""
+        try:
+            self.sb.switch_to.default_content()
+            current_url = self.sb.get_current_url().lower()
+            
+            # URL 키워드 확인
+            payment_keywords = ['booking', 'order', 'payment', 'checkout', 'step', 'delivery']
+            if any(kw in current_url for kw in payment_keywords):
+                self._log('✅ 결제 페이지 URL 확인')
+                return True
+            
+            # DOM 요소 확인
+            entry_indicators = [
+                '#ifrmBookStep',
+                '[class*="booking"]',
+                '[class*="order"]',
+                'select[id*="Price"]',
+                '#YYMMDD',
+            ]
+            
+            for sel in entry_indicators:
+                try:
+                    elem = self.sb.find_element(sel)
+                    if elem:
+                        self._log(f'✅ 결제 페이지 요소 확인: {sel[:30]}')
+                        return True
+                except:
+                    pass
+            
+            return False
+            
+        except Exception as e:
+            self._log(f'⚠️ 결제 페이지 확인 실패: {e}')
+            return False
+    
+    def _verify_step_completed(self, step_name: str):
+        """각 단계 완료 확인"""
+        try:
+            if step_name == '결제수단':
+                # 결제수단 선택됐는지 확인
+                self.switch_to_book_frame()
+                selected = self.sb.execute_script("""
+                    var radios = document.querySelectorAll('input[type="radio"]:checked');
+                    return radios.length > 0;
+                """)
+                if selected:
+                    self._log('✅ 결제수단 선택 확인됨')
+            
+            elif step_name == '예매자정보':
+                # 생년월일 입력됐는지 확인
+                self.switch_to_book_frame()
+                birth_filled = False
+                for sel in self.BIRTH_SELECTORS:
+                    try:
+                        elem = self.sb.find_element(sel)
+                        if elem and elem.get_attribute('value'):
+                            birth_filled = True
+                            break
+                    except:
+                        pass
+                if birth_filled:
+                    self._log('✅ 예매자정보 입력 확인됨')
+            
+            elif step_name == '약관동의':
+                # 체크박스 선택됐는지 확인
+                self.switch_to_book_frame()
+                checked = self.sb.execute_script("""
+                    var checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+                    return checkboxes.length;
+                """)
+                if checked and checked > 0:
+                    self._log(f'✅ 약관동의 {checked}개 체크 확인됨')
+                    
+        except Exception as e:
+            pass  # 확인 실패해도 진행
+    
+    def _try_recovery(self, failed_step: str) -> bool:
+        """실패한 단계 복구 시도"""
+        self._log(f'🔄 {failed_step} 복구 시도...')
+        
+        try:
+            if failed_step == '결제수단':
+                # 다른 결제수단 시도
+                if len(self.config.payment_methods) > 1:
+                    # 첫 번째 결제수단 제외하고 다시 시도
+                    backup_methods = self.config.payment_methods[1:]
+                    original_methods = self.config.payment_methods
+                    self.config.payment_methods = backup_methods
+                    
+                    if self.select_payment_method():
+                        self.config.payment_methods = original_methods
+                        self._log('✅ 대체 결제수단으로 복구 성공')
+                        return True
+                    
+                    self.config.payment_methods = original_methods
+            
+            elif failed_step == '약관동의':
+                # 페이지 새로고침 후 재시도
+                try:
+                    self.sb.execute_script("location.reload();")
+                    adaptive_sleep(Timing.LONG)
+                    return True  # 다시 시도하도록
+                except:
+                    pass
+            
+            return False
+            
+        except Exception as e:
+            self._log(f'⚠️ 복구 실패: {e}')
+            return False
     
     def get_status(self) -> Dict[str, Any]:
         """현재 결제 상태"""

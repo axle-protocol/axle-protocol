@@ -182,11 +182,19 @@ class SeatSelector:
         'li[class*="grade"]',
     ]
     
-    # 좌석 요소 (우선순위 순)
+    # 좌석 요소 (우선순위 순) - 인터파크 실제 DOM 기반
     SEAT_SELECTORS = [
-        # SVG 좌석
+        # 인터파크 핵심 셀렉터 (최우선)
+        "#Seats",  # 인터파크 메인 좌석 요소
+        "#Seats circle",  # SVG 내부 좌석
+        "#Seats rect",
+        
+        # SVG 좌석 (circle 기반)
+        "circle[class*='st'][fill*='#']:not([fill*='gray']):not([fill*='#ccc']):not([fill*='#999'])",
         "circle[class*='seat'][class*='available']",
         "circle[class*='seat']:not([class*='sold']):not([class*='disabled']):not([class*='selected'])",
+        "circle.st0:not(.sold):not(.disabled)",  # 인터파크 클래스명
+        "circle.available",
         "rect[class*='seat'][class*='available']",
         "rect[class*='seat']:not([class*='sold']):not([class*='disabled'])",
         
@@ -643,47 +651,110 @@ class SeatSelector:
         return seats
     
     def _analyze_svg_elements(self, svg) -> List[SeatInfo]:
-        """SVG 요소 분석"""
+        """SVG 요소 분석 - 인터파크 좌석맵 최적화"""
         seats = []
         
         try:
-            # SVG 내부 좌석 요소 찾기
-            for tag in ['circle', 'rect', 'path']:
-                elements = svg.find_elements_by_tag_name(tag)
-                for elem in elements:
+            # SVG 내부 좌석 요소 찾기 (JS로 더 안정적)
+            svg_seats_data = self.sb.execute_script("""
+                var svg = arguments[0];
+                var seats = [];
+                var tags = ['circle', 'rect', 'path'];
+                
+                tags.forEach(function(tag) {
+                    var elements = svg.getElementsByTagName(tag);
+                    for (var i = 0; i < elements.length; i++) {
+                        var elem = elements[i];
+                        var fill = (elem.getAttribute('fill') || '').toLowerCase();
+                        var cls = (elem.getAttribute('class') || '').toLowerCase();
+                        var style = (elem.getAttribute('style') || '').toLowerCase();
+                        var id = elem.getAttribute('id') || '';
+                        var dataAttr = elem.getAttribute('data-seat') || elem.getAttribute('data-id') || '';
+                        
+                        // 매진/비활성 제외
+                        var isSold = cls.indexOf('sold') >= 0 || 
+                                    cls.indexOf('disabled') >= 0 ||
+                                    cls.indexOf('reserved') >= 0 ||
+                                    fill.indexOf('gray') >= 0 ||
+                                    fill.indexOf('#ccc') >= 0 ||
+                                    fill.indexOf('#999') >= 0 ||
+                                    fill.indexOf('#ddd') >= 0 ||
+                                    style.indexOf('display:none') >= 0 ||
+                                    style.indexOf('display: none') >= 0;
+                        
+                        if (isSold) continue;
+                        
+                        // 좌표 추출
+                        var cx = parseFloat(elem.getAttribute('cx') || elem.getAttribute('x') || 0);
+                        var cy = parseFloat(elem.getAttribute('cy') || elem.getAttribute('y') || 0);
+                        var r = parseFloat(elem.getAttribute('r') || 0);
+                        
+                        // 유효한 좌석 크기 (원이면 반지름 3-30 사이)
+                        if (tag === 'circle' && (r < 3 || r > 30)) continue;
+                        
+                        // 좌표가 유효해야 함
+                        if (cx <= 0 && cy <= 0) continue;
+                        
+                        seats.push({
+                            tag: tag,
+                            cx: cx,
+                            cy: cy,
+                            r: r,
+                            fill: fill,
+                            cls: cls,
+                            id: id,
+                            dataAttr: dataAttr,
+                            index: i
+                        });
+                    }
+                });
+                
+                return seats;
+            """, svg)
+            
+            if svg_seats_data:
+                self._log(f'🔷 SVG 좌석 후보 {len(svg_seats_data)}개 발견')
+                
+                for data in svg_seats_data:
                     try:
-                        fill = (elem.get_attribute('fill') or '').lower()
-                        cls = (elem.get_attribute('class') or '').lower()
+                        # 가용 좌석 판단 (더 정교하게)
+                        fill = data.get('fill', '')
+                        cls = data.get('cls', '')
                         
-                        # 가용 좌석 색상/클래스
-                        is_available = any([
-                            'green' in fill or '#0' in fill,
-                            'available' in cls,
-                            'open' in cls,
-                        ]) and not any([
-                            'sold' in cls,
-                            'gray' in fill,
-                            'disabled' in cls,
-                        ])
+                        # 가용 좌석 색상
+                        available_colors = ['#4', '#5', '#6', '#7', '#8', '#9', '#a', '#b', 
+                                           'green', 'blue', '#0f', '#00', 'rgb(0', 'rgb(6', 'rgb(7']
+                        unavailable_colors = ['#ccc', '#999', '#ddd', '#eee', 'gray', 'grey', 
+                                             '#f0f0', 'rgba(0,0,0', 'white', '#fff']
                         
-                        if is_available and elem.is_displayed():
-                            cx = elem.get_attribute('cx') or elem.get_attribute('x')
-                            cy = elem.get_attribute('cy') or elem.get_attribute('y')
-                            
+                        is_available_color = any(c in fill for c in available_colors) or fill == ''
+                        is_unavailable = any(c in fill for c in unavailable_colors)
+                        
+                        if is_unavailable:
+                            continue
+                        
+                        # JS로 실제 요소 참조 얻기
+                        tag = data.get('tag', 'circle')
+                        idx = data.get('index', 0)
+                        elem = self.sb.execute_script(f"""
+                            return arguments[0].getElementsByTagName('{tag}')[{idx}];
+                        """, svg)
+                        
+                        if elem:
                             seat = SeatInfo(
                                 element=elem,
-                                x=int(float(cx or 0)),
-                                y=int(float(cy or 0)),
+                                x=int(data.get('cx', 0)),
+                                y=int(data.get('cy', 0)),
                                 is_available=True,
                                 status=SeatStatus.AVAILABLE,
-                                raw_id=f"svg_{cx}_{cy}"
+                                raw_id=data.get('id') or data.get('dataAttr') or f"svg_{data.get('cx')}_{data.get('cy')}"
                             )
                             seats.append(seat)
                             
                     except Exception:
                         continue
-            
-            self._log(f'🔷 SVG에서 {len(seats)}개 가용 좌석 감지')
+                
+                self._log(f'🔷 SVG에서 {len(seats)}개 가용 좌석 감지')
             
         except Exception as e:
             self._log(f'⚠️ SVG 분석 실패: {e}')
@@ -779,16 +850,50 @@ class SeatSelector:
         return score
     
     def select_consecutive_seats(self, seats: List[SeatInfo], count: int) -> List[SeatInfo]:
-        """연석 선택 - 개선"""
+        """연석 선택 - 개선 (SVG 좌표계 대응)"""
         if len(seats) < count:
             return []
         
-        # 좌표 기반 열 그룹화
-        row_tolerance = 25  # 같은 열로 판단할 y좌표 허용 오차
+        self._log(f'🔍 연석 {count}석 검색 중... (후보 {len(seats)}개)')
+        
+        # 1. 좌석 간 간격 통계 계산 (동적 gap 설정)
+        x_gaps = []
+        y_diffs = []
+        sorted_by_x = sorted(seats, key=lambda s: (s.y, s.x))
+        
+        for i in range(1, min(len(sorted_by_x), 50)):
+            x_gap = abs(sorted_by_x[i].x - sorted_by_x[i-1].x)
+            y_diff = abs(sorted_by_x[i].y - sorted_by_x[i-1].y)
+            if 3 < x_gap < 200:  # 합리적인 범위
+                x_gaps.append(x_gap)
+            if y_diff < 100:
+                y_diffs.append(y_diff)
+        
+        # 동적 간격 계산 (중앙값 사용)
+        if x_gaps:
+            x_gaps.sort()
+            typical_gap = x_gaps[len(x_gaps) // 4]  # 25% 지점 (연석 간격)
+            max_gap = typical_gap * 1.5  # 연석 최대 허용 간격
+            min_gap = typical_gap * 0.5  # 최소 간격
+        else:
+            typical_gap = 30
+            max_gap = self.pref.consecutive_max_gap
+            min_gap = 5
+        
+        # 열 허용 오차 계산
+        if y_diffs:
+            y_diffs.sort()
+            row_tolerance = max(15, y_diffs[len(y_diffs) // 2] * 0.7)
+        else:
+            row_tolerance = 25
+        
+        self._log(f'📏 간격 분석: 좌석간격={typical_gap:.0f}px, 최대={max_gap:.0f}px, 열허용={row_tolerance:.0f}px')
+        
+        # 2. 좌표 기반 열 그룹화
         seats_by_row: Dict[int, List[SeatInfo]] = {}
         
         for seat in seats:
-            row_key = seat.y // row_tolerance
+            row_key = int(seat.y / row_tolerance)
             if row_key not in seats_by_row:
                 seats_by_row[row_key] = []
             seats_by_row[row_key].append(seat)
@@ -796,6 +901,7 @@ class SeatSelector:
         best_group = []
         best_score = -1000
         
+        # 3. 각 열에서 연석 찾기
         for row_key, row_seats in seats_by_row.items():
             if len(row_seats) < count:
                 continue
@@ -807,29 +913,48 @@ class SeatSelector:
             for i in range(len(row_seats) - count + 1):
                 group = row_seats[i:i + count]
                 
-                # 연속성 확인
+                # 연속성 확인 (동적 gap 사용)
                 is_consecutive = True
-                max_gap = self.pref.consecutive_max_gap
+                gaps_in_group = []
                 
                 for j in range(1, len(group)):
                     gap = group[j].x - group[j-1].x
-                    if gap > max_gap or gap < 5:  # 너무 가깝거나 멀면 제외
+                    gaps_in_group.append(gap)
+                    
+                    # 너무 멀거나 너무 가까우면 연석 아님
+                    if gap > max_gap or gap < min_gap:
                         is_consecutive = False
                         break
+                    
+                    # 간격 일관성 확인 (편차가 너무 크면 안됨)
+                    if gaps_in_group:
+                        avg_gap = sum(gaps_in_group) / len(gaps_in_group)
+                        if abs(gap - avg_gap) > typical_gap * 0.5:
+                            is_consecutive = False
+                            break
                 
                 if is_consecutive:
+                    # 점수 계산: 좌석 점수 + 중앙 보너스 + 일관성 보너스
                     group_score = sum(s.score for s in group)
+                    
+                    # 간격 일관성 보너스
+                    if gaps_in_group:
+                        gap_variance = sum((g - typical_gap) ** 2 for g in gaps_in_group) / len(gaps_in_group)
+                        consistency_bonus = max(0, 10 - gap_variance / 10)
+                        group_score += consistency_bonus
+                    
                     if group_score > best_score:
                         best_score = group_score
                         best_group = group
         
         if best_group:
-            self._log(f'✅ 연석 {count}석 발견 (점수: {best_score:.1f})')
+            seat_info = ', '.join([f'{s.row}열{s.seat_num}번' if s.row else f'({s.x},{s.y})' for s in best_group])
+            self._log(f'✅ 연석 {count}석 발견: [{seat_info}] (점수: {best_score:.1f})')
             return best_group
         
-        # 연석 못 찾으면 폴백
+        # 4. 연석 못 찾으면 폴백
         if self.pref.fallback_to_individual:
-            self._log(f'⚠️ 연석 {count}석 찾기 실패, 개별 선택')
+            self._log(f'⚠️ 연석 {count}석 찾기 실패, 개별 선택 (상위 {count}석)')
             return seats[:count]
         
         return []
@@ -837,7 +962,7 @@ class SeatSelector:
     @retry(max_attempts=3, delay=0.1)
     @retry_on_stale
     def click_seat(self, seat: SeatInfo) -> bool:
-        """좌석 클릭 - 재시도 + 인간 같은 클릭"""
+        """좌석 클릭 - 재시도 + 인간 같은 클릭 + 선택 확인"""
         try:
             if seat.element:
                 # 중복 선점 체크 (세션 간)
@@ -845,6 +970,10 @@ class SeatSelector:
                     if not self._shared.add_to_set('claimed_seats', seat.raw_id):
                         self._log(f'⚠️ 좌석 이미 선점됨: {seat.raw_id[:15]}')
                         return False
+                
+                # 클릭 전 상태 저장
+                pre_class = seat.element.get_attribute('class') or ''
+                pre_fill = seat.element.get_attribute('fill') or ''
                 
                 # 스크롤하여 보이게
                 try:
@@ -856,16 +985,55 @@ class SeatSelector:
                 except:
                     pass
                 
-                # 인간 같은 클릭
-                AntiDetection.human_click(self.sb, seat.element)
+                # 오버레이/모달 닫기 시도
+                try:
+                    self.sb.execute_script("""
+                        // 오버레이 요소 제거/숨기기
+                        document.querySelectorAll('h3, .modal, .overlay, [class*="popup"], [class*="tooltip"]').forEach(function(el) {
+                            if (el.style) el.style.display = 'none';
+                        });
+                    """)
+                except:
+                    pass
                 
+                # JS 클릭 (가려진 요소도 클릭 가능)
                 seat_desc = f'{seat.zone} {seat.row}열 {seat.seat_num}번' if seat.row else seat.raw_id[:20]
+                try:
+                    # 먼저 일반 클릭 시도
+                    AntiDetection.human_click(self.sb, seat.element)
+                except Exception as click_err:
+                    if 'intercepted' in str(click_err).lower() or 'not clickable' in str(click_err).lower():
+                        # 가려진 경우 JS 이벤트 디스패치로 폴백
+                        self._log(f'⚠️ 요소 가려짐, JS 이벤트 클릭 시도')
+                        self.sb.execute_script("""
+                            var elem = arguments[0];
+                            var rect = elem.getBoundingClientRect();
+                            var event = new MouseEvent('click', {
+                                view: window,
+                                bubbles: true,
+                                cancelable: true,
+                                clientX: rect.left + rect.width/2,
+                                clientY: rect.top + rect.height/2
+                            });
+                            elem.dispatchEvent(event);
+                        """, seat.element)
+                    else:
+                        raise click_err
+                
                 self._log(f'🪑 좌석 클릭: {seat_desc}')
                 
-                return True
+                # 선택 확인 (클릭 후 상태 변화 검증)
+                human_delay(50, 100)  # 상태 변경 대기
+                if self._verify_seat_selected(seat, pre_class, pre_fill):
+                    self._log(f'✅ 좌석 선택 확인됨')
+                    return True
+                else:
+                    self._log(f'⚠️ 좌석 선택 상태 미확인 (클릭은 성공)')
+                    # 클릭은 성공했으므로 True 반환 (UI 반응이 느릴 수 있음)
+                    return True
                 
             elif seat.x > 0 and seat.y > 0:
-                # 좌표 클릭 (Canvas용)
+                # 좌표 클릭 (Canvas/SVG용)
                 selector = self._multi_select(self.SEAT_MAP_SELECTORS, '좌석맵')
                 canvas = selector.find_element()
                 
@@ -874,12 +1042,31 @@ class SeatSelector:
                     x_offset = seat.x + random.randint(-2, 2)
                     y_offset = seat.y + random.randint(-2, 2)
                     
+                    # JS 클릭 이벤트 발생
                     self.sb.execute_script(
-                        """arguments[0].dispatchEvent(new MouseEvent('click', {
-                            clientX: arguments[1], 
-                            clientY: arguments[2], 
-                            bubbles: true
-                        }));""",
+                        """
+                        var elem = arguments[0];
+                        var x = arguments[1];
+                        var y = arguments[2];
+                        
+                        // SVG 요소인 경우 elementFromPoint로 실제 좌석 찾기
+                        var target = document.elementFromPoint(
+                            elem.getBoundingClientRect().left + x,
+                            elem.getBoundingClientRect().top + y
+                        ) || elem;
+                        
+                        // 클릭 이벤트 시퀀스 (mousedown -> mouseup -> click)
+                        ['mousedown', 'mouseup', 'click'].forEach(function(eventType) {
+                            var event = new MouseEvent(eventType, {
+                                view: window,
+                                bubbles: true,
+                                cancelable: true,
+                                clientX: elem.getBoundingClientRect().left + x,
+                                clientY: elem.getBoundingClientRect().top + y
+                            });
+                            target.dispatchEvent(event);
+                        });
+                        """,
                         canvas, x_offset, y_offset
                     )
                     
@@ -895,6 +1082,44 @@ class SeatSelector:
             self._log(f'⚠️ 좌석 클릭 실패 (시도 {seat.click_retries}): {e}')
         
         return False
+    
+    def _verify_seat_selected(self, seat: SeatInfo, pre_class: str, pre_fill: str) -> bool:
+        """좌석 선택 상태 확인"""
+        try:
+            if not seat.element:
+                return False
+            
+            # 현재 상태 확인
+            post_class = seat.element.get_attribute('class') or ''
+            post_fill = seat.element.get_attribute('fill') or ''
+            post_style = seat.element.get_attribute('style') or ''
+            
+            # 선택 상태 변화 감지
+            # 1. 클래스에 'selected', 'active', 'on', 'checked' 추가
+            selected_keywords = ['selected', 'active', 'on', 'checked', 'pick', 'chosen']
+            for kw in selected_keywords:
+                if kw in post_class.lower() and kw not in pre_class.lower():
+                    return True
+            
+            # 2. fill 색상 변경 (보통 파란색/주황색으로)
+            if pre_fill != post_fill and post_fill:
+                # 선택 시 일반적인 색상
+                selected_colors = ['#ff', '#f90', '#00f', '#0af', 'orange', 'blue', 'red', 'yellow']
+                if any(c in post_fill.lower() for c in selected_colors):
+                    return True
+            
+            # 3. 클래스 변경 자체가 있으면 변화로 간주
+            if pre_class != post_class:
+                return True
+            
+            # 4. 스타일 변경 확인
+            if 'stroke' in post_style or 'border' in post_style:
+                return True
+            
+            return False
+            
+        except Exception:
+            return False
     
     def select_best_seats(self) -> bool:
         """최적 좌석 선택 (메인 함수) - 에러 복구 강화"""
@@ -1006,29 +1231,97 @@ class SeatSelector:
             pass
     
     def complete_selection(self) -> bool:
-        """선택 완료 버튼 클릭 - 다중 셀렉터"""
+        """선택 완료 버튼 클릭 + 결제 페이지 이동 확인"""
         try:
             self._reset_frame()
             
             if not self.switch_to_seat_frame():
                 pass  # 프레임 없어도 시도
             
+            # 클릭 전 URL 저장
+            pre_url = ""
+            try:
+                self.sb.switch_to.default_content()
+                pre_url = self.sb.get_current_url()
+            except:
+                pass
+            
+            # 다시 프레임 전환
+            self.switch_to_seat_frame()
+            
             selector = self._multi_select(self.COMPLETE_SELECTORS, '선택 완료')
             
             if selector.click(timeout=Timing.ELEMENT_TIMEOUT):
                 self._log('✅ 선택 완료 클릭')
-                
-                # 체크포인트
-                self._tracker.checkpoint('selection_completed')
-                
                 adaptive_sleep(Timing.LONG)
-                return True
+                
+                # 결제 페이지 이동 확인 (중요!)
+                if self._verify_moved_to_payment(pre_url):
+                    self._log('✅ 결제 페이지 이동 확인됨')
+                    self._tracker.checkpoint('selection_completed', {'moved_to_payment': True})
+                    return True
+                else:
+                    self._log('⚠️ 결제 페이지 이동 미확인 (계속 진행)')
+                    self._tracker.checkpoint('selection_completed', {'moved_to_payment': False})
+                    return True  # 클릭은 성공
             
             self._log('⚠️ 선택 완료 버튼 없음')
             return False
             
         except Exception as e:
             self._log(f'⚠️ 선택 완료 실패: {e}')
+            return False
+    
+    def _verify_moved_to_payment(self, pre_url: str, timeout: float = 5.0) -> bool:
+        """결제/배송 페이지로 이동했는지 확인"""
+        try:
+            self.sb.switch_to.default_content()
+            
+            payment_indicators = [
+                'delivery', 'payment', 'order', 'checkout',
+                'step2', 'step3', 'booking', '결제', '배송'
+            ]
+            
+            start = time.time()
+            while time.time() - start < timeout:
+                try:
+                    current_url = self.sb.get_current_url().lower()
+                    
+                    # URL 변경됐고, 결제 관련 키워드 포함
+                    if current_url != pre_url.lower():
+                        if any(ind in current_url for ind in payment_indicators):
+                            return True
+                        # URL만 변경돼도 성공으로 간주 (페이지 이동)
+                        if 'seat' not in current_url:
+                            return True
+                    
+                    # DOM에서 결제 관련 요소 확인
+                    payment_dom_selectors = [
+                        '[class*="payment"]',
+                        '[class*="delivery"]',
+                        '[id*="payment"]',
+                        'button:contains("결제")',
+                        'select[id*="Price"]',
+                        '#YYMMDD',  # 생년월일 필드
+                    ]
+                    
+                    for sel in payment_dom_selectors:
+                        try:
+                            elem = self.sb.find_element(sel)
+                            if elem and elem.is_displayed():
+                                return True
+                        except:
+                            pass
+                    
+                except:
+                    pass
+                
+                adaptive_sleep(0.3)
+            
+            return False
+            
+        except Exception as e:
+            self._log(f'⚠️ 결제 페이지 확인 실패: {e}')
             return False
     
     def refresh_seats(self) -> bool:
