@@ -730,26 +730,32 @@ class NOLTicketing:
         self._log('📋 모달 내 예매 버튼 검색...')
         
         modal_booking_selectors = [
+            # ⭐ BottomSheet 모달 내 스케줄 카드 (NOL 신규)
+            '[class*="BottomSheet"] [class*="schedule"]',
+            '[class*="BottomSheet"] [class*="Schedule"]',
+            '[class*="BottomSheet"] [class*="item"]',
+            '[class*="BottomSheet"] a',
+            '[class*="PopupContainer"] [class*="schedule"]',
+            '[class*="PopupContainer"] a',
+            
+            # 모달 내 카드/아이템 전체 클릭
+            '[role="dialog"] [class*="card"]',
+            '[role="dialog"] [class*="Card"]',
+            '[role="presentation"] a',
+            
             # 모달 내 예매 버튼 패턴
             '.modal button:has-text("예매")',
             '.modal a:has-text("예매")',
             '[class*="modal"] button:has-text("예매")',
             '[class*="modal"] a:has-text("예매")',
-            '[class*="Modal"] button:has-text("예매")',
-            '[class*="popup"] button:has-text("예매")',
             '[role="dialog"] button:has-text("예매")',
             '[role="dialog"] a:has-text("예매")',
             
-            # 일반 예매 버튼 (모달 포함)
+            # 일반 예매 버튼
             'button:has-text("예매하기")',
             'a:has-text("예매하기")',
             'button:has-text("선예매")',
             'a:has-text("선예매")',
-            'button:has-text("티켓예매")',
-            
-            # 모달 아이템 클릭 (날짜 선택 후 해당 항목)
-            '[class*="item"]:has-text("예매")',
-            '[class*="schedule"]:has-text("예매")',
         ]
         
         for selector in modal_booking_selectors:
