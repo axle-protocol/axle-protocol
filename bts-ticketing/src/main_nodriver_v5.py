@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 """
-BTS 티켓팅 매크로 v5.8 - Production Ready (10/10 Target)
+BTS 티켓팅 매크로 v5.8.1 - Production Ready (10/10 Target)
 2026-02-11
+
+v5.8.1 주요 변경 (from v5.8.0):
+- ★ 완전한 fingerprint 방어 (Canvas/Audio/WebGL/Font/ClientRects)
+- ★ addScriptToEvaluateOnNewDocument로 stealth 선제 적용
+- ★ 마우스 행동 개선 (휴식 15%, 오버슛, 가우시안 지터)
+- ★ 클릭 전 호버 시간 추가
+- Audio fingerprint 4개 메서드 완전 방어
+- WebGL extensions/shader precision 정규화
+- MediaDevices/SpeechSynthesis 방어
+- Performance API 정밀도 감소
+- 타임존 일관성 (Date + Intl)
 
 v5.8 주요 변경 (from v5.7):
 - 완전한 타입 힌트 (Python 3.10+ | Union syntax)
@@ -31,7 +42,7 @@ v5.7 기능 유지:
 
 from __future__ import annotations
 
-__version__ = "5.8.0"
+__version__ = "5.8.1"
 __author__ = "BTS Ticketing Bot"
 
 import nodriver as nd
@@ -47,7 +58,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass, field
-from typing import Optional, TypeVar, Protocol, Final, Callable, Awaitable
+from typing import Optional, TypeVar, Protocol, Final, Callable, Awaitable, Any, List, Tuple
 import aiohttp
 import tempfile
 
@@ -76,11 +87,12 @@ class Timeouts:
     CAPTCHA_MAX: Final[float] = 300.0
     PAYMENT_MAX_MIN: Final[int] = 30
     BROWSER_STOP: Final[float] = 5.0
-    NTP_SOCKET: Final[float] = 2.0
+    NTP_SOCKET: Final[float] = 1.0  # 2.0 → 1.0 (오픈 직전 재동기화 시 지연 방지)
     HTTP_REQUEST: Final[float] = 10.0
     BOOKING_CLICK: Final[float] = 0.3
     SEAT_SEARCH: Final[float] = 1.0
     NAVIGATION_DELAY: Final[float] = 0.3
+    ELEMENT_FIND_FAST: Final[float] = 0.5  # 티켓팅 고속 탐색용
 
 
 class Limits:
@@ -232,7 +244,7 @@ class Config:
     user_pwd: str
     concert_url: str
     open_time: datetime
-    seat_priority: List[str] = field(default_factory=lambda: ['VIP', 'R석', 'S석', 'A석'])
+    seat_priority: list[str] = field(default_factory=lambda: ['VIP', 'R석', 'S석', 'A석'])
     telegram_bot_token: str = ''
     telegram_chat_id: str = ''
     max_login_retries: int = 3
@@ -453,7 +465,7 @@ class SecureLogger:
         (re.compile(r'api[_-]?key["\s:=]+["\']?([^"\'&\s]+)', re.I), r'api_key=****'),
     ]
     
-    def __init__(self, base_logger, secrets: List[str] = None):
+    def __init__(self, base_logger, secrets: list[str] | None = None):
         self._logger = base_logger
         self._secrets = [s for s in (secrets or []) if s and len(s) > 3]
         self._lock = threading.Lock()
@@ -500,19 +512,27 @@ class HTTPSessionManager:
     
     @asynccontextmanager
     async def get_session(self):
-        """세션을 안전하게 사용하는 컨텍스트 매니저"""
-        async with self._lock:
-            if self._session is None or self._session.closed:
-                self._session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=10)
-                )
-            self._ref_count += 1
+        """세션을 안전하게 사용하는 컨텍스트 매니저
         
+        Note:
+            ref_count 증가/감소는 세션 획득 후에만 발생하여
+            세션 생성 실패 시에도 ref_count 정합성 유지
+        """
+        session_acquired = False
         try:
+            async with self._lock:
+                if self._session is None or self._session.closed:
+                    self._session = aiohttp.ClientSession(
+                        timeout=aiohttp.ClientTimeout(total=10)
+                    )
+                self._ref_count += 1
+                session_acquired = True
+            
             yield self._session
         finally:
-            async with self._lock:
-                self._ref_count -= 1
+            if session_acquired:
+                async with self._lock:
+                    self._ref_count -= 1
     
     async def close(self):
         """안전한 세션 종료"""
@@ -520,6 +540,10 @@ class HTTPSessionManager:
             if self._session and not self._session.closed:
                 await self._session.close()
                 self._session = None
+    
+    def get_ref_count(self) -> int:
+        """현재 참조 카운트 조회 (디버깅용)"""
+        return self._ref_count
 
 # 글로벌 인스턴스
 http_manager = HTTPSessionManager()
@@ -752,27 +776,31 @@ async def evaluate_js(page, script: str, return_value: bool = True) -> Any:
     return None
 
 
-# ============ 봇 탐지 우회 (v5.8 강화) ============
+# ============ 봇 탐지 우회 (v5.8.1 강화) ============
 async def setup_stealth(page: Page) -> None:
-    """봇 탐지 우회 설정 (v5.8 강화 - Canvas/Audio/WebRTC fingerprint 방어)
+    """봇 탐지 우회 설정 (v5.8.1 강화 - 완전한 fingerprint 방어)
     
-    방어 대상:
-    - webdriver 속성 감지
-    - Canvas fingerprint (toDataURL randomization)
-    - AudioContext fingerprint
-    - WebRTC IP leak
-    - WebGL 정보
-    - Navigator 속성들
+    v5.8.1 변경사항:
+    - addScriptToEvaluateOnNewDocument로 선제 적용
+    - Canvas fingerprint 노이즈 20%로 강화
+    - Audio fingerprint 4개 메서드 완전 방어
+    - WebGL extensions/shader precision 방어
+    - Font fingerprint 방어 추가
+    - ClientRects 랜덤화
+    - Performance API 정밀도 감소
+    - MediaDevices 방어
+    - 타임존 일관성 (Date + Intl)
     
     Args:
         page: nodriver page 객체
     """
-    stealth_scripts = [
-        # 1. webdriver 속성 숨기기
-        '''Object.defineProperty(navigator, 'webdriver', {get: () => undefined});''',
+    
+    # 통합 stealth 스크립트 (선제 적용용)
+    stealth_script = '''
+    (() => {
+        // ============ 1. 기본 속성 =============
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
         
-        # 2. chrome 객체 추가 (더 완전한 구현)
-        '''
         window.chrome = {
             runtime: {
                 connect: function() {},
@@ -784,16 +812,13 @@ async def setup_stealth(page: Page) -> None:
             csi: function() { return {}; },
             app: { isInstalled: false }
         };
-        ''',
         
-        # 3. plugins 추가 (더 현실적인 구현)
-        '''
         Object.defineProperty(navigator, 'plugins', {
             get: () => {
                 const plugins = [
-                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format'},
-                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: ''},
-                    {name: 'Native Client', filename: 'internal-nacl-plugin', description: ''}
+                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1},
+                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '', length: 1},
+                    {name: 'Native Client', filename: 'internal-nacl-plugin', description: '', length: 1}
                 ];
                 plugins.length = 3;
                 plugins.item = (i) => plugins[i];
@@ -802,128 +827,238 @@ async def setup_stealth(page: Page) -> None:
                 return plugins;
             }
         });
-        ''',
         
-        # 4. languages 설정
-        '''Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR', 'ko', 'en-US', 'en']});''',
+        Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR', 'ko', 'en-US', 'en']});
+        Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
+        Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});
+        Object.defineProperty(navigator, 'maxTouchPoints', {get: () => 0});
         
-        # 5. permissions 쿼리 수정
-        '''
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters) => (
-            parameters.name === 'notifications' ?
-                Promise.resolve({state: Notification.permission}) :
-                originalQuery(parameters)
-        );
-        ''',
-        
-        # 6. WebGL 렌더러/벤더 (headless 감지 우회)
-        '''
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(parameter) {
-            if (parameter === 37445) return 'Intel Inc.';
-            if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-            return getParameter.call(this, parameter);
-        };
-        const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
-        WebGL2RenderingContext.prototype.getParameter = function(parameter) {
-            if (parameter === 37445) return 'Intel Inc.';
-            if (parameter === 37446) return 'Intel Iris OpenGL Engine';
-            return getParameter2.call(this, parameter);
-        };
-        ''',
-        
-        # 7. 화면 해상도 일관성
-        '''
-        Object.defineProperty(screen, 'availWidth', {get: () => 1920});
-        Object.defineProperty(screen, 'availHeight', {get: () => 1080});
-        Object.defineProperty(screen, 'width', {get: () => 1920});
-        Object.defineProperty(screen, 'height', {get: () => 1080});
-        Object.defineProperty(screen, 'colorDepth', {get: () => 24});
-        Object.defineProperty(screen, 'pixelDepth', {get: () => 24});
-        ''',
-        
-        # 8. connection 속성 (봇 감지 우회)
-        '''
         Object.defineProperty(navigator, 'connection', {
             get: () => ({
                 effectiveType: '4g',
-                rtt: 50,
-                downlink: 10,
+                rtt: 50 + Math.floor(Math.random() * 20),
+                downlink: 10 + Math.random() * 5,
                 saveData: false
             })
         });
-        ''',
         
-        # 9. deviceMemory / hardwareConcurrency
-        '''
-        Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
-        Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});
-        ''',
+        // ============ 2. 강화된 Canvas Fingerprint 방어 =============
+        const _canvasNoise = () => (Math.random() - 0.5) * 2;
         
-        # 10. ★ Canvas Fingerprint 방어 (toDataURL 노이즈 추가)
-        '''
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
         HTMLCanvasElement.prototype.toDataURL = function(type) {
             if (this.width === 0 || this.height === 0) return originalToDataURL.apply(this, arguments);
             const ctx = this.getContext('2d');
-            if (ctx) {
-                const imageData = ctx.getImageData(0, 0, Math.min(this.width, 10), Math.min(this.height, 10));
-                for (let i = 0; i < imageData.data.length; i += 4) {
-                    imageData.data[i] = imageData.data[i] ^ (Math.random() > 0.99 ? 1 : 0);
-                }
-                ctx.putImageData(imageData, 0, 0);
+            if (ctx && this.width > 0 && this.height > 0) {
+                try {
+                    const w = Math.min(this.width, 100);
+                    const h = Math.min(this.height, 100);
+                    const imageData = ctx.getImageData(0, 0, w, h);
+                    for (let i = 0; i < imageData.data.length; i += 4) {
+                        if (Math.random() < 0.2) {
+                            imageData.data[i] = Math.max(0, Math.min(255, imageData.data[i] + _canvasNoise() * 2));
+                            imageData.data[i+1] = Math.max(0, Math.min(255, imageData.data[i+1] + _canvasNoise() * 2));
+                            imageData.data[i+2] = Math.max(0, Math.min(255, imageData.data[i+2] + _canvasNoise() * 2));
+                        }
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                } catch(e) {}
             }
             return originalToDataURL.apply(this, arguments);
         };
-        ''',
         
-        # 11. ★ Canvas getImageData 노이즈 (fingerprint 방어)
-        '''
         const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
         CanvasRenderingContext2D.prototype.getImageData = function() {
             const imageData = originalGetImageData.apply(this, arguments);
-            for (let i = 0; i < Math.min(imageData.data.length, 40); i += 4) {
-                if (Math.random() > 0.95) {
-                    imageData.data[i] = imageData.data[i] ^ 1;
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                if (Math.random() < 0.15) {
+                    imageData.data[i] = imageData.data[i] ^ (Math.random() > 0.5 ? 1 : 0);
                 }
             }
             return imageData;
         };
-        ''',
         
-        # 12. ★ AudioContext Fingerprint 방어
-        '''
-        const originalCreateAnalyser = AudioContext.prototype.createAnalyser;
-        AudioContext.prototype.createAnalyser = function() {
-            const analyser = originalCreateAnalyser.apply(this, arguments);
-            const originalGetFloatFrequencyData = analyser.getFloatFrequencyData.bind(analyser);
-            analyser.getFloatFrequencyData = function(array) {
-                originalGetFloatFrequencyData(array);
-                for (let i = 0; i < array.length; i++) {
-                    array[i] = array[i] + (Math.random() * 0.0001 - 0.00005);
-                }
-            };
-            return analyser;
-        };
-        ''',
+        // ============ 3. 완전한 Audio Fingerprint 방어 =============
+        const audioNoise = () => Math.random() * 0.0001 - 0.00005;
         
-        # 13. ★ WebRTC IP Leak 방지
-        '''
-        if (window.RTCPeerConnection) {
-            const originalRTCPeerConnection = window.RTCPeerConnection;
-            window.RTCPeerConnection = function(config) {
-                if (config && config.iceServers) {
-                    config.iceServers = [];
-                }
-                return new originalRTCPeerConnection(config);
+        if (window.AudioContext || window.webkitAudioContext) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            const originalCreateAnalyser = AC.prototype.createAnalyser;
+            AC.prototype.createAnalyser = function() {
+                const analyser = originalCreateAnalyser.apply(this, arguments);
+                
+                const origGetFloat = analyser.getFloatFrequencyData.bind(analyser);
+                analyser.getFloatFrequencyData = function(array) {
+                    origGetFloat(array);
+                    for (let i = 0; i < array.length; i++) {
+                        array[i] = array[i] + audioNoise();
+                    }
+                };
+                
+                const origGetByte = analyser.getByteFrequencyData.bind(analyser);
+                analyser.getByteFrequencyData = function(array) {
+                    origGetByte(array);
+                    for (let i = 0; i < array.length; i++) {
+                        if (Math.random() < 0.1) array[i] = Math.max(0, Math.min(255, array[i] + (Math.random() > 0.5 ? 1 : -1)));
+                    }
+                };
+                
+                const origGetFloatTime = analyser.getFloatTimeDomainData.bind(analyser);
+                analyser.getFloatTimeDomainData = function(array) {
+                    origGetFloatTime(array);
+                    for (let i = 0; i < array.length; i++) {
+                        array[i] = array[i] + audioNoise();
+                    }
+                };
+                
+                const origGetByteTime = analyser.getByteTimeDomainData.bind(analyser);
+                analyser.getByteTimeDomainData = function(array) {
+                    origGetByteTime(array);
+                    for (let i = 0; i < array.length; i++) {
+                        if (Math.random() < 0.1) array[i] = Math.max(0, Math.min(255, array[i] + (Math.random() > 0.5 ? 1 : -1)));
+                    }
+                };
+                
+                return analyser;
             };
-            window.RTCPeerConnection.prototype = originalRTCPeerConnection.prototype;
+            
+            if (window.OfflineAudioContext) {
+                const origOAC = window.OfflineAudioContext;
+                window.OfflineAudioContext = function() {
+                    const ctx = new origOAC(...arguments);
+                    const origRender = ctx.startRendering.bind(ctx);
+                    ctx.startRendering = function() {
+                        return origRender().then(buffer => {
+                            try {
+                                const data = buffer.getChannelData(0);
+                                for (let i = 0; i < Math.min(data.length, 1000); i++) {
+                                    data[i] = data[i] + audioNoise();
+                                }
+                            } catch(e) {}
+                            return buffer;
+                        });
+                    };
+                    return ctx;
+                };
+            }
         }
-        ''',
         
-        # 14. Battery API 숨기기 (fingerprint 벡터)
-        '''
+        // ============ 4. 완전한 WebGL Fingerprint 방어 =============
+        const webglContexts = [WebGLRenderingContext];
+        if (window.WebGL2RenderingContext) webglContexts.push(WebGL2RenderingContext);
+        
+        webglContexts.forEach(ctx => {
+            if (!ctx) return;
+            
+            const getParameter = ctx.prototype.getParameter;
+            ctx.prototype.getParameter = function(param) {
+                if (param === 37445) return 'Intel Inc.';
+                if (param === 37446) return 'Intel Iris OpenGL Engine';
+                if (param === 35724) return 'WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)';
+                return getParameter.call(this, param);
+            };
+            
+            const getSupportedExtensions = ctx.prototype.getSupportedExtensions;
+            ctx.prototype.getSupportedExtensions = function() {
+                const exts = getSupportedExtensions.call(this);
+                const commonExts = [
+                    'ANGLE_instanced_arrays', 'EXT_blend_minmax', 'EXT_color_buffer_half_float',
+                    'EXT_float_blend', 'EXT_frag_depth', 'EXT_shader_texture_lod',
+                    'EXT_texture_filter_anisotropic', 'OES_element_index_uint',
+                    'OES_standard_derivatives', 'OES_texture_float', 'OES_texture_float_linear',
+                    'OES_texture_half_float', 'OES_texture_half_float_linear', 'OES_vertex_array_object',
+                    'WEBGL_color_buffer_float', 'WEBGL_compressed_texture_s3tc',
+                    'WEBGL_debug_renderer_info', 'WEBGL_debug_shaders', 'WEBGL_depth_texture',
+                    'WEBGL_draw_buffers', 'WEBGL_lose_context'
+                ];
+                return exts ? exts.filter(e => commonExts.includes(e)) : commonExts;
+            };
+            
+            const getShaderPrecisionFormat = ctx.prototype.getShaderPrecisionFormat;
+            ctx.prototype.getShaderPrecisionFormat = function(shaderType, precisionType) {
+                const result = getShaderPrecisionFormat.call(this, shaderType, precisionType);
+                if (result) {
+                    return { rangeMin: 127, rangeMax: 127, precision: 23 };
+                }
+                return result;
+            };
+        });
+        
+        // ============ 5. Font Fingerprint 방어 =============
+        const commonFonts = [
+            'Arial', 'Arial Black', 'Comic Sans MS', 'Courier New', 'Georgia',
+            'Impact', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Webdings',
+            'Malgun Gothic', 'Apple SD Gothic Neo', 'Nanum Gothic'
+        ];
+        
+        if (document.fonts) {
+            const origCheck = document.fonts.check.bind(document.fonts);
+            document.fonts.check = function(font, text) {
+                const fontName = font.split(' ').pop().replace(/['"]/g, '');
+                if (commonFonts.some(f => fontName.toLowerCase().includes(f.toLowerCase()))) {
+                    return origCheck(font, text);
+                }
+                return false;
+            };
+        }
+        
+        // ============ 6. ClientRects Fingerprint 방어 =============
+        const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+        Element.prototype.getBoundingClientRect = function() {
+            const rect = originalGetBoundingClientRect.call(this);
+            const noise = () => Math.random() * 0.01 - 0.005;
+            return new DOMRect(
+                rect.x + noise(),
+                rect.y + noise(),
+                rect.width + noise(),
+                rect.height + noise()
+            );
+        };
+        
+        // ============ 7. Performance API 정밀도 감소 =============
+        const originalNow = performance.now.bind(performance);
+        performance.now = function() {
+            return Math.floor(originalNow() * 10) / 10;
+        };
+        
+        // ============ 8. 타임존 일관성 =============
+        Date.prototype.getTimezoneOffset = function() { return -540; };
+        
+        const origDateTimeFormat = Intl.DateTimeFormat;
+        Intl.DateTimeFormat = function(locales, options) {
+            options = options || {};
+            options.timeZone = options.timeZone || 'Asia/Seoul';
+            return new origDateTimeFormat(locales, options);
+        };
+        Intl.DateTimeFormat.prototype = origDateTimeFormat.prototype;
+        Intl.DateTimeFormat.supportedLocalesOf = origDateTimeFormat.supportedLocalesOf;
+        
+        // ============ 9. WebRTC IP Leak 방지 =============
+        if (window.RTCPeerConnection) {
+            const origRTCPC = window.RTCPeerConnection;
+            window.RTCPeerConnection = function(config) {
+                config = config || {};
+                config.iceServers = [];
+                return new origRTCPC(config);
+            };
+            window.RTCPeerConnection.prototype = origRTCPC.prototype;
+        }
+        
+        // ============ 10. MediaDevices 방어 =============
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            const origEnum = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+            navigator.mediaDevices.enumerateDevices = async function() {
+                const devices = await origEnum();
+                return devices.map(d => ({
+                    deviceId: 'default',
+                    groupId: 'default',
+                    kind: d.kind,
+                    label: ''
+                }));
+            };
+        }
+        
+        // ============ 11. Battery API 숨기기 =============
         if (navigator.getBattery) {
             navigator.getBattery = () => Promise.resolve({
                 charging: true,
@@ -934,35 +1069,55 @@ async def setup_stealth(page: Page) -> None:
                 removeEventListener: () => {}
             });
         }
-        ''',
         
-        # 15. Brave/Firefox 감지 방지
-        '''
+        // ============ 12. Speech Synthesis 방어 =============
+        if (window.speechSynthesis) {
+            const origGetVoices = window.speechSynthesis.getVoices.bind(window.speechSynthesis);
+            window.speechSynthesis.getVoices = function() {
+                const voices = origGetVoices();
+                return voices.slice(0, 5);
+            };
+        }
+        
+        // ============ 13. Permissions Query =============
+        if (navigator.permissions) {
+            const originalQuery = navigator.permissions.query.bind(navigator.permissions);
+            navigator.permissions.query = (params) => {
+                if (params.name === 'notifications') {
+                    return Promise.resolve({ state: 'default', onchange: null });
+                }
+                return originalQuery(params);
+            };
+        }
+        
+        // ============ 14. Screen 정보 정규화 =============
+        Object.defineProperty(screen, 'availWidth', {get: () => 1920});
+        Object.defineProperty(screen, 'availHeight', {get: () => 1040});
+        Object.defineProperty(screen, 'width', {get: () => 1920});
+        Object.defineProperty(screen, 'height', {get: () => 1080});
+        Object.defineProperty(screen, 'colorDepth', {get: () => 24});
+        Object.defineProperty(screen, 'pixelDepth', {get: () => 24});
+        Object.defineProperty(window, 'devicePixelRatio', {get: () => 1});
+        Object.defineProperty(window, 'outerWidth', {get: () => 1920});
+        Object.defineProperty(window, 'outerHeight', {get: () => 1080});
+        
+        // ============ 15. Brave 감지 방지 =============
         Object.defineProperty(navigator, 'brave', {get: () => undefined});
-        ''',
-        
-        # 16. 콘솔 감지 방지 (devtools 열림 감지 차단)
-        '''
-        const originalConsole = window.console;
-        window.console = {
-            ...originalConsole,
-            debug: () => {},
-        };
-        // devtools 감지 방지
-        Object.defineProperty(window, 'outerWidth', {get: () => window.innerWidth});
-        Object.defineProperty(window, 'outerHeight', {get: () => window.innerHeight + 100});
-        ''',
-        
-        # 17. Timezone 일관성 (한국)
-        '''
-        Date.prototype.getTimezoneOffset = function() { return -540; };  // UTC+9
-        ''',
-    ]
+    })();
+    '''
     
-    for script in stealth_scripts:
-        await evaluate_js(page, script, return_value=False)
+    # CDP로 선제 적용 (새 문서 로드 시마다 실행)
+    try:
+        await page.send(cdp.page.add_script_to_evaluate_on_new_document(
+            source=stealth_script
+        ))
+        logger.debug("✅ Stealth 선제 적용 (addScriptToEvaluateOnNewDocument)")
+    except Exception as e:
+        logger.debug(f"선제 적용 실패: {e}")
     
-    logger.debug("✅ Stealth 설정 완료 (v5.8 - Canvas/Audio/WebRTC 방어)")
+    # 현재 페이지에도 적용
+    await evaluate_js(page, stealth_script, return_value=False)
+    logger.debug("✅ Stealth 설정 완료 (v5.8.1 - 완전한 fingerprint 방어)")
 
 
 # ============ 마우스 이동 시뮬레이션 (v5.8 개선) ============
@@ -992,13 +1147,13 @@ async def move_mouse_to(
     start_y: float | None = None,
     session_id: int = 0
 ) -> bool:
-    """베지어 곡선으로 마우스 이동 (v5.8 - 속도/가속도 랜덤화, 휴식 패턴)
+    """베지어 곡선으로 마우스 이동 (v5.8.1 - 더 인간적인 행동)
     
-    개선사항:
-    - 이동 거리에 따른 동적 step 수
-    - 속도 곡선 (처음 가속, 중간 유지, 끝 감속)
-    - 랜덤 휴식 패턴 (5% 확률로 짧은 멈춤)
-    - 마이크로 지터 (손 떨림 시뮬레이션)
+    v5.8.1 개선사항:
+    - 휴식 패턴 15%로 증가 (기존 5%)
+    - 마이크로 오버슛 (목표 지점 약간 지나쳤다 돌아옴)
+    - 가우시안 분포 지터 (더 자연스러운 손 떨림)
+    - ease-in-out-cubic 속도 곡선
     
     Args:
         page: nodriver page 객체
@@ -1018,38 +1173,47 @@ async def move_mouse_to(
         # 이동 거리 계산
         distance = ((x - start_x)**2 + (y - start_y)**2)**0.5
         
-        # 거리 기반 동적 step 수 (짧으면 적게, 길면 많이)
+        # 거리 기반 동적 step 수 (더 세밀하게)
         if steps is None:
-            steps = max(5, min(20, int(distance / 30)))
+            steps = max(8, min(25, int(distance / 25)))
         
-        # 제어점 생성 (2개 - 3차 베지어)
-        variance = min(MouseParams.CTRL_POINT_VARIANCE, distance * 0.3)
-        ctrl1_x = start_x + (x - start_x) * 0.3 + random.uniform(-variance, variance)
-        ctrl1_y = start_y + (y - start_y) * 0.3 + random.uniform(-variance * 0.6, variance * 0.6)
-        ctrl2_x = start_x + (x - start_x) * 0.7 + random.uniform(-variance, variance)
-        ctrl2_y = start_y + (y - start_y) * 0.7 + random.uniform(-variance * 0.6, variance * 0.6)
+        # 오버슛 확률 (30%, 거리 50px 이상일 때)
+        overshoot = random.random() < 0.3 and distance > 50
+        if overshoot:
+            overshoot_x = x + random.uniform(-5, 5)
+            overshoot_y = y + random.uniform(-5, 5)
+        
+        # 제어점 생성 (더 자연스러운 곡선)
+        variance = min(60, distance * 0.35)
+        ctrl1_x = start_x + (x - start_x) * 0.25 + random.uniform(-variance, variance)
+        ctrl1_y = start_y + (y - start_y) * 0.25 + random.uniform(-variance * 0.5, variance * 0.5)
+        ctrl2_x = start_x + (x - start_x) * 0.75 + random.uniform(-variance * 0.5, variance * 0.5)
+        ctrl2_y = start_y + (y - start_y) * 0.75 + random.uniform(-variance * 0.3, variance * 0.3)
+        
+        target_x = overshoot_x if overshoot else x
+        target_y = overshoot_y if overshoot else y
         
         for i in range(steps):
             t = (i + 1) / steps
             
-            # 3차 베지어 곡선: B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3
+            # 3차 베지어 곡선
             current_x = (
                 (1-t)**3 * start_x + 
                 3*(1-t)**2*t * ctrl1_x + 
                 3*(1-t)*t**2 * ctrl2_x + 
-                t**3 * x
+                t**3 * target_x
             )
             current_y = (
                 (1-t)**3 * start_y + 
                 3*(1-t)**2*t * ctrl1_y + 
                 3*(1-t)*t**2 * ctrl2_y + 
-                t**3 * y
+                t**3 * target_y
             )
             
-            # 마이크로 지터 (손 떨림 시뮬레이션)
-            if i < steps - 1:  # 마지막 점 제외
-                current_x += random.uniform(-0.5, 0.5)
-                current_y += random.uniform(-0.5, 0.5)
+            # 가우시안 분포 지터 (더 자연스러운 손 떨림)
+            if i < steps - 1:
+                current_x += random.gauss(0, 0.3)
+                current_y += random.gauss(0, 0.3)
             
             await page.send(cdp.input_.dispatch_mouse_event(
                 type_='mouseMoved',
@@ -1057,17 +1221,33 @@ async def move_mouse_to(
                 y=int(current_y)
             ))
             
-            # 속도 곡선 적용 (처음/끝 느리게, 중간 빠르게)
-            # ease-in-out 느낌
-            speed_factor = 1.0 - 0.5 * abs(2*t - 1)  # 중간이 1.0, 양끝이 0.5
+            # ease-in-out-cubic 속도 곡선
+            ease = 4 * t * t * t if t < 0.5 else 1 - pow(-2 * t + 2, 3) / 2
+            speed_factor = 0.5 + ease * 0.5
             base_delay = random.uniform(MouseParams.MOVE_DELAY_MIN, MouseParams.MOVE_DELAY_MAX)
             delay = base_delay / speed_factor
             
-            # 5% 확률로 짧은 휴식 (인간적 특성)
-            if random.random() < 0.05 and i < steps - 2:
-                delay += random.uniform(0.03, 0.08)
+            # 15% 확률로 휴식 (증가)
+            if random.random() < 0.15 and i < steps - 3:
+                delay += random.uniform(0.02, 0.1)  # 20-100ms 멈춤
             
             await asyncio.sleep(delay)
+        
+        # 오버슛 복구
+        if overshoot:
+            await asyncio.sleep(random.uniform(0.05, 0.1))
+            for _ in range(3):
+                await page.send(cdp.input_.dispatch_mouse_event(
+                    type_='mouseMoved',
+                    x=int(x + random.gauss(0, 0.5)),
+                    y=int(y + random.gauss(0, 0.5))
+                ))
+                await asyncio.sleep(random.uniform(0.01, 0.02))
+        
+        # 최종 위치
+        await page.send(cdp.input_.dispatch_mouse_event(
+            type_='mouseMoved', x=int(x), y=int(y)
+        ))
         
         # 위치 업데이트
         _set_mouse_position(x, y, session_id)
@@ -1077,8 +1257,22 @@ async def move_mouse_to(
         logger.debug(f"마우스 이동 실패: {e}")
         return False
 
-async def human_click(page, element) -> bool:
-    """사람처럼 클릭 (마우스 이동 + 클릭)"""
+async def human_click(page, element, hover_time: float | None = None) -> bool:
+    """사람처럼 클릭 (마우스 이동 + 호버 + 클릭) - v5.8.1
+    
+    v5.8.1 개선사항:
+    - 클릭 전 호버 시간 추가 (100-300ms)
+    - 클릭 위치 가우시안 분포로 변경
+    - 더블 클릭 방지 딜레이
+    
+    Args:
+        page: nodriver page 객체
+        element: 클릭할 요소
+        hover_time: 호버 시간 (None이면 랜덤 100-300ms)
+    
+    Returns:
+        bool: 성공 여부
+    """
     try:
         # 요소 위치 가져오기
         if hasattr(element, 'node_id'):
@@ -1086,17 +1280,25 @@ async def human_click(page, element) -> bool:
                 box = await page.send(cdp.dom.get_box_model(node_id=element.node_id))
                 if box and box.model and box.model.content:
                     content = box.model.content
-                    x = (content[0] + content[4]) / 2 + random.uniform(-3, 3)
-                    y = (content[1] + content[5]) / 2 + random.uniform(-3, 3)
+                    # 가우시안 분포로 클릭 위치 (중앙 피하기 - 봇 탐지 회피)
+                    x = (content[0] + content[4]) / 2 + random.gauss(0, 3)
+                    y = (content[1] + content[5]) / 2 + random.gauss(0, 3)
                     
                     # 마우스 이동
                     await move_mouse_to(page, x, y)
-                    await asyncio.sleep(random.uniform(0.05, 0.15))
+                    
+                    # 호버 시간 (인간적 반응 시간)
+                    if hover_time is None:
+                        hover_time = random.uniform(0.1, 0.3)
+                    await asyncio.sleep(hover_time)
             except Exception:
                 pass
         
         # 클릭
         await element.click()
+        
+        # 더블 클릭 방지
+        await asyncio.sleep(random.uniform(0.05, 0.1))
         return True
     except Exception as e:
         logger.debug(f"human_click 실패: {e}")
@@ -1213,7 +1415,7 @@ async def find_by_selector(page, selector: str, timeout: float = 3.0):
     except (asyncio.TimeoutError, Exception):
         return None
 
-async def find_by_selectors(page, selectors: List[str], timeout: float = 1.0, parallel: bool = False):
+async def find_by_selectors(page, selectors: list[str], timeout: float = 1.0, parallel: bool = False):
     """여러 셀렉터 시도
     
     Args:
@@ -1240,7 +1442,7 @@ async def find_by_selectors(page, selectors: List[str], timeout: float = 1.0, pa
                 return elem
         return None
 
-async def find_all_by_selector(page, selector: str, timeout: float = 3.0) -> List:
+async def find_all_by_selector(page, selector: str, timeout: float = 3.0) -> list:
     """모든 요소 찾기"""
     try:
         elements = await page.select_all(selector, timeout=timeout)
@@ -1283,7 +1485,7 @@ async def wait_for_element(page, text: str, timeout: float = 10.0):
 
 
 # ============ 로그인 ============
-async def step_login(browser, page, config: Config) -> Tuple[bool, any]:
+async def step_login(browser, page, config: Config) -> tuple[bool, Any]:
     """로그인 (재시도 포함)"""
     for attempt in range(1, config.max_login_retries + 1):
         logger.info(f"[1/5] 로그인 시도 {attempt}/{config.max_login_retries}...")
@@ -1315,7 +1517,7 @@ async def step_login(browser, page, config: Config) -> Tuple[bool, any]:
     return False, page
 
 
-async def _do_login(browser, page, config: Config) -> Tuple[bool, any]:
+async def _do_login(browser, page, config: Config) -> tuple[bool, Any]:
     """실제 로그인 수행"""
     
     # 현재 URL 로깅
@@ -1607,14 +1809,59 @@ async def _verify_login(page) -> bool:
 
 
 # ============ 예매 ============
-async def step_navigate_concert(page, config: Config) -> bool:
-    """콘서트 페이지 이동"""
+async def step_navigate_concert(page, config: Config, max_retries: int = 3) -> bool:
+    """콘서트 페이지 이동 (재시도 포함)
+    
+    Args:
+        page: nodriver page 객체
+        config: 설정 객체
+        max_retries: 최대 재시도 횟수
+    
+    Returns:
+        bool: 성공 여부
+    
+    Raises:
+        NetworkTimeoutError: 재시도 모두 실패 시
+    """
     logger.info("[2/5] 콘서트 페이지...")
-    await page.get(config.concert_url)
-    await wait_for_navigation(page, timeout=10.0)
-    await human_delay(1, 2)
-    logger.info("✅ 콘서트 페이지 도착")
-    return True
+    
+    for attempt in range(max_retries):
+        try:
+            await page.get(config.concert_url)
+            nav_success = await wait_for_navigation(page, timeout=10.0)
+            
+            if not nav_success:
+                logger.warning(f"페이지 로드 타임아웃 (시도 {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+            
+            # 페이지 유효성 확인 (에러 페이지가 아닌지)
+            page_title = await evaluate_js(page, 'document.title || ""')
+            current_url = await evaluate_js(page, 'window.location.href')
+            
+            # 에러 페이지 감지
+            error_indicators = ['404', '500', '오류', 'Error', '찾을 수 없', '접근 불가']
+            for indicator in error_indicators:
+                if indicator in (page_title or '') or indicator in (current_url or ''):
+                    logger.warning(f"에러 페이지 감지: {page_title}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)
+                        continue
+                    return False
+            
+            await human_delay(1, 2)
+            logger.info("✅ 콘서트 페이지 도착")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"콘서트 페이지 이동 실패 (시도 {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+            else:
+                raise NetworkTimeoutError(f"콘서트 페이지 {max_retries}회 실패: {e}")
+    
+    return False
 
 
 async def step_wait_open(page: Page, config: Config) -> bool:
@@ -1653,10 +1900,14 @@ async def step_wait_open(page: Page, config: Config) -> bool:
         
         # ========== 오픈 100ms 전: 정밀 대기 ==========
         elif remaining <= 0.1:
-            # 최종 스핀 대기 (busy wait - 정밀도 최대화)
-            target_time = time.time() + remaining + (ntp_status.get('offset_ms', 0) or 0) / 1000
+            # 최종 스핀 대기 (adaptive sleep - 정밀도와 CPU 균형)
+            # Note: get_accurate_time()이 이미 NTP offset을 적용하므로 remaining만 사용
+            target_time = time.time() + remaining
             while time.time() < target_time:
-                pass  # Busy wait for precision
+                # 10ms 이상 남았으면 sleep으로 CPU 양보, 아니면 스핀
+                if target_time - time.time() > 0.01:
+                    time.sleep(0.001)  # 1ms sleep (CPU 절약)
+                # 10ms 이하는 스핀 (정밀도 우선)
             break
         
         # ========== 오픈 1초 전: 100ms 단위 대기 ==========
@@ -1729,19 +1980,19 @@ class AdaptiveRefreshStrategy:
     """적응형 새로고침 전략 (티켓팅 최적화, Thread-safe)
     
     전략:
-    - 기본 간격: 150ms
-    - 연속 성공 시: 100ms까지 가속
+    - 기본 간격: 120ms (티켓팅 최적화)
+    - 연속 성공 시: 80ms까지 가속 (더 공격적)
     - 오류 시: 지수적 백오프 (최대 1초)
     - Rate limiting 시: 2초 대기 후 재시도
     """
     
-    # 상수 (Named Constants)
-    BASE_INTERVAL: float = 0.15   # 150ms 기본
-    MIN_INTERVAL: float = 0.10    # 100ms 최소
+    # 상수 (Named Constants) - 티켓팅 최적화
+    BASE_INTERVAL: float = 0.12   # 120ms 기본 (150ms → 120ms)
+    MIN_INTERVAL: float = 0.08    # 80ms 최소 (100ms → 80ms, 더 공격적)
     MAX_INTERVAL: float = 1.0     # 1초 최대
     RATE_LIMIT_COOLDOWN: float = 2.0  # Rate limit 시 대기
-    ACCELERATION_THRESHOLD: int = 5   # 가속 시작 연속 성공 횟수
-    ACCELERATION_FACTOR: float = 0.8  # 가속 계수
+    ACCELERATION_THRESHOLD: int = 3   # 가속 시작 연속 성공 횟수 (5 → 3)
+    ACCELERATION_FACTOR: float = 0.7  # 가속 계수 (0.8 → 0.7, 더 빠른 가속)
     BACKOFF_FACTOR: float = 1.5       # 백오프 계수
     
     def __init__(self):
@@ -1809,7 +2060,7 @@ class AdaptiveRefreshStrategy:
             }
 
 
-async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
+async def step_click_booking(browser, page, config: Config) -> tuple[bool, Any]:
     """예매 버튼 클릭 (적응형 새로고침 + 병렬 검색)"""
     logger.info("[4/5] 예매 버튼...")
     
@@ -1906,7 +2157,7 @@ async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
     return False, page
 
 
-async def get_browser_tabs(browser) -> List:
+async def get_browser_tabs(browser) -> list:
     """브라우저 탭 목록 (nodriver 호환)
     
     nodriver의 tabs 속성은 버전에 따라 property, coroutine, 또는 method일 수 있음
@@ -1961,7 +2212,7 @@ async def _get_new_tab(browser, initial_count: int, timeout: float = 5.0):
 
 
 # ============ 좌석 선택 ============
-async def _get_seat_page(page) -> Tuple[any, bool]:
+async def _get_seat_page(page) -> tuple[Any, bool]:
     """좌석맵 페이지 가져오기 (iframe 처리)"""
     # 1. iframe 확인
     for selector in SELECTORS['seat_iframe']:
@@ -2287,6 +2538,13 @@ async def _complete_selection(page) -> bool:
                     btn_found = True
                     break
             
+            # 선택 완료 버튼을 못 찾으면 재시도
+            if not btn_found:
+                logger.warning(f"선택완료 버튼 없음 (시도 {retry + 1}/{max_retries})")
+                if retry < max_retries - 1:
+                    await asyncio.sleep(1)
+                    continue
+            
             # 에러 메시지 확인
             error_msg = await _check_selection_error(page)
             if error_msg:
@@ -2522,8 +2780,21 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
             await send_telegram(config, f"[세션 {session_id}] ❌ 로그인 실패")
             return False
         
+        # 브라우저 상태 확인
+        if not await check_browser_health(browser, page):
+            raise BrowserCrashError("브라우저 상태 이상")
+        
         # 2. 콘서트 페이지
-        await step_navigate_concert(page, config)
+        nav_success = await step_navigate_concert(page, config)
+        if not nav_success:
+            await send_telegram(config, f"[세션 {session_id}] ❌ 콘서트 페이지 이동 실패")
+            return False
+        
+        # 메모리 체크 (오픈 대기 전)
+        if check_memory_pressure(threshold_mb=2048.0):
+            logger.warning(f"[세션 {session_id}] ⚠️ 메모리 압박 - 가비지 컬렉션 실행")
+            import gc
+            gc.collect()
         
         # 3. 오픈 대기 (실전만)
         if live:
@@ -2804,12 +3075,26 @@ async def run_ticketing(config: Config, live: bool):
     logger.info("=" * 50)
     
     # NTP 동기화
+    ntp_resync_task = None
     if config.use_ntp:
         await sync_ntp_time()
+        # 백그라운드 NTP 재동기화 태스크 시작 (drift 보정)
+        ntp_resync_task = asyncio.create_task(
+            _ntp_resync_task(interval=Limits.NTP_RESYNC_INTERVAL),
+            name="ntp-resync"
+        )
+        logger.debug("NTP 재동기화 태스크 시작됨")
     
     try:
         await run_multi_session(config, live)
     finally:
+        # NTP 재동기화 태스크 정리
+        if ntp_resync_task:
+            ntp_resync_task.cancel()
+            try:
+                await ntp_resync_task
+            except asyncio.CancelledError:
+                pass
         await close_http_session()
 
 

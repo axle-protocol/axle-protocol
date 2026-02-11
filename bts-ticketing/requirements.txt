@@ -1,7 +1,13 @@
 # BTS Ticketing Bot Dependencies
 
 # 브라우저 자동화 (안티디텍션)
-camoufox>=0.4.0
+camoufox>=0.4.0          # Firefox 기반 안티디텍트 (권장)
+nodriver>=0.38           # Chrome 기반 안티디텍트 (CDP 최소화)
+seleniumbase>=4.32.0     # UC Mode (undetected-chromedriver)
+
+# HTTP 클라이언트
+aiohttp>=3.9.0           # 비동기 HTTP (CAPTCHA API 등)
+httpx>=0.27.0            # 프록시 헬스체크
 
 # AI 분석 (OpenClaw/Claude)
 anthropic>=0.18.0
@@ -9,5 +15,11 @@ anthropic>=0.18.0
 # NTP 시간 동기화
 ntplib>=0.4.0
 
-# Windows TTS (optional)
-# pywin32>=306  # Windows only
+# CAPTCHA 자동 해결
+2captcha-python>=1.2.0   # Turnstile 솔버 (권장)
+
+# 프로세스 관리 (선택)
+psutil>=5.9.0            # 브라우저 프로세스 정리
+
+# Windows TTS (선택, Windows only)
+# pywin32>=306

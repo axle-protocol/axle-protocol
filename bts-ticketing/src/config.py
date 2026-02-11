@@ -38,16 +38,32 @@ class ProxyConfig:
 
 @dataclass
 class CaptchaSolverConfig:
-    """CapSolver 설정
+    """CAPTCHA 솔버 설정
     
-    공식 문서: https://docs.capsolver.com/en/guide/recognition/ImageToTextTask/
+    지원 서비스:
+    - 2captcha (권장): https://2captcha.com/api-docs/cloudflare-turnstile
+    - CapSolver: https://docs.capsolver.com/
     """
     enabled: bool = True
-    api_key: str = os.getenv('CAPSOLVER_API_KEY', '')
-    api_url: str = 'https://api.capsolver.com/createTask'
-    module: str = 'common'  # 'common' or 'number'
-    timeout: int = 30  # API 요청 타임아웃 (초)
-    manual_timeout: int = int(os.getenv('CAPTCHA_MANUAL_TIMEOUT', '60'))  # 수동 입력 대기 (초)
+    
+    # 2captcha 설정 (Turnstile 전용, 권장)
+    twocaptcha_api_key: str = os.getenv('TWOCAPTCHA_API_KEY', '')
+    
+    # CapSolver 설정 (이미지 CAPTCHA용)
+    capsolver_api_key: str = os.getenv('CAPSOLVER_API_KEY', '')
+    capsolver_api_url: str = 'https://api.capsolver.com/createTask'
+    capsolver_module: str = 'common'  # 'common' or 'number'
+    
+    # 공통 설정
+    timeout: int = 120  # API 응답 대기 타임아웃 (초)
+    poll_interval: float = 5.0  # 결과 확인 간격 (초)
+    manual_timeout: int = int(os.getenv('CAPTCHA_MANUAL_TIMEOUT', '120'))  # 수동 입력 대기 (초)
+    manual_fallback: bool = True  # 자동 실패 시 수동 폴백 허용
+    
+    @property
+    def api_key(self) -> str:
+        """하위 호환성: 기존 코드에서 api_key로 접근"""
+        return self.twocaptcha_api_key or self.capsolver_api_key
 
 
 @dataclass 

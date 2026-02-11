@@ -1,10 +1,10 @@
 {
   "sessionKey": "agent:main:main",
   "model": "anthropic/claude-opus-4-5",
-  "lastStatusAtKST": "2026-02-11T16:58:00+09:00",
-  "contextUsedPercent": 62,
-  "lastNotifiedUsedPercent": 60,
-  "nextNotifyUsedPercent": 70,
+  "lastStatusAtKST": "2026-02-11T17:44:00+09:00",
+  "contextUsedPercent": 73,
+  "lastNotifiedUsedPercent": 70,
+  "nextNotifyUsedPercent": 80,
   "compactions": 3,
-  "note": "62% 도달. 다음 알림 70%."
+  "note": "73% 도달. 다음 알림 80%."
 }

@@ -47,11 +47,14 @@ class RunnerState:
     results: Dict[int, str] = None  # 인스턴스별 결과
     _lock: asyncio.Lock = None  # 상태 변경 락
     _init_lock: threading.Lock = None  # Lock 초기화 보호용
+    _victory_time: Optional[float] = None  # 승리 시간 (ms 단위 성능 측정용)
     
     def __post_init__(self):
         """Lock 초기화 (dataclass 호환)"""
         # threading.Lock은 이벤트 루프 없이 생성 가능
         self._init_lock = threading.Lock()
+        # results dict 미리 초기화 (Lock 보유 시간 단축)
+        self.results = {}
     
     def _ensure_lock(self):
         """Lock 지연 초기화 (Race condition 방지)"""
@@ -62,12 +65,18 @@ class RunnerState:
         return self._lock
     
     async def claim_victory(self, instance_id: int) -> bool:
-        """원자적으로 승리 선언 - 먼저 호출한 인스턴스만 True 반환"""
+        """원자적으로 승리 선언 - 먼저 호출한 인스턴스만 True 반환
+        
+        Returns:
+            bool: True if this instance won, False if another already won
+        """
+        import time
         lock = self._ensure_lock()
         
         async with lock:
             if self.winner_instance is None:
                 self.winner_instance = instance_id
+                self._victory_time = time.time()
                 if self.success_event:
                     self.success_event.set()
                 if self.shutdown_event:
@@ -80,9 +89,12 @@ class RunnerState:
         lock = self._ensure_lock()
         
         async with lock:
-            if self.results is None:
-                self.results = {}
+            # results는 __post_init__에서 초기화됨 (Lock 내에서 생성 불필요)
             self.results[instance_id] = result
+    
+    def get_victory_latency_ms(self) -> Optional[float]:
+        """승리 감지 레이턴시 (디버깅용)"""
+        return self._victory_time
 
 
 state = RunnerState()
@@ -237,15 +249,29 @@ async def run_instance(
         ua_version = random.choice(chrome_versions)
         user_agent = f'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{ua_version} Safari/537.36'
         
+        # 브라우저 인자 구성
+        browser_args = [
+            '--window-size=1920,1080',
+            '--lang=ko-KR',
+            '--disable-blink-features=AutomationControlled',
+            f'--user-data-dir={user_data_dir}',
+            f'--user-agent={user_agent}',
+        ]
+        
+        # 프록시 설정 (있으면)
+        if proxy:
+            proxy_url = proxy.server
+            if proxy.username and proxy.password:
+                # 인증 프록시: Chrome은 URL에 인증 정보를 포함할 수 없으므로
+                # proxy-server만 설정하고 인증은 별도 처리 필요
+                logger.info(f"프록시 서버: {proxy.server} (인증: {proxy.username})")
+            else:
+                logger.info(f"프록시 서버: {proxy.server}")
+            browser_args.append(f'--proxy-server={proxy_url}')
+        
         browser = await nd.start(
             headless=False,
-            browser_args=[
-                '--window-size=1920,1080',
-                '--lang=ko-KR',
-                '--disable-blink-features=AutomationControlled',
-                f'--user-data-dir={user_data_dir}',
-                f'--user-agent={user_agent}',
-            ]
+            browser_args=browser_args
         )
         
         page = await browser.get('https://tickets.interpark.com/')
@@ -393,6 +419,11 @@ async def run_multi(config: Config, test_mode: bool = False) -> bool:
     # 인스턴스 태스크 생성
     tasks = []
     
+    # 최소 stagger delay 보장 (동시 시작 시 서버 부하 방지)
+    effective_stagger = max(multi_cfg.stagger_delay, 0.1) if multi_cfg.instance_count > 1 else 0
+    if effective_stagger != multi_cfg.stagger_delay:
+        main_log.info(f"Stagger delay 조정: {multi_cfg.stagger_delay}s → {effective_stagger}s (최소 100ms)")
+    
     for i in range(multi_cfg.instance_count):
         # 계정 할당 (순환)
         account_idx = i % len(multi_cfg.accounts) if multi_cfg.accounts else 0
@@ -418,7 +449,7 @@ async def run_multi(config: Config, test_mode: bool = False) -> bool:
             return await run_instance(idx + 1, config, acc, prx, log, test_mode)
         
         task = asyncio.create_task(
-            run_with_delay(i, account, proxy, inst_logger, multi_cfg.stagger_delay),
+            run_with_delay(i, account, proxy, inst_logger, effective_stagger),
             name=f"instance-{i+1}"
         )
         tasks.append(task)
@@ -457,17 +488,23 @@ async def run_multi(config: Config, test_mode: bool = False) -> bool:
             # 취소 완료 대기
             await asyncio.gather(*pending, return_exceptions=True)
         
-        # 결과 정리 (예외 안전)
+        # 결과 정리 (예외 안전 + CancelledError 명시 처리)
         success_count = 0
+        fail_count = 0
+        cancelled_count = len(pending)
+        
         for t in done:
-            if not t.cancelled():
-                try:
-                    if t.result():
-                        success_count += 1
-                except Exception:
-                    pass
-        fail_count = len(done) - success_count
-        cancelled_count = len(pending) + sum(1 for t in done if t.cancelled())
+            try:
+                if t.cancelled():
+                    cancelled_count += 1
+                elif t.result():
+                    success_count += 1
+                else:
+                    fail_count += 1
+            except asyncio.CancelledError:
+                cancelled_count += 1
+            except Exception:
+                fail_count += 1
         
         main_log.info("=" * 60)
         main_log.info("실행 완료")
