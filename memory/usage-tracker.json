@@ -1,10 +1,10 @@
 {
-  "sessionKey": "agent:main:main",
+  "lastCheck": "2026-02-11T21:20:00+09:00",
+  "contextPercent": 75,
+  "contextUsed": "150k",
+  "contextMax": "200k",
   "model": "anthropic/claude-opus-4-5",
-  "lastStatusAtKST": "2026-02-11T17:44:00+09:00",
-  "contextUsedPercent": 73,
-  "lastNotifiedUsedPercent": 70,
-  "nextNotifyUsedPercent": 80,
-  "compactions": 3,
-  "note": "73% 도달. 다음 알림 80%."
+  "compactions": 0,
+  "nextThreshold": 80,
+  "notes": "BTS 실제 테스트 중, AXLE D-1"
 }

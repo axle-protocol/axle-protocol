@@ -1,588 +1,738 @@
 #!/usr/bin/env python3
 """
-CAPTCHA 솔버 모듈 - Cloudflare Turnstile 우회
+캡챠 솔버 모듈 - BTS 티켓팅
+2captcha, Anti-Captcha, 수동 대기 지원
 
-지원 서비스:
-- 2captcha (권장)
-- CapSolver
-- 수동 폴백
-
-사용법:
-    solver = TurnstileSolver(api_key="YOUR_2CAPTCHA_KEY")
-    token = await solver.solve(page, sitekey, page_url)
-    await solver.inject_token(page, token)
+기능:
+- Turnstile (Cloudflare) 솔버
+- reCAPTCHA v2/v3 솔버
+- hCaptcha 솔버
+- 솔버 실패 시 수동 대기
+- 솔버 간 자동 전환
 """
 
-import asyncio
 import os
-import re
 import time
-from dataclasses import dataclass
-from typing import Optional, Callable, Awaitable
+import base64
+import threading
+from typing import Optional, Dict, Any, Callable
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-import aiohttp
+
+try:
+    from utils import log, Timing, adaptive_sleep, get_shared_state
+except ImportError:
+    def log(msg): print(f'[{datetime.now().strftime("%H:%M:%S")}] {msg}')
+    class Timing:
+        MEDIUM = 0.5
+        LONG = 1.0
+    adaptive_sleep = time.sleep
+    def get_shared_state(): return {}
 
 
-class SolverService(Enum):
-    """CAPTCHA 솔버 서비스"""
-    TWOCAPTCHA = "2captcha"
-    CAPSOLVER = "capsolver"
-    MANUAL = "manual"
+class CaptchaType(Enum):
+    """캡챠 타입"""
+    TURNSTILE = "turnstile"       # Cloudflare Turnstile
+    RECAPTCHA_V2 = "recaptcha_v2"
+    RECAPTCHA_V3 = "recaptcha_v3"
+    HCAPTCHA = "hcaptcha"
+    IMAGE = "image"               # 이미지 캡챠
+    UNKNOWN = "unknown"
 
 
 @dataclass
-class CaptchaResult:
-    """CAPTCHA 솔루션 결과"""
-    success: bool
-    token: Optional[str] = None
-    error: Optional[str] = None
-    solve_time: float = 0.0
-    service: Optional[str] = None
+class CaptchaConfig:
+    """캡챠 솔버 설정"""
+    # 2captcha
+    two_captcha_key: str = field(default_factory=lambda: os.getenv('TWO_CAPTCHA_KEY', ''))
+    
+    # Anti-Captcha
+    anti_captcha_key: str = field(default_factory=lambda: os.getenv('ANTI_CAPTCHA_KEY', ''))
+    
+    # CapMonster
+    capmonster_key: str = field(default_factory=lambda: os.getenv('CAPMONSTER_KEY', ''))
+    
+    # 타임아웃
+    solve_timeout: int = 120      # 솔버 타임아웃 (초)
+    poll_interval: float = 5.0    # 폴링 간격
+    
+    # 수동 대기
+    manual_wait_timeout: int = 180  # 수동 캡챠 대기 시간
+    
+    # 자동 전환
+    auto_fallback: bool = True    # 솔버 실패 시 다음 솔버로
+    
+    # SeleniumBase UC 사용
+    use_uc_handler: bool = True   # SeleniumBase 내장 핸들러 사용
 
 
-class TurnstileSolver:
-    """Cloudflare Turnstile CAPTCHA 솔버
+class CaptchaSolver:
+    """캡챠 솔버 - 다중 서비스 지원"""
     
-    2captcha API 문서: https://2captcha.com/api-docs/cloudflare-turnstile
-    """
+    # Turnstile 셀렉터
+    TURNSTILE_SELECTORS = [
+        'iframe[src*="challenges.cloudflare.com"]',
+        '[class*="cf-turnstile"]',
+        '#cf-turnstile',
+        '[data-sitekey]',
+    ]
     
-    # 2captcha 엔드포인트
-    TWOCAPTCHA_IN = "https://2captcha.com/in.php"
-    TWOCAPTCHA_RES = "https://2captcha.com/res.php"
+    # reCAPTCHA 셀렉터
+    RECAPTCHA_SELECTORS = [
+        'iframe[src*="google.com/recaptcha"]',
+        '[class*="g-recaptcha"]',
+        '#g-recaptcha',
+        '[data-sitekey]',
+    ]
     
-    # CapSolver 엔드포인트
-    CAPSOLVER_CREATE = "https://api.capsolver.com/createTask"
-    CAPSOLVER_RESULT = "https://api.capsolver.com/getTaskResult"
+    # hCaptcha 셀렉터
+    HCAPTCHA_SELECTORS = [
+        'iframe[src*="hcaptcha.com"]',
+        '[class*="h-captcha"]',
+        '[data-sitekey]',
+    ]
     
-    def __init__(
-        self,
-        api_key: str = None,
-        service: SolverService = SolverService.TWOCAPTCHA,
-        timeout: float = 120.0,
-        poll_interval: float = 5.0,
-        on_manual_required: Callable[[], Awaitable[bool]] = None
-    ):
+    def __init__(self, sb, config: Optional[CaptchaConfig] = None):
         """
         Args:
-            api_key: 2captcha 또는 CapSolver API 키
-            service: 사용할 솔버 서비스
-            timeout: 최대 대기 시간 (초)
-            poll_interval: 결과 확인 간격 (초)
-            on_manual_required: 수동 해결 필요 시 콜백 (True 반환하면 완료 대기)
+            sb: SeleniumBase 인스턴스
+            config: 캡챠 설정
         """
-        self.api_key = api_key or os.getenv("TWOCAPTCHA_API_KEY") or os.getenv("CAPSOLVER_API_KEY")
-        self.service = service
-        self.timeout = timeout
-        self.poll_interval = poll_interval
-        self.on_manual_required = on_manual_required
-        
-        self._session: Optional[aiohttp.ClientSession] = None
+        self.sb = sb
+        self.config = config or CaptchaConfig()
+        self._lock = threading.Lock()
+        self._solve_count = 0
+        self._fail_count = 0
     
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """HTTP 세션 가져오기"""
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=30)
-            )
-        return self._session
+    def detect_captcha(self) -> Optional[CaptchaType]:
+        """현재 페이지의 캡챠 타입 감지"""
+        try:
+            # Turnstile (Cloudflare)
+            for sel in self.TURNSTILE_SELECTORS:
+                try:
+                    if self.sb.is_element_visible(sel):
+                        log('🔒 Turnstile 캡챠 감지')
+                        return CaptchaType.TURNSTILE
+                except:
+                    pass
+            
+            # reCAPTCHA
+            for sel in self.RECAPTCHA_SELECTORS:
+                try:
+                    if self.sb.is_element_visible(sel):
+                        # v2 vs v3 구분
+                        if self.sb.is_element_visible('.g-recaptcha'):
+                            log('🔒 reCAPTCHA v2 감지')
+                            return CaptchaType.RECAPTCHA_V2
+                        log('🔒 reCAPTCHA v3 감지')
+                        return CaptchaType.RECAPTCHA_V3
+                except:
+                    pass
+            
+            # hCaptcha
+            for sel in self.HCAPTCHA_SELECTORS:
+                try:
+                    if self.sb.is_element_visible(sel):
+                        log('🔒 hCaptcha 감지')
+                        return CaptchaType.HCAPTCHA
+                except:
+                    pass
+            
+            return None
+            
+        except Exception as e:
+            log(f'⚠️ 캡챠 감지 실패: {e}')
+            return CaptchaType.UNKNOWN
     
-    async def close(self):
-        """리소스 정리"""
-        if self._session and not self._session.closed:
-            await self._session.close()
-    
-    # ============ 메인 API ============
-    
-    async def solve(
-        self,
-        page,
-        sitekey: str = None,
-        page_url: str = None,
-        action: str = None,
-        cdata: str = None
-    ) -> CaptchaResult:
-        """Turnstile CAPTCHA 해결
+    def solve(self, captcha_type: Optional[CaptchaType] = None) -> bool:
+        """
+        캡챠 해결
         
         Args:
-            page: Playwright/Camoufox 페이지 객체
-            sitekey: Turnstile sitekey (None이면 자동 추출)
-            page_url: 페이지 URL (None이면 자동)
-            action: Turnstile action 파라미터
-            cdata: Turnstile cData 파라미터
-            
-        Returns:
-            CaptchaResult
-        """
-        start_time = time.time()
+            captcha_type: 캡챠 타입 (None이면 자동 감지)
         
-        # sitekey 자동 추출
-        if not sitekey:
-            sitekey = await self._extract_sitekey(page)
-            if not sitekey:
-                return CaptchaResult(
-                    success=False,
-                    error="sitekey를 찾을 수 없음"
-                )
-        
-        # URL 자동 추출
-        if not page_url:
-            page_url = page.url
-        
-        print(f"🔐 Turnstile 감지: sitekey={sitekey[:20]}...")
-        
-        # API 키가 있으면 자동 솔버 시도
-        if self.api_key and self.service != SolverService.MANUAL:
-            if self.service == SolverService.TWOCAPTCHA:
-                result = await self._solve_2captcha(sitekey, page_url, action, cdata)
-            else:
-                result = await self._solve_capsolver(sitekey, page_url, action, cdata)
-            
-            if result.success:
-                result.solve_time = time.time() - start_time
-                return result
-            
-            print(f"⚠️ 자동 솔버 실패: {result.error}")
-        
-        # 수동 폴백
-        if self.on_manual_required:
-            print("🖐️ 수동 CAPTCHA 해결 요청...")
-            manual_success = await self.on_manual_required()
-            
-            if manual_success:
-                # 수동 해결 후 token 추출 시도
-                token = await self._extract_token(page)
-                return CaptchaResult(
-                    success=token is not None,
-                    token=token,
-                    solve_time=time.time() - start_time,
-                    service="manual"
-                )
-        
-        return CaptchaResult(
-            success=False,
-            error="CAPTCHA 해결 실패",
-            solve_time=time.time() - start_time
-        )
-    
-    async def inject_token(self, page, token: str) -> bool:
-        """해결된 token을 페이지에 주입
-        
-        Args:
-            page: 페이지 객체
-            token: Turnstile 응답 token
-            
         Returns:
             성공 여부
         """
-        try:
-            # cf-turnstile-response 또는 g-recaptcha-response에 주입
-            script = f'''
-            (() => {{
-                // Turnstile 응답 필드
-                const fields = [
-                    'cf-turnstile-response',
-                    'g-recaptcha-response',
-                    'h-captcha-response'
-                ];
-                
-                for (const name of fields) {{
-                    const el = document.querySelector(`[name="${{name}}"]`) ||
-                               document.querySelector(`#${{name}}`);
-                    if (el) {{
-                        el.value = "{token}";
-                        console.log('Token injected to', name);
-                    }}
-                }}
-                
-                // 숨겨진 input에도 시도
-                const hiddenInputs = document.querySelectorAll('input[type="hidden"]');
-                for (const input of hiddenInputs) {{
-                    if (input.name.includes('turnstile') || 
-                        input.name.includes('captcha') ||
-                        input.id.includes('turnstile')) {{
-                        input.value = "{token}";
-                        console.log('Token injected to hidden input', input.name);
-                    }}
-                }}
-                
-                // Turnstile 콜백 호출 시도
-                if (window.turnstileCallback) {{
-                    window.turnstileCallback("{token}");
-                }}
-                
-                return true;
-            }})();
-            '''
-            
-            await page.evaluate(script)
-            print(f"✅ Token 주입 완료")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Token 주입 실패: {e}")
-            return False
-    
-    # ============ sitekey 추출 ============
-    
-    async def _extract_sitekey(self, page) -> Optional[str]:
-        """페이지에서 Turnstile sitekey 추출"""
-        try:
-            # 방법 1: data-sitekey 속성
-            sitekey = await page.evaluate('''
-            (() => {
-                // Turnstile 위젯
-                const widget = document.querySelector('[data-sitekey]');
-                if (widget) return widget.getAttribute('data-sitekey');
-                
-                // iframe src에서 추출
-                const iframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
-                if (iframe) {
-                    const match = iframe.src.match(/sitekey=([^&]+)/);
-                    if (match) return match[1];
-                }
-                
-                // 스크립트에서 추출
-                const scripts = document.querySelectorAll('script');
-                for (const script of scripts) {
-                    const match = script.textContent.match(/sitekey['":\\s]+['"]([0-9x-]+)['"]/i);
-                    if (match) return match[1];
-                }
-                
-                return null;
-            })();
-            ''')
-            
-            if sitekey:
-                return sitekey
-            
-            # 방법 2: 페이지 소스에서 정규식
-            content = await page.content()
-            patterns = [
-                r'data-sitekey=["\']([0-9x-]+)["\']',
-                r'sitekey["\s:=]+["\']([0-9x-]+)["\']',
-                r'cf-turnstile.*?data-sitekey=["\']([0-9x-]+)["\']',
-            ]
-            
-            for pattern in patterns:
-                match = re.search(pattern, content, re.IGNORECASE)
-                if match:
-                    return match.group(1)
-            
-            return None
-            
-        except Exception as e:
-            print(f"sitekey 추출 오류: {e}")
-            return None
-    
-    async def _extract_token(self, page) -> Optional[str]:
-        """페이지에서 완료된 token 추출"""
-        try:
-            token = await page.evaluate('''
-            (() => {
-                const fields = ['cf-turnstile-response', 'g-recaptcha-response'];
-                for (const name of fields) {
-                    const el = document.querySelector(`[name="${name}"]`);
-                    if (el && el.value) return el.value;
-                }
-                return null;
-            })();
-            ''')
-            return token
-        except Exception:
-            return None
-    
-    # ============ 2captcha 연동 ============
-    
-    async def _solve_2captcha(
-        self,
-        sitekey: str,
-        page_url: str,
-        action: str = None,
-        cdata: str = None
-    ) -> CaptchaResult:
-        """2captcha로 Turnstile 해결"""
-        try:
-            session = await self._get_session()
-            
-            # Step 1: 작업 제출
-            params = {
-                "key": self.api_key,
-                "method": "turnstile",
-                "sitekey": sitekey,
-                "pageurl": page_url,
-                "json": 1
-            }
-            
-            if action:
-                params["action"] = action
-            if cdata:
-                params["data"] = cdata
-            
-            async with session.post(self.TWOCAPTCHA_IN, data=params) as resp:
-                result = await resp.json()
-                
-                if result.get("status") != 1:
-                    return CaptchaResult(
-                        success=False,
-                        error=f"2captcha 제출 실패: {result.get('request')}",
-                        service="2captcha"
-                    )
-                
-                request_id = result.get("request")
-                print(f"📤 2captcha 작업 제출: {request_id}")
-            
-            # Step 2: 결과 폴링
-            start = time.time()
-            
-            while time.time() - start < self.timeout:
-                await asyncio.sleep(self.poll_interval)
-                
-                params = {
-                    "key": self.api_key,
-                    "action": "get",
-                    "id": request_id,
-                    "json": 1
-                }
-                
-                async with session.get(self.TWOCAPTCHA_RES, params=params) as resp:
-                    result = await resp.json()
-                    
-                    if result.get("status") == 1:
-                        token = result.get("request")
-                        print(f"✅ 2captcha 해결 완료")
-                        return CaptchaResult(
-                            success=True,
-                            token=token,
-                            service="2captcha"
-                        )
-                    
-                    error = result.get("request", "")
-                    if error not in ("CAPCHA_NOT_READY", "CAPTCHA_NOT_READY"):
-                        return CaptchaResult(
-                            success=False,
-                            error=f"2captcha 오류: {error}",
-                            service="2captcha"
-                        )
-                
-                print(f"⏳ 2captcha 대기 중... ({int(time.time() - start)}s)")
-            
-            return CaptchaResult(
-                success=False,
-                error="2captcha 타임아웃",
-                service="2captcha"
-            )
-            
-        except Exception as e:
-            return CaptchaResult(
-                success=False,
-                error=f"2captcha 오류: {e}",
-                service="2captcha"
-            )
-    
-    # ============ CapSolver 연동 ============
-    
-    async def _solve_capsolver(
-        self,
-        sitekey: str,
-        page_url: str,
-        action: str = None,
-        cdata: str = None
-    ) -> CaptchaResult:
-        """CapSolver로 Turnstile 해결"""
-        try:
-            session = await self._get_session()
-            
-            # Step 1: 작업 생성
-            task_data = {
-                "clientKey": self.api_key,
-                "task": {
-                    "type": "AntiTurnstileTaskProxyLess",
-                    "websiteURL": page_url,
-                    "websiteKey": sitekey,
-                }
-            }
-            
-            if action:
-                task_data["task"]["action"] = action
-            if cdata:
-                task_data["task"]["cdata"] = cdata
-            
-            async with session.post(
-                self.CAPSOLVER_CREATE,
-                json=task_data
-            ) as resp:
-                result = await resp.json()
-                
-                if result.get("errorId") != 0:
-                    return CaptchaResult(
-                        success=False,
-                        error=f"CapSolver 오류: {result.get('errorDescription')}",
-                        service="capsolver"
-                    )
-                
-                task_id = result.get("taskId")
-                print(f"📤 CapSolver 작업 제출: {task_id}")
-            
-            # Step 2: 결과 폴링
-            start = time.time()
-            
-            while time.time() - start < self.timeout:
-                await asyncio.sleep(self.poll_interval)
-                
-                async with session.post(
-                    self.CAPSOLVER_RESULT,
-                    json={"clientKey": self.api_key, "taskId": task_id}
-                ) as resp:
-                    result = await resp.json()
-                    
-                    if result.get("status") == "ready":
-                        token = result.get("solution", {}).get("token")
-                        print(f"✅ CapSolver 해결 완료")
-                        return CaptchaResult(
-                            success=True,
-                            token=token,
-                            service="capsolver"
-                        )
-                    
-                    if result.get("errorId") != 0:
-                        return CaptchaResult(
-                            success=False,
-                            error=f"CapSolver 오류: {result.get('errorDescription')}",
-                            service="capsolver"
-                        )
-                
-                print(f"⏳ CapSolver 대기 중... ({int(time.time() - start)}s)")
-            
-            return CaptchaResult(
-                success=False,
-                error="CapSolver 타임아웃",
-                service="capsolver"
-            )
-            
-        except Exception as e:
-            return CaptchaResult(
-                success=False,
-                error=f"CapSolver 오류: {e}",
-                service="capsolver"
-            )
-    
-    # ============ Turnstile 감지 ============
-    
-    async def detect_turnstile(self, page) -> bool:
-        """페이지에서 Turnstile CAPTCHA 존재 확인"""
-        try:
-            has_turnstile = await page.evaluate('''
-            (() => {
-                // Turnstile 위젯
-                if (document.querySelector('.cf-turnstile')) return true;
-                if (document.querySelector('[data-sitekey]')) return true;
-                
-                // Cloudflare iframe
-                if (document.querySelector('iframe[src*="challenges.cloudflare.com"]')) return true;
-                
-                // Turnstile 스크립트
-                const scripts = document.querySelectorAll('script[src*="turnstile"]');
-                if (scripts.length > 0) return true;
-                
-                // Cloudflare challenge
-                if (document.querySelector('#challenge-running')) return true;
-                if (document.querySelector('#challenge-form')) return true;
-                
-                return false;
-            })();
-            ''')
-            return has_turnstile
-        except Exception:
-            return False
-    
-    async def wait_for_turnstile_complete(
-        self,
-        page,
-        timeout: float = 30.0
-    ) -> bool:
-        """Turnstile 완료 대기 (사용자 수동 해결 시)"""
-        start = time.time()
+        if captcha_type is None:
+            captcha_type = self.detect_captcha()
         
-        while time.time() - start < timeout:
-            # 토큰 존재 확인
-            token = await self._extract_token(page)
-            if token:
-                print("✅ Turnstile 완료 감지")
+        if captcha_type is None:
+            log('✅ 캡챠 없음')
+            return True
+        
+        log(f'🔓 캡챠 해결 시작: {captcha_type.value}')
+        
+        # 1. SeleniumBase UC 내장 핸들러 (가장 빠름)
+        if self.config.use_uc_handler:
+            if self._solve_with_uc_handler(captcha_type):
+                self._solve_count += 1
                 return True
-            
-            # challenge 사라짐 확인
-            challenge_gone = await page.evaluate('''
-            (() => {
-                const challenge = document.querySelector('#challenge-running');
-                return !challenge || challenge.style.display === 'none';
-            })();
-            ''')
-            
-            if challenge_gone:
-                await asyncio.sleep(0.5)
-                token = await self._extract_token(page)
-                if token:
+        
+        # 2. 2captcha API
+        if self.config.two_captcha_key:
+            if self._solve_with_2captcha(captcha_type):
+                self._solve_count += 1
+                return True
+        
+        # 3. Anti-Captcha API
+        if self.config.anti_captcha_key:
+            if self._solve_with_anti_captcha(captcha_type):
+                self._solve_count += 1
+                return True
+        
+        # 4. CapMonster API
+        if self.config.capmonster_key:
+            if self._solve_with_capmonster(captcha_type):
+                self._solve_count += 1
+                return True
+        
+        # 5. 수동 대기 (최후 수단)
+        log(f'⚠️ 자동 솔버 실패, 수동 대기 ({self.config.manual_wait_timeout}초)...')
+        if self._wait_for_manual_solve():
+            self._solve_count += 1
+            return True
+        
+        self._fail_count += 1
+        log('❌ 캡챠 해결 실패')
+        return False
+    
+    def _solve_with_uc_handler(self, captcha_type: CaptchaType) -> bool:
+        """SeleniumBase UC 내장 핸들러"""
+        try:
+            if captcha_type == CaptchaType.TURNSTILE:
+                log('🔧 SeleniumBase UC Turnstile 핸들러...')
+                self.sb.uc_gui_handle_captcha()
+                adaptive_sleep(Timing.LONG)
+                
+                # 캡챠 사라졌는지 확인
+                if self.detect_captcha() is None:
+                    log('✅ UC 핸들러 성공')
                     return True
-            
-            await asyncio.sleep(0.5)
+                    
+            elif captcha_type in [CaptchaType.RECAPTCHA_V2, CaptchaType.RECAPTCHA_V3]:
+                log('🔧 SeleniumBase UC reCAPTCHA 핸들러...')
+                self.sb.uc_gui_handle_captcha()
+                adaptive_sleep(Timing.LONG)
+                
+                if self.detect_captcha() is None:
+                    log('✅ UC 핸들러 성공')
+                    return True
+                    
+        except Exception as e:
+            log(f'⚠️ UC 핸들러 실패: {e}')
         
         return False
-
-
-# ============ 간편 함수 ============
-
-_default_solver: Optional[TurnstileSolver] = None
-
-
-def get_solver() -> TurnstileSolver:
-    """기본 솔버 인스턴스 가져오기"""
-    global _default_solver
-    if _default_solver is None:
-        _default_solver = TurnstileSolver()
-    return _default_solver
-
-
-async def solve_turnstile(page, **kwargs) -> CaptchaResult:
-    """Turnstile 해결 (간편 함수)"""
-    solver = get_solver()
-    return await solver.solve(page, **kwargs)
-
-
-async def detect_and_solve(page, **kwargs) -> Optional[str]:
-    """Turnstile 감지 및 해결 (간편 함수)
     
-    Returns:
-        해결된 token 또는 None (CAPTCHA 없거나 실패)
-    """
-    solver = get_solver()
-    
-    if not await solver.detect_turnstile(page):
-        return None  # CAPTCHA 없음
-    
-    result = await solver.solve(page, **kwargs)
-    
-    if result.success and result.token:
-        await solver.inject_token(page, result.token)
-        return result.token
-    
-    return None
-
-
-# ============ 테스트 ============
-
-if __name__ == "__main__":
-    async def test():
-        # 테스트 URL (2captcha 데모)
-        test_url = "https://2captcha.com/demo/cloudflare-turnstile"
+    def _solve_with_2captcha(self, captcha_type: CaptchaType) -> bool:
+        """2captcha API 사용"""
+        try:
+            import requests
+        except ImportError:
+            log('⚠️ requests 모듈 필요')
+            return False
         
-        solver = TurnstileSolver(
-            api_key=os.getenv("TWOCAPTCHA_API_KEY"),
-            timeout=120.0
-        )
-        
-        print(f"API Key: {'설정됨' if solver.api_key else '없음'}")
-        
-        # 실제 테스트는 브라우저 필요
-        print("브라우저 테스트는 main_hybrid.py에서 진행")
+        try:
+            api_key = self.config.two_captcha_key
+            
+            # 사이트키 추출
+            sitekey = self._extract_sitekey()
+            if not sitekey:
+                log('⚠️ sitekey 추출 실패')
+                return False
+            
+            page_url = self.sb.get_current_url()
+            
+            # 캡챠 타입별 요청
+            if captcha_type == CaptchaType.TURNSTILE:
+                method = 'turnstile'
+                params = {
+                    'key': api_key,
+                    'method': method,
+                    'sitekey': sitekey,
+                    'pageurl': page_url,
+                    'json': 1,
+                }
+            elif captcha_type == CaptchaType.RECAPTCHA_V2:
+                method = 'userrecaptcha'
+                params = {
+                    'key': api_key,
+                    'method': method,
+                    'googlekey': sitekey,
+                    'pageurl': page_url,
+                    'json': 1,
+                }
+            elif captcha_type == CaptchaType.RECAPTCHA_V3:
+                method = 'userrecaptcha'
+                params = {
+                    'key': api_key,
+                    'method': method,
+                    'googlekey': sitekey,
+                    'pageurl': page_url,
+                    'version': 'v3',
+                    'action': 'verify',
+                    'min_score': 0.3,
+                    'json': 1,
+                }
+            elif captcha_type == CaptchaType.HCAPTCHA:
+                method = 'hcaptcha'
+                params = {
+                    'key': api_key,
+                    'method': method,
+                    'sitekey': sitekey,
+                    'pageurl': page_url,
+                    'json': 1,
+                }
+            else:
+                return False
+            
+            log(f'📤 2captcha 요청 전송 ({method})...')
+            
+            # 1. 작업 제출
+            resp = requests.get('https://2captcha.com/in.php', params=params, timeout=30)
+            result = resp.json()
+            
+            if result.get('status') != 1:
+                log(f'⚠️ 2captcha 제출 실패: {result}')
+                return False
+            
+            task_id = result['request']
+            log(f'📋 2captcha 작업 ID: {task_id}')
+            
+            # 2. 결과 폴링
+            start_time = time.time()
+            while time.time() - start_time < self.config.solve_timeout:
+                time.sleep(self.config.poll_interval)
+                
+                result_resp = requests.get(
+                    'https://2captcha.com/res.php',
+                    params={
+                        'key': api_key,
+                        'action': 'get',
+                        'id': task_id,
+                        'json': 1,
+                    },
+                    timeout=30
+                )
+                result = result_resp.json()
+                
+                if result.get('status') == 1:
+                    token = result['request']
+                    log('✅ 2captcha 토큰 수신!')
+                    
+                    # 3. 토큰 주입
+                    return self._inject_token(token, captcha_type)
+                
+                elif result.get('request') == 'CAPCHA_NOT_READY':
+                    log(f'⏳ 2captcha 처리 중... ({int(time.time() - start_time)}s)')
+                    continue
+                
+                else:
+                    log(f'⚠️ 2captcha 에러: {result}')
+                    return False
+            
+            log('⏰ 2captcha 타임아웃')
+            return False
+            
+        except Exception as e:
+            log(f'⚠️ 2captcha 실패: {e}')
+            return False
     
-    asyncio.run(test())
+    def _solve_with_anti_captcha(self, captcha_type: CaptchaType) -> bool:
+        """Anti-Captcha API 사용"""
+        try:
+            import requests
+        except ImportError:
+            return False
+        
+        try:
+            api_key = self.config.anti_captcha_key
+            
+            sitekey = self._extract_sitekey()
+            if not sitekey:
+                return False
+            
+            page_url = self.sb.get_current_url()
+            
+            # 작업 타입
+            if captcha_type == CaptchaType.TURNSTILE:
+                task_type = 'TurnstileTaskProxyless'
+            elif captcha_type == CaptchaType.RECAPTCHA_V2:
+                task_type = 'RecaptchaV2TaskProxyless'
+            elif captcha_type == CaptchaType.RECAPTCHA_V3:
+                task_type = 'RecaptchaV3TaskProxyless'
+            elif captcha_type == CaptchaType.HCAPTCHA:
+                task_type = 'HCaptchaTaskProxyless'
+            else:
+                return False
+            
+            log(f'📤 Anti-Captcha 요청 전송 ({task_type})...')
+            
+            # 1. 작업 생성
+            create_resp = requests.post(
+                'https://api.anti-captcha.com/createTask',
+                json={
+                    'clientKey': api_key,
+                    'task': {
+                        'type': task_type,
+                        'websiteURL': page_url,
+                        'websiteKey': sitekey,
+                    }
+                },
+                timeout=30
+            )
+            create_result = create_resp.json()
+            
+            if create_result.get('errorId') != 0:
+                log(f'⚠️ Anti-Captcha 생성 실패: {create_result}')
+                return False
+            
+            task_id = create_result['taskId']
+            log(f'📋 Anti-Captcha 작업 ID: {task_id}')
+            
+            # 2. 결과 폴링
+            start_time = time.time()
+            while time.time() - start_time < self.config.solve_timeout:
+                time.sleep(self.config.poll_interval)
+                
+                result_resp = requests.post(
+                    'https://api.anti-captcha.com/getTaskResult',
+                    json={
+                        'clientKey': api_key,
+                        'taskId': task_id,
+                    },
+                    timeout=30
+                )
+                result = result_resp.json()
+                
+                if result.get('status') == 'ready':
+                    token = result['solution'].get('gRecaptchaResponse') or \
+                            result['solution'].get('token')
+                    log('✅ Anti-Captcha 토큰 수신!')
+                    return self._inject_token(token, captcha_type)
+                
+                elif result.get('status') == 'processing':
+                    log(f'⏳ Anti-Captcha 처리 중... ({int(time.time() - start_time)}s)')
+                    continue
+                
+                else:
+                    log(f'⚠️ Anti-Captcha 에러: {result}')
+                    return False
+            
+            log('⏰ Anti-Captcha 타임아웃')
+            return False
+            
+        except Exception as e:
+            log(f'⚠️ Anti-Captcha 실패: {e}')
+            return False
+    
+    def _solve_with_capmonster(self, captcha_type: CaptchaType) -> bool:
+        """CapMonster API 사용 (2captcha 호환)"""
+        try:
+            import requests
+        except ImportError:
+            return False
+        
+        try:
+            # CapMonster는 2captcha 호환 API 제공
+            api_key = self.config.capmonster_key
+            
+            sitekey = self._extract_sitekey()
+            if not sitekey:
+                return False
+            
+            page_url = self.sb.get_current_url()
+            
+            # 캡챠 타입별 요청
+            if captcha_type == CaptchaType.TURNSTILE:
+                task_type = 'TurnstileTask'
+            elif captcha_type == CaptchaType.RECAPTCHA_V2:
+                task_type = 'NoCaptchaTask'
+            elif captcha_type == CaptchaType.RECAPTCHA_V3:
+                task_type = 'RecaptchaV3TaskProxyless'
+            elif captcha_type == CaptchaType.HCAPTCHA:
+                task_type = 'HCaptchaTask'
+            else:
+                return False
+            
+            log(f'📤 CapMonster 요청 전송 ({task_type})...')
+            
+            # 작업 생성
+            create_resp = requests.post(
+                'https://api.capmonster.cloud/createTask',
+                json={
+                    'clientKey': api_key,
+                    'task': {
+                        'type': task_type,
+                        'websiteURL': page_url,
+                        'websiteKey': sitekey,
+                    }
+                },
+                timeout=30
+            )
+            create_result = create_resp.json()
+            
+            if create_result.get('errorId') != 0:
+                log(f'⚠️ CapMonster 생성 실패: {create_result}')
+                return False
+            
+            task_id = create_result['taskId']
+            
+            # 결과 폴링
+            start_time = time.time()
+            while time.time() - start_time < self.config.solve_timeout:
+                time.sleep(self.config.poll_interval)
+                
+                result_resp = requests.post(
+                    'https://api.capmonster.cloud/getTaskResult',
+                    json={
+                        'clientKey': api_key,
+                        'taskId': task_id,
+                    },
+                    timeout=30
+                )
+                result = result_resp.json()
+                
+                if result.get('status') == 'ready':
+                    token = result['solution'].get('gRecaptchaResponse') or \
+                            result['solution'].get('token')
+                    log('✅ CapMonster 토큰 수신!')
+                    return self._inject_token(token, captcha_type)
+                
+                elif result.get('status') == 'processing':
+                    continue
+                
+                else:
+                    log(f'⚠️ CapMonster 에러: {result}')
+                    return False
+            
+            return False
+            
+        except Exception as e:
+            log(f'⚠️ CapMonster 실패: {e}')
+            return False
+    
+    def _extract_sitekey(self) -> Optional[str]:
+        """페이지에서 sitekey 추출"""
+        try:
+            # data-sitekey 속성
+            for sel in ['[data-sitekey]', '.g-recaptcha', '.h-captcha', '.cf-turnstile']:
+                try:
+                    elem = self.sb.find_element(sel)
+                    if elem:
+                        sitekey = elem.get_attribute('data-sitekey')
+                        if sitekey:
+                            return sitekey
+                except:
+                    pass
+            
+            # iframe src에서 추출
+            iframes = self.sb.find_elements('iframe[src*="sitekey"]')
+            for iframe in iframes:
+                src = iframe.get_attribute('src')
+                if 'sitekey=' in src:
+                    import re
+                    match = re.search(r'sitekey=([^&]+)', src)
+                    if match:
+                        return match.group(1)
+            
+            # JavaScript 변수에서 추출
+            sitekey = self.sb.execute_script("""
+                // reCAPTCHA
+                if (typeof grecaptcha !== 'undefined') {
+                    var elements = document.querySelectorAll('.g-recaptcha');
+                    for (var el of elements) {
+                        if (el.dataset.sitekey) return el.dataset.sitekey;
+                    }
+                }
+                // Turnstile
+                if (typeof turnstile !== 'undefined') {
+                    var elements = document.querySelectorAll('.cf-turnstile');
+                    for (var el of elements) {
+                        if (el.dataset.sitekey) return el.dataset.sitekey;
+                    }
+                }
+                return null;
+            """)
+            
+            return sitekey
+            
+        except Exception as e:
+            log(f'⚠️ sitekey 추출 실패: {e}')
+            return None
+    
+    def _inject_token(self, token: str, captcha_type: CaptchaType) -> bool:
+        """캡챠 토큰 주입"""
+        try:
+            if captcha_type in [CaptchaType.RECAPTCHA_V2, CaptchaType.RECAPTCHA_V3]:
+                # g-recaptcha-response 필드에 주입
+                self.sb.execute_script(f"""
+                    // textarea에 토큰 삽입
+                    var textarea = document.getElementById('g-recaptcha-response');
+                    if (!textarea) {{
+                        textarea = document.querySelector('[name="g-recaptcha-response"]');
+                    }}
+                    if (textarea) {{
+                        textarea.innerHTML = '{token}';
+                        textarea.value = '{token}';
+                    }}
+                    
+                    // 콜백 실행
+                    if (typeof grecaptcha !== 'undefined') {{
+                        var widgetId = grecaptcha.getWidgetId ? grecaptcha.getWidgetId() : 0;
+                        var callback = grecaptcha.getResponse ? null : 
+                            (document.querySelector('.g-recaptcha') || {{}}).dataset.callback;
+                        if (callback && typeof window[callback] === 'function') {{
+                            window[callback]('{token}');
+                        }}
+                    }}
+                """)
+                
+            elif captcha_type == CaptchaType.TURNSTILE:
+                # Turnstile 토큰 주입
+                self.sb.execute_script(f"""
+                    // 토큰 필드 찾기
+                    var input = document.querySelector('[name="cf-turnstile-response"]');
+                    if (!input) {{
+                        input = document.querySelector('input[name*="turnstile"]');
+                    }}
+                    if (input) {{
+                        input.value = '{token}';
+                    }}
+                    
+                    // 콜백 실행
+                    if (typeof turnstile !== 'undefined' && turnstile.getResponse) {{
+                        // 수동 처리
+                    }}
+                """)
+                
+            elif captcha_type == CaptchaType.HCAPTCHA:
+                # hCaptcha 토큰 주입
+                self.sb.execute_script(f"""
+                    var textarea = document.querySelector('[name="h-captcha-response"]');
+                    if (textarea) {{
+                        textarea.value = '{token}';
+                    }}
+                    
+                    if (typeof hcaptcha !== 'undefined') {{
+                        // 콜백 시도
+                    }}
+                """)
+            
+            log('💉 토큰 주입 완료')
+            adaptive_sleep(Timing.MEDIUM)
+            
+            # 폼 제출 또는 버튼 클릭
+            try:
+                submit_btn = self.sb.find_element('button[type="submit"], input[type="submit"]')
+                if submit_btn and submit_btn.is_displayed():
+                    submit_btn.click()
+                    adaptive_sleep(Timing.LONG)
+            except:
+                pass
+            
+            # 성공 확인
+            if self.detect_captcha() is None:
+                return True
+            
+            log('⚠️ 토큰 주입 후에도 캡챠 존재')
+            return False
+            
+        except Exception as e:
+            log(f'⚠️ 토큰 주입 실패: {e}')
+            return False
+    
+    def _wait_for_manual_solve(self) -> bool:
+        """수동 캡챠 해결 대기"""
+        log(f'👆 수동으로 캡챠를 해결해주세요! ({self.config.manual_wait_timeout}초 대기)')
+        
+        # 공유 상태에 알림
+        shared = get_shared_state()
+        if shared:
+            shared.set('captcha_manual_required', True)
+        
+        start_time = time.time()
+        while time.time() - start_time < self.config.manual_wait_timeout:
+            # 캡챠 사라졌는지 확인
+            if self.detect_captcha() is None:
+                log('✅ 수동 캡챠 해결 완료!')
+                if shared:
+                    shared.set('captcha_manual_required', False)
+                return True
+            
+            # URL 변경 확인 (캡챠 통과 후 페이지 이동)
+            time.sleep(1)
+        
+        log('⏰ 수동 캡챠 대기 타임아웃')
+        if shared:
+            shared.set('captcha_manual_required', False)
+        return False
+    
+    def get_stats(self) -> Dict[str, int]:
+        """솔버 통계"""
+        return {
+            'solved': self._solve_count,
+            'failed': self._fail_count,
+            'success_rate': self._solve_count / max(1, self._solve_count + self._fail_count) * 100,
+        }
+
+
+# ============ 편의 함수 ============
+def auto_solve_captcha(sb, config: Optional[CaptchaConfig] = None) -> bool:
+    """캡챠 자동 해결 (원샷)"""
+    solver = CaptchaSolver(sb, config)
+    return solver.solve()
+
+
+def solve_turnstile(sb) -> bool:
+    """Turnstile 전용 솔버"""
+    solver = CaptchaSolver(sb)
+    return solver.solve(CaptchaType.TURNSTILE)
+
+
+def solve_recaptcha(sb) -> bool:
+    """reCAPTCHA 전용 솔버"""
+    solver = CaptchaSolver(sb)
+    captcha_type = solver.detect_captcha()
+    if captcha_type in [CaptchaType.RECAPTCHA_V2, CaptchaType.RECAPTCHA_V3]:
+        return solver.solve(captcha_type)
+    return True  # 캡챠 없음
+
+
+def has_captcha(sb) -> bool:
+    """캡챠 존재 여부"""
+    solver = CaptchaSolver(sb)
+    return solver.detect_captcha() is not None
+
+
+class CaptchaAwareMixin:
+    """캡챠 처리를 포함한 Mixin 클래스"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._captcha_solver = None
+        self._captcha_config = kwargs.get('captcha_config')
+    
+    def _get_solver(self):
+        if self._captcha_solver is None:
+            self._captcha_solver = CaptchaSolver(self.sb, self._captcha_config)
+        return self._captcha_solver
+    
+    def handle_captcha_if_present(self) -> bool:
+        """캡챠가 있으면 해결"""
+        solver = self._get_solver()
+        captcha_type = solver.detect_captcha()
+        if captcha_type:
+            return solver.solve(captcha_type)
+        return True
+    
+    def click_with_captcha_check(self, selector: str, timeout: float = 5.0) -> bool:
+        """클릭 후 캡챠 체크"""
+        try:
+            self.sb.click(selector, timeout=timeout)
+            adaptive_sleep(Timing.MEDIUM)
+            return self.handle_captcha_if_present()
+        except Exception as e:
+            log(f'⚠️ 클릭 실패: {e}')
+            return False
