@@ -186,6 +186,7 @@ class TicketingConfig:
     auto_pay: bool = False
     headless: bool = False
     use_capsolver: bool = False
+    use_proxy: bool = False  # 프록시 사용 여부
     max_retries: int = 3
     timeout_ms: int = 30000
     
@@ -295,15 +296,16 @@ class NOLTicketing:
         self._log('🌐 브라우저 시작...')
         
         try:
-            # 프록시 설정
+            # 프록시 설정 (IPRoyal 형식)
             proxy_config = None
-            if PROXY_HOST and PROXY_PORT:
-                proxy_url = f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}"
+            if PROXY_HOST and PROXY_PORT and self.config.use_proxy:
+                # IPRoyal은 URL 형식 인증 필요
                 proxy_config = {
                     "server": f"http://{PROXY_HOST}:{PROXY_PORT}",
-                    "username": PROXY_USER,
-                    "password": PROXY_PASS,
                 }
+                if PROXY_USER and PROXY_PASS:
+                    proxy_config["username"] = PROXY_USER
+                    proxy_config["password"] = PROXY_PASS
                 self._log(f'🌍 프록시 설정: {PROXY_HOST}:{PROXY_PORT} (한국)')
             
             self.browser = playwright.chromium.launch(
@@ -345,7 +347,7 @@ class NOLTicketing:
                 stealth_sync(self.page)
                 self._log('🥷 Stealth 모드 활성화', LogLevel.SUCCESS)
             
-            # 추가 자동화 감지 우회
+            # 추가 자동화 감지 우회 + Turnstile 콜백 인터셉트
             self.page.add_init_script("""
                 // webdriver 숨김
                 Object.defineProperty(navigator, 'webdriver', {
@@ -377,6 +379,22 @@ class NOLTicketing:
                         Promise.resolve({ state: Notification.permission }) :
                         originalQuery(parameters)
                 );
+                
+                // ⭐ Turnstile 콜백 인터셉트 (핵심!)
+                const turnstileInterval = setInterval(() => {
+                    if (window.turnstile) {
+                        clearInterval(turnstileInterval);
+                        const originalRender = window.turnstile.render;
+                        window.turnstile.render = function(container, options) {
+                            // 콜백 함수를 전역 변수에 저장
+                            window.cfCallback = options.callback;
+                            window.cfSitekey = options.sitekey;
+                            console.log('✅ Turnstile 콜백 인터셉트 완료');
+                            // 원본 render 호출
+                            return originalRender.call(this, container, options);
+                        };
+                    }
+                }, 50);
             """)
             
             self._log('브라우저 준비 완료', LogLevel.SUCCESS)
@@ -518,32 +536,62 @@ class NOLTicketing:
             token = solve_turnstile_capsolver(self.page.url, self.TURNSTILE_SITEKEY)
             
             if token:
-                # 토큰 주입
+                # 토큰 주입 (개선된 버전)
                 try:
-                    # Turnstile 콜백 함수 호출
                     self.page.evaluate(f'''
                         (function() {{
-                            // 방법 1: turnstile 콜백 직접 호출
-                            if (window.turnstile && window.turnstile.render) {{
-                                console.log('Turnstile 객체 발견');
+                            const token = "{token}";
+                            
+                            // ⭐ 방법 1: 인터셉트한 콜백 함수 호출 (핵심!)
+                            if (typeof window.cfCallback === 'function') {{
+                                window.cfCallback(token);
+                                console.log('✅ cfCallback 호출 완료');
                             }}
                             
-                            // 방법 2: 히든 입력필드에 토큰 설정
-                            var inputs = document.querySelectorAll('input[name*="turnstile"], input[name*="cf-"], input[name*="captcha"]');
-                            inputs.forEach(function(input) {{
-                                input.value = "{token}";
-                            }});
+                            // 방법 2: hidden input 필드 업데이트 + 이벤트 트리거
+                            const selectors = [
+                                'input[name="cf-turnstile-response"]',
+                                'input[name="g-recaptcha-response"]',
+                                'textarea[name="cf-turnstile-response"]',
+                                'input[id*="cf-chl-widget"]'
+                            ];
                             
-                            // 방법 3: 전역 콜백 호출 시도
-                            if (typeof window.onTurnstileSuccess === 'function') {{
-                                window.onTurnstileSuccess("{token}");
+                            for (const sel of selectors) {{
+                                const input = document.querySelector(sel);
+                                if (input) {{
+                                    input.value = token;
+                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    console.log('✅ 토큰 주입:', sel);
+                                }}
                             }}
                             
-                            // 방법 4: 커스텀 이벤트 발생
-                            var event = new CustomEvent('turnstileCallback', {{ detail: {{ token: "{token}" }} }});
-                            document.dispatchEvent(event);
+                            // 방법 3: data-sitekey 요소의 hidden input
+                            const turnstileDiv = document.querySelector('[data-sitekey], .cf-turnstile');
+                            if (turnstileDiv) {{
+                                const hiddenInput = turnstileDiv.querySelector('input[type="hidden"]');
+                                if (hiddenInput) {{
+                                    hiddenInput.value = token;
+                                    hiddenInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                }}
+                            }}
                             
-                            console.log('Turnstile 토큰 주입 완료');
+                            // 방법 4: 폼 유효성 재검사 트리거
+                            const form = document.querySelector('form');
+                            if (form) {{
+                                form.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                            }}
+                            
+                            // 방법 5: 로그인 버튼 강제 활성화 시도
+                            const submitBtn = document.querySelector('button[type="submit"]');
+                            if (submitBtn && submitBtn.disabled) {{
+                                submitBtn.disabled = false;
+                                submitBtn.removeAttribute('disabled');
+                                submitBtn.removeAttribute('aria-disabled');
+                                console.log('✅ 로그인 버튼 강제 활성화');
+                            }}
+                            
+                            console.log('✅ Turnstile 토큰 주입 완료');
                         }})();
                     ''')
                     self._log('✅ CapSolver 토큰 주입 완료!', LogLevel.SUCCESS)

@@ -1,10 +1,10 @@
 {
-  "lastCheck": "2026-02-12T07:25:00+09:00",
-  "contextPercent": 71,
-  "contextUsed": "142k",
+  "lastCheck": "2026-02-12T07:41:00+09:00",
+  "contextPercent": 43,
+  "contextUsed": "86k",
   "contextMax": "200k",
   "model": "anthropic/claude-opus-4-5",
-  "compactions": 0,
-  "nextThreshold": 80,
-  "notes": "70% crossed. 13 projects engaged. Fields complete!"
+  "compactions": 1,
+  "nextThreshold": 50,
+  "notes": "Compaction 발생 (71%→43%). BTS 코드 수정 완료."
 }
