@@ -672,6 +672,19 @@ class TicketingMacro:
                                 continue
                         
                         if self.stats['seat_clicks'] >= target_clicks:
+                            # 모달 닫기 (선택 완료 전에!)
+                            try:
+                                self.sb.execute_script("""
+                                    // 모든 모달/오버레이 제거
+                                    document.querySelectorAll('[class*="Modal"], [class*="modal"], [class*="overlay"], [class*="Overlay"]').forEach(function(el) {
+                                        el.style.display = 'none';
+                                        el.style.visibility = 'hidden';
+                                    });
+                                """)
+                                adaptive_sleep(0.2)
+                            except:
+                                pass
+                            
                             # 선택 완료 버튼 (다중 시도)
                             complete_selectors = [
                                 '#NextStepImage',
@@ -679,17 +692,29 @@ class TicketingMacro:
                                 'button:contains("선택 완료")',
                                 'button:contains("다음")',
                                 'a:contains("다음")',
+                                'button.EntButton_primary__UOX1_',  # 인터파크 버튼
                             ]
                             
                             pre_url = self.sb.get_current_url()
                             
                             for cs in complete_selectors:
                                 try:
+                                    # 일반 클릭 시도
                                     self.sb.click(cs, timeout=2)
                                     self._log('✅ 선택 완료 클릭')
                                     adaptive_sleep(Timing.LONG)
                                     break
-                                except:
+                                except Exception as click_err:
+                                    # 가려진 경우 JS 클릭
+                                    if 'intercepted' in str(click_err).lower():
+                                        try:
+                                            elem = self.sb.find_element(cs)
+                                            self.sb.execute_script("arguments[0].click();", elem)
+                                            self._log('✅ 선택 완료 JS 클릭')
+                                            adaptive_sleep(Timing.LONG)
+                                            break
+                                        except:
+                                            continue
                                     continue
                             
                             # 결제 페이지 이동 확인
