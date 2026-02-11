@@ -680,50 +680,125 @@ class NOLTicketing:
         return False
     
     def click_booking_button(self) -> bool:
-        """예매하기 버튼 클릭"""
+        """예매하기 버튼 클릭 (NOL 개편 대응)"""
         self._log('📍 예매하기 버튼 클릭...')
         self.stats['booking_attempts'] += 1
         
+        # React SPA 로딩 대기
+        try:
+            self.page.wait_for_load_state('networkidle', timeout=10000)
+            adaptive_sleep(2)  # React 렌더링 추가 대기
+        except:
+            pass
+        
+        # NOL 티켓 개편 대응 셀렉터 (2024-2025)
         booking_selectors = [
-            'text=예매하기',
-            'a:has-text("예매하기")',
+            # 1순위: 정확한 텍스트 매칭
             'button:has-text("예매하기")',
-            '[class*="booking"] >> text=예매',
+            'a:has-text("예매하기")',
+            'button:has-text("예매")',
+            'a:has-text("예매")',
+            
+            # 2순위: Playwright role 기반
+            'role=button[name=/예매/i]',
+            'role=link[name=/예매/i]',
+            
+            # 3순위: NOL 클래스 패턴
+            '[class*="booking"]',
+            '[class*="Booking"]',
+            '[class*="reserve"]',
+            '[class*="Reserve"]',
+            '[class*="prdBtn"]',
+            '[class*="prdBtnWrap"] button',
+            '[class*="prdBtnWrap"] a',
+            
+            # 4순위: 일반 버튼 패턴
+            '[class*="btn"][class*="primary"]',
+            '[data-testid*="booking"]',
+            'form button[type="submit"]',
         ]
         
         for selector in booking_selectors:
             try:
                 btn = self.page.locator(selector).first
-                if btn.is_visible(timeout=3000):
-                    btn.click()
-                    self._log(f'클릭 성공: {selector[:30]}', LogLevel.SUCCESS)
-                    adaptive_sleep(2)
-                    return True
+                if btn.is_visible(timeout=2000):
+                    text = btn.text_content() or ""
+                    if '예매' in text or 'booking' in selector.lower():
+                        btn.click()
+                        self._log(f'클릭 성공: {selector[:30]} (텍스트: {text[:20]})', LogLevel.SUCCESS)
+                        adaptive_sleep(2)
+                        return True
             except:
                 continue
         
-        # JavaScript 폴백
+        # get_by_role 시도
+        try:
+            btn = self.page.get_by_role("button", name="예매하기")
+            if btn.is_visible(timeout=2000):
+                btn.click()
+                self._log('get_by_role 클릭 성공', LogLevel.SUCCESS)
+                return True
+        except:
+            pass
+        
+        # JavaScript 폴백: 모든 버튼/링크 스캔
         try:
             result = self.page.evaluate('''
-                var links = document.querySelectorAll('a, button');
-                for (var i = 0; i < links.length; i++) {
-                    if (links[i].textContent.includes('예매하기')) {
-                        links[i].click();
-                        return 'clicked';
+                var elements = document.querySelectorAll('a, button, [role="button"]');
+                for (var i = 0; i < elements.length; i++) {
+                    var text = elements[i].textContent || "";
+                    if (text.includes('예매')) {
+                        console.log('Found booking button:', text);
+                        elements[i].click();
+                        return 'clicked: ' + text.slice(0, 30);
                     }
                 }
                 return 'not found';
             ''')
             
-            if result == 'clicked':
-                self._log('JS 클릭 성공', LogLevel.SUCCESS)
+            if result.startswith('clicked'):
+                self._log(f'JS 클릭 성공: {result}', LogLevel.SUCCESS)
                 adaptive_sleep(2)
                 return True
         except:
             pass
         
+        # 디버깅: HTML 덤프
+        self._dump_page_buttons()
+        
         self._log('예매 버튼 못찾음', LogLevel.WARN)
         return False
+    
+    def _dump_page_buttons(self):
+        """디버깅: 페이지 내 모든 버튼/링크 출력"""
+        try:
+            buttons = self.page.evaluate('''
+                var result = [];
+                var elements = document.querySelectorAll('a, button, [role="button"]');
+                elements.forEach(function(el, i) {
+                    if (i < 20) {  // 최대 20개
+                        result.push({
+                            tag: el.tagName,
+                            text: (el.textContent || "").slice(0, 50).trim(),
+                            class: (el.className || "").slice(0, 50)
+                        });
+                    }
+                });
+                return result;
+            ''')
+            
+            self._log('📋 페이지 버튼/링크 목록:', LogLevel.DEBUG)
+            for btn in buttons[:10]:
+                self._log(f'  {btn["tag"]}: "{btn["text"]}" (class: {btn["class"][:30]})', LogLevel.DEBUG)
+                
+            # HTML 파일로 저장
+            html = self.page.content()
+            with open('/tmp/nol_page_debug.html', 'w', encoding='utf-8') as f:
+                f.write(html)
+            self._log('📄 HTML 저장: /tmp/nol_page_debug.html', LogLevel.DEBUG)
+            
+        except Exception as e:
+            self._log(f'디버깅 실패: {e}', LogLevel.WARN)
     
     # ============ 예매 시간 대기 ============
     def wait_for_booking_time(self):

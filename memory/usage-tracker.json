@@ -1,10 +1,10 @@
 {
-  "lastCheck": "2026-02-12T07:41:00+09:00",
-  "contextPercent": 43,
-  "contextUsed": "86k",
+  "lastCheck": "2026-02-12T07:57:00+09:00",
+  "contextPercent": 62,
+  "contextUsed": "123k",
   "contextMax": "200k",
   "model": "anthropic/claude-opus-4-5",
   "compactions": 1,
-  "nextThreshold": 50,
-  "notes": "Compaction 발생 (71%→43%). BTS 코드 수정 완료."
+  "nextThreshold": 70,
+  "notes": "BTS 로그인 성공! 예매 버튼 셀렉터 수정 필요."
 }
