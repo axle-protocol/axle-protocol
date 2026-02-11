@@ -178,15 +178,21 @@ async def run_instance(
     """
     # 동적 import (순환 참조 방지) - main_nodriver_v5 사용
     from main_nodriver_v5 import (
-        init_browser, step_login, step_navigate_concert,
-        step_wait_open, step_select_seat, handle_turnstile
+        step_login, step_navigate_concert,
+        step_wait_open, step_select_seat, step_click_booking,
+        detect_captcha, wait_captcha_solved,
+        setup_stealth, wait_for_navigation, human_delay,
+        cleanup_browser
     )
+    import nodriver as nd
+    
     # 호환성 별칭
     login = step_login
     navigate_to_concert = step_navigate_concert
     wait_for_open = step_wait_open
     select_seat = step_select_seat
-    handle_captcha = handle_turnstile
+    click_booking = step_click_booking
+    handle_captcha = detect_captcha
     
     logger.info(f"인스턴스 시작 - 계정: {account.name or account.user_id[:4]}***")
     
@@ -198,38 +204,55 @@ async def run_instance(
     browser = None
     
     try:
-        # 설정 복제 및 오버라이드
-        instance_config = Config(
-            proxy=config.proxy,
-            captcha=config.captcha,
-            telegram=config.telegram,
-            browser=config.browser,
-            human=config.human,
-            interpark=config.interpark,
-            multi=config.multi,
-            debug=config.debug,
-            max_retries=config.max_retries
+        # main_nodriver_v5용 Config 생성 (호환성)
+        from main_nodriver_v5 import Config as V5Config
+        
+        # 오픈 시간 가져오기
+        open_time = config.interpark.open_time
+        
+        # V5 Config 객체 생성
+        instance_config = V5Config(
+            user_id=account.user_id,
+            user_pwd=account.user_pwd,
+            concert_url=config.interpark.concert_url,
+            open_time=open_time,
+            seat_priority=config.interpark.seat_priority if hasattr(config.interpark, 'seat_priority') else ['VIP', 'R석', 'S석', 'A석'],
+            telegram_bot_token=config.telegram.bot_token if config.telegram.enabled else '',
+            telegram_chat_id=config.telegram.chat_id if config.telegram.enabled else '',
+            max_login_retries=config.max_retries,
+            num_sessions=1,  # 멀티 러너에서는 인스턴스당 1세션
+            use_ntp=True,
         )
         
-        # 계정 오버라이드
-        instance_config.interpark.user_id = account.user_id
-        instance_config.interpark.user_pwd = account.user_pwd
+        # 브라우저 시작 (직접 nodriver 사용)
+        import tempfile
+        import os
+        import random
         
-        # 프록시 오버라이드
-        if proxy:
-            instance_config.proxy.enabled = True
-            instance_config.proxy.server = proxy.server
-            instance_config.proxy.username = proxy.username
-            instance_config.proxy.password = proxy.password
-        else:
-            instance_config.proxy.enabled = False
+        user_data_dir = os.path.join(tempfile.gettempdir(), f'bts-multi-{instance_id}-{int(asyncio.get_event_loop().time())}')
+        os.makedirs(user_data_dir, exist_ok=True)
         
-        # 전역 config 대체 (main_nodriver_v5 모듈용)
-        import main_nodriver_v5
-        main_nodriver_v5.config = instance_config
+        # User-Agent 랜덤화
+        chrome_versions = ['120.0.6099.109', '121.0.6167.85', '122.0.6261.94']
+        ua_version = random.choice(chrome_versions)
+        user_agent = f'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{ua_version} Safari/537.36'
         
-        # 브라우저 시작
-        browser, page = await init_browser()
+        browser = await nd.start(
+            headless=False,
+            browser_args=[
+                '--window-size=1920,1080',
+                '--lang=ko-KR',
+                '--disable-blink-features=AutomationControlled',
+                f'--user-data-dir={user_data_dir}',
+                f'--user-agent={user_agent}',
+            ]
+        )
+        
+        page = await browser.get('https://tickets.interpark.com/')
+        await wait_for_navigation(page, timeout=10.0)
+        await setup_stealth(page)
+        await human_delay(1, 2)
+        
         logger.info("브라우저 초기화 완료")
         
         # 성공/종료 이벤트 체크 루프
@@ -242,43 +265,57 @@ async def run_instance(
         check_task = asyncio.create_task(check_events())
         
         try:
-            # 로그인
-            await login(page)
+            # 로그인 (browser, page, config 전달)
+            success, page = await login(browser, page, instance_config)
+            if not success:
+                logger.error("로그인 실패")
+                await state.record_result(instance_id, "login_failed")
+                return False
             logger.info("로그인 완료")
             
             # 공연 페이지 이동
-            await navigate_to_concert(page)
+            await navigate_to_concert(page, instance_config)
             logger.info("공연 페이지 도착")
             
             # 오픈 대기 (테스트 모드에서는 생략)
             if not test_mode:
-                await wait_for_open(page)
+                await wait_for_open(page, instance_config)
                 logger.info("오픈 시간!")
             
             # 예매 버튼 클릭
-            result = await click_booking(page)
+            result = await click_booking(browser, page, instance_config)
             if isinstance(result, tuple):
                 success, new_page = result
-                if hasattr(new_page, 'url'):
+                if success and new_page:
                     page = new_page
+                elif not success:
+                    logger.warning("예매 버튼 클릭 실패")
+                    await state.record_result(instance_id, "booking_failed")
+                    return False
             logger.info("예매 창 열림")
             
             # CAPTCHA 처리
-            await handle_captcha(page)
+            if await handle_captcha(page):
+                logger.info("CAPTCHA 감지됨 - 대기 중...")
+                await wait_captcha_solved(page, instance_config)
             logger.info("CAPTCHA 처리 완료")
             
             # 좌석 선택
-            if await select_seat(page):
+            if await select_seat(page, instance_config):
                 logger.info("🎉 좌석 선택 성공!")
                 
-                # 성공 알림
-                state.winner_instance = instance_id
-                state.success_event.set()
-                state.shutdown_event.set()
-                
-                return True
+                # 성공 알림 (원자적)
+                won = await state.claim_victory(instance_id)
+                if won:
+                    await state.record_result(instance_id, "success")
+                    return True
+                else:
+                    logger.info("다른 인스턴스가 먼저 성공함")
+                    await state.record_result(instance_id, "success_but_late")
+                    return True
             else:
                 logger.warning("좌석 선택 실패 (매진)")
+                await state.record_result(instance_id, "sold_out")
                 return False
                 
         finally:
@@ -301,10 +338,10 @@ async def run_instance(
     finally:
         if browser:
             try:
-                await browser.__aexit__(None, None, None)
+                await cleanup_browser(browser, instance_id, user_data_dir if 'user_data_dir' in dir() else None)
                 logger.debug("브라우저 종료됨")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"브라우저 종료 중 오류 (무시): {e}")
 
 
 # ============ 멀티 러너 ============

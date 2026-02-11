@@ -1,21 +1,33 @@
 #!/usr/bin/env python3
 """
-BTS 티켓팅 매크로 v5.1 - 딥 리뷰 기반 완전 재작성
+BTS 티켓팅 매크로 v5.7 - 프로덕션 레디
 2026-02-11
 
-주요 변경:
+v5.7 주요 변경:
+- Thread-safe NTP 동기화 (멀티 세션 안전)
+- User-Agent 완전 랜덤화 (봇 탐지 우회 강화)
+- JS 문자 이스케이프 안전성 개선
+- 병렬 셀렉터 검색 지원
+- Turnstile 적응형 폴링 (클릭 후 빠른 확인)
+- AdaptiveRefreshStrategy 스레드 안전 + 연속 성공 가속
+- 커서 사전 위치 (오픈 30초 전)
+- 좌석 픽셀 분석 개선 (다양한 색상, 점수 기반 정렬)
+- _complete_selection 에러 복구 (재시도 3회)
+- 결제 대기 개선 (적응형 폴링, 세션 유효성 검사)
+- 세션 복구 메커니즘 (_run_with_recovery)
+- 임시 디렉토리 자동 정리
+
+핵심 기능:
 - wait_for_navigation: CDP readyState 실제 구현
 - NTP 시간 동기화 (한국 서버 우선)
 - 봇 탐지 우회 (webdriver, User-Agent, 마우스 베지어)
 - 멀티 세션 지원 (개선된 성공 감지)
 - 셀렉터 config 분리
-- 엔터키 CDP 방식
-- iframe 접근 개선
 - Turnstile 다중 전략
 - Rate limiting 적응형 대응
 """
 
-__version__ = "5.2.0"
+__version__ = "5.7.0"
 __author__ = "BTS Ticketing Bot"
 
 import nodriver as nd
@@ -155,7 +167,11 @@ class Config:
 
 
 # ============ NTP 시간 동기화 (비동기) ============
+import threading as _threading
+
+# Thread-safe NTP offset (멀티 세션 안전)
 _ntp_offset: float = 0.0
+_ntp_lock = _threading.Lock()
 
 def _sync_ntp_blocking() -> Tuple[bool, float, Optional[str]]:
     """NTP 동기화 (블로킹 - executor에서 실행)
@@ -196,7 +212,7 @@ def _sync_ntp_blocking() -> Tuple[bool, float, Optional[str]]:
     return False, 0.0, None
 
 async def sync_ntp_time():
-    """NTP 서버와 시간 동기화 (비동기 - executor 사용)"""
+    """NTP 서버와 시간 동기화 (비동기 - executor 사용, Thread-safe)"""
     global _ntp_offset
     
     loop = asyncio.get_event_loop()
@@ -204,8 +220,9 @@ async def sync_ntp_time():
         result = await loop.run_in_executor(None, _sync_ntp_blocking)
         success, offset, server = result
         if success:
-            _ntp_offset = offset
-            logger.info(f"✅ NTP 동기화: {server} (offset: {_ntp_offset*1000:.1f}ms)")
+            with _ntp_lock:
+                _ntp_offset = offset
+            logger.info(f"✅ NTP 동기화: {server} (offset: {offset*1000:.1f}ms)")
             return True
     except Exception as e:
         logger.debug(f"NTP 동기화 실패: {e}")
@@ -214,8 +231,10 @@ async def sync_ntp_time():
     return False
 
 def get_accurate_time() -> datetime:
-    """정확한 현재 시간 (NTP 보정)"""
-    return datetime.fromtimestamp(time.time() + _ntp_offset, tz=ZoneInfo('Asia/Seoul'))
+    """정확한 현재 시간 (NTP 보정, Thread-safe)"""
+    with _ntp_lock:
+        offset = _ntp_offset
+    return datetime.fromtimestamp(time.time() + offset, tz=ZoneInfo('Asia/Seoul'))
 
 
 # ============ SecureLogger (비밀번호 마스킹) ============
@@ -303,9 +322,13 @@ class HTTPSessionManager:
 # 글로벌 인스턴스
 http_manager = HTTPSessionManager()
 
-# 하위 호환성 유지
+# 하위 호환성 유지 (Deprecated)
 async def get_http_session() -> aiohttp.ClientSession:
-    """Deprecated: http_manager.get_session() 사용 권장"""
+    """Deprecated: http_manager.get_session() 컨텍스트 매니저 사용 권장
+    
+    Warning: 이 함수는 세션 라이프사이클을 관리하지 않습니다.
+    새 코드는 `async with http_manager.get_session() as session:` 사용
+    """
     async with http_manager._lock:
         if http_manager._session is None or http_manager._session.closed:
             http_manager._session = aiohttp.ClientSession(
@@ -443,6 +466,21 @@ async def setup_stealth(page):
             })
         });
         ''',
+        
+        # deviceMemory 속성 (headless 감지 우회)
+        '''Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});''',
+        
+        # hardwareConcurrency (CPU 코어 수)
+        '''Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});''',
+        
+        # 콘솔 감지 방지
+        '''
+        const originalConsole = window.console;
+        window.console = {
+            ...originalConsole,
+            debug: () => {},
+        };
+        ''',
     ]
     
     for script in stealth_scripts:
@@ -506,35 +544,64 @@ async def human_click(page, element) -> bool:
 
 
 # ============ 타이핑 (개선) ============
+def _escape_js_char(char: str) -> str:
+    """JavaScript 문자열 이스케이프 (안전한 처리)"""
+    # 순서 중요: 백슬래시 먼저
+    escape_map = [
+        ('\\', '\\\\'),
+        ('"', '\\"'),
+        ("'", "\\'"),
+        ('\n', '\\n'),
+        ('\r', '\\r'),
+        ('\t', '\\t'),
+        ('`', '\\`'),
+        ('\0', ''),  # null 문자 제거
+    ]
+    result = char
+    for old, new in escape_map:
+        result = result.replace(old, new)
+    return result
+
 async def human_type(page, element, text: str, with_mistakes: bool = True):
-    """사람처럼 타이핑 (오타 + 수정 포함)"""
+    """사람처럼 타이핑 (오타 + 수정 포함)
+    
+    Args:
+        page: nodriver page 객체
+        element: 입력할 요소
+        text: 입력할 텍스트
+        with_mistakes: 오타 시뮬레이션 여부 (비밀번호는 False 권장)
+    """
+    # 특수문자 집합 (JS 직접 입력 필요)
+    special_chars = set('@#$%^&*()[]{}|;:,.<>?/~`\\"\'+=-_')
+    
     for i, char in enumerate(text):
-        # 5% 확률로 오타 + 백스페이스
+        # 5% 확률로 오타 + 백스페이스 (마지막 문자 제외)
         if with_mistakes and random.random() < 0.05 and i < len(text) - 1:
             wrong_char = random.choice('qwertyuiopasdfghjklzxcvbnm')
-            await element.send_keys(wrong_char)
-            await asyncio.sleep(random.uniform(0.1, 0.3))
-            # 백스페이스
-            await press_key(page, 'Backspace', 8)
-            await asyncio.sleep(random.uniform(0.05, 0.1))
+            try:
+                await element.send_keys(wrong_char)
+                await asyncio.sleep(random.uniform(0.1, 0.3))
+                await press_key(page, 'Backspace', 8)
+                await asyncio.sleep(random.uniform(0.05, 0.1))
+            except Exception:
+                pass  # 오타 시뮬레이션 실패는 무시
         
-        # 문자 입력 - 특수문자(@#$`등)는 JS로 직접 입력
-        special_chars = '@#$%^&*()[]{}|;:,.<>?/~`'
+        # 문자 입력
         if char in special_chars:
             # 특수문자는 send_keys가 불안정하므로 JS로 직접 입력
-            escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r').replace('`', '\\`')
-            script = f'document.activeElement.value += "{escaped_char}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
+            escaped = _escape_js_char(char)
+            script = f'document.activeElement.value += "{escaped}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
             await evaluate_js(page, script)
         else:
             try:
                 await element.send_keys(char)
             except Exception:
-                # 일반 문자도 실패 시 JS로
-                escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r').replace('`', '\\`')
-                script = f'document.activeElement.value += "{escaped_char}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
+                # 일반 문자도 실패 시 JS로 폴백
+                escaped = _escape_js_char(char)
+                script = f'document.activeElement.value += "{escaped}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
                 await evaluate_js(page, script)
         
-        # 불규칙 딜레이
+        # 불규칙 딜레이 (사람처럼)
         if char in ' .,@':
             await asyncio.sleep(random.uniform(0.15, 0.4))
         else:
@@ -582,14 +649,32 @@ async def find_by_selector(page, selector: str, timeout: float = 3.0):
     except (asyncio.TimeoutError, Exception):
         return None
 
-async def find_by_selectors(page, selectors: List[str], timeout: float = 1.0):
-    """여러 셀렉터 순서대로 시도"""
-    for selector in selectors:
-        elem = await find_by_selector(page, selector, timeout=timeout)
-        if elem:
-            logger.debug(f"✓ 셀렉터 발견: {selector}")
-            return elem
-    return None
+async def find_by_selectors(page, selectors: List[str], timeout: float = 1.0, parallel: bool = False):
+    """여러 셀렉터 시도
+    
+    Args:
+        page: nodriver page 객체
+        selectors: CSS 셀렉터 목록
+        timeout: 개별 셀렉터 타임아웃
+        parallel: True면 병렬 검색 (더 빠름, 순서 무시)
+    """
+    if parallel and len(selectors) > 1:
+        # 병렬 검색 (첫 번째 발견 즉시 반환)
+        tasks = [find_by_selector(page, s, timeout=timeout) for s in selectors]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, result in enumerate(results):
+            if result and not isinstance(result, Exception):
+                logger.debug(f"✓ 셀렉터 발견 (병렬): {selectors[i]}")
+                return result
+        return None
+    else:
+        # 순차 검색 (우선순위 보장)
+        for selector in selectors:
+            elem = await find_by_selector(page, selector, timeout=timeout)
+            if elem:
+                logger.debug(f"✓ 셀렉터 발견: {selector}")
+                return elem
+        return None
 
 async def find_all_by_selector(page, selector: str, timeout: float = 3.0) -> List:
     """모든 요소 찾기"""
@@ -881,7 +966,11 @@ async def _wait_for_turnstile(page, timeout: float = 60.0) -> bool:
             else:
                 logger.info(f"⏳ 버튼 대기 {elapsed:.0f}초...")
         
-        await asyncio.sleep(0.5)
+        # 적응형 폴링 간격 (Turnstile 클릭 직후 더 빠르게)
+        if checkbox_attempts > 0 and elapsed < checkpoint_times[checkbox_attempts - 1] + 5:
+            await asyncio.sleep(0.2)  # 클릭 직후 5초간 빠른 폴링
+        else:
+            await asyncio.sleep(0.5)
     
     logger.warning("⚠️ Turnstile 자동 해결 실패 - 수동 확인 필요")
     return False
@@ -970,6 +1059,7 @@ async def step_wait_open(page, config: Config) -> bool:
     
     refresh_count = 0
     max_rapid_refresh = 15  # 최대 고속 새로고침 횟수 (rate limiting 방지)
+    cursor_positioned = False
     
     while True:
         now = get_accurate_time()
@@ -988,6 +1078,26 @@ async def step_wait_open(page, config: Config) -> bool:
                 logger.info(f"⏳ {remaining:.1f}초... (대기)")
                 await asyncio.sleep(0.2)
         elif remaining <= 30:
+            # 30초 전: 커서 미리 위치시키기 (한 번만)
+            if not cursor_positioned:
+                cursor_positioned = True
+                try:
+                    # 예매 버튼 예상 위치로 커서 이동
+                    btn_pos = await evaluate_js(page, '''
+                        (() => {
+                            const btn = document.querySelector('a.btn_book, button.booking, [class*="BookingButton"]');
+                            if (btn) {
+                                const rect = btn.getBoundingClientRect();
+                                return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+                            }
+                            return { x: 960, y: 500 };  // 기본 위치
+                        })()
+                    ''')
+                    if btn_pos:
+                        await move_mouse_to(page, btn_pos.get('x', 960), btn_pos.get('y', 500))
+                        logger.debug("🖱️ 커서 예매 버튼 근처로 이동")
+                except Exception:
+                    pass
             logger.info(f"⏳ {int(remaining)}초...")
             await asyncio.sleep(1)
         elif remaining <= 300:
@@ -1002,41 +1112,59 @@ async def step_wait_open(page, config: Config) -> bool:
 
 
 class AdaptiveRefreshStrategy:
-    """적응형 새로고침 전략 (티켓팅 최적화)"""
+    """적응형 새로고침 전략 (티켓팅 최적화, Thread-safe)"""
     
     def __init__(self):
         self.base_interval = 0.15  # 150ms 기본
         self.min_interval = 0.1    # 100ms 최소
         self.max_interval = 1.0    # 1초 최대
-        self.consecutive_errors = 0
-        self.rate_limited = False
+        self._consecutive_errors = 0
+        self._rate_limited = False
         self._rate_limit_until = 0.0
+        self._lock = _threading.Lock()
+        self._success_count = 0  # 연속 성공 카운트 (속도 향상용)
     
     def get_interval(self, is_error: bool = False, is_rate_limited: bool = False) -> float:
-        """다음 새로고침 간격 계산
+        """다음 새로고침 간격 계산 (Thread-safe)
         
         Args:
             is_error: 오류 발생 여부
             is_rate_limited: 429 응답 등 rate limiting 감지
         """
-        # Rate limiting 감지 시 백오프
-        if is_rate_limited:
-            self.rate_limited = True
-            self._rate_limit_until = time.time() + 2.0  # 2초 대기
-            return 2.0
-        
-        # Rate limiting 쿨다운 중
-        if self.rate_limited and time.time() < self._rate_limit_until:
-            return max(self._rate_limit_until - time.time(), self.base_interval)
-        else:
-            self.rate_limited = False
-        
-        if is_error:
-            self.consecutive_errors += 1
-            return min(self.base_interval * (1.5 ** self.consecutive_errors), self.max_interval)
-        else:
-            self.consecutive_errors = 0
-            return self.base_interval
+        with self._lock:
+            # Rate limiting 감지 시 백오프
+            if is_rate_limited:
+                self._rate_limited = True
+                self._rate_limit_until = time.time() + 2.0  # 2초 대기
+                self._consecutive_errors = 0
+                self._success_count = 0
+                return 2.0
+            
+            # Rate limiting 쿨다운 중
+            if self._rate_limited and time.time() < self._rate_limit_until:
+                return max(self._rate_limit_until - time.time(), self.base_interval)
+            else:
+                self._rate_limited = False
+            
+            if is_error:
+                self._consecutive_errors += 1
+                self._success_count = 0
+                return min(self.base_interval * (1.5 ** self._consecutive_errors), self.max_interval)
+            else:
+                self._consecutive_errors = 0
+                self._success_count += 1
+                # 연속 성공 시 점점 빠르게 (최소 100ms까지)
+                if self._success_count > 5:
+                    return max(self.min_interval, self.base_interval * 0.8)
+                return self.base_interval
+    
+    def reset(self):
+        """상태 초기화"""
+        with self._lock:
+            self._consecutive_errors = 0
+            self._rate_limited = False
+            self._rate_limit_until = 0.0
+            self._success_count = 0
 
 
 async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
@@ -1137,17 +1265,36 @@ async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
 
 
 async def get_browser_tabs(browser) -> List:
-    """브라우저 탭 목록"""
+    """브라우저 탭 목록 (nodriver 호환)
+    
+    nodriver의 tabs 속성은 버전에 따라 property, coroutine, 또는 method일 수 있음
+    """
+    if not browser:
+        return []
+    
     try:
         tabs = browser.tabs
+        
+        # Coroutine이면 await
         if asyncio.iscoroutine(tabs):
             tabs = await tabs
+        # Callable이면 호출
         elif callable(tabs):
-            tabs = tabs()
-            if asyncio.iscoroutine(tabs):
-                tabs = await tabs
-        return list(tabs) if tabs else []
-    except Exception:
+            result = tabs()
+            if asyncio.iscoroutine(result):
+                tabs = await result
+            else:
+                tabs = result
+        
+        # 결과 정규화
+        if tabs is None:
+            return []
+        if hasattr(tabs, '__iter__'):
+            return list(tabs)
+        return [tabs]  # 단일 탭인 경우
+        
+    except Exception as e:
+        logger.debug(f"탭 목록 조회 실패: {e}")
         return []
 
 
@@ -1204,17 +1351,30 @@ async def _get_seat_page(page) -> Tuple[any, bool]:
     return page, False
 
 async def step_select_seat(page, config: Config) -> bool:
-    """좌석 선택 (iframe 지원)"""
+    """좌석 선택 (iframe 지원, 다중 전략)
+    
+    전략 순서:
+    1. 구역 버튼 → 개별 좌석 선택
+    2. Canvas 픽셀 분석 (녹색/파란색)
+    3. Canvas 그리드 클릭 (폴백)
+    4. iframe 내부 클릭 시도
+    """
     logger.info("[5/5] 좌석 선택...")
     await send_telegram(config, "⚠️ 좌석 선택 페이지!")
+    
+    # 페이지 로드 대기
+    await wait_for_navigation(page, timeout=5.0)
     
     # iframe 확인
     seat_page, is_iframe = await _get_seat_page(page)
     if is_iframe:
         logger.info("📋 iframe 모드로 좌석 선택")
     
-    for attempt in range(30):
-        logger.info(f"좌석 검색 {attempt + 1}/30...")
+    # 재시도 전략 (처음엔 빠르게, 나중엔 신중하게)
+    max_attempts = 30
+    for attempt in range(max_attempts):
+        remaining = max_attempts - attempt
+        logger.info(f"좌석 검색 {attempt + 1}/{max_attempts} (남은 시도: {remaining})")
         
         # 구역 선택
         for grade in config.seat_priority:
@@ -1344,13 +1504,19 @@ async def _click_canvas_seat(page) -> bool:
                         const g = data[idx + 1];
                         const b = data[idx + 2];
                         
-                        // 녹색 계열 (선택 가능 좌석)
-                        if (g > 150 && g > r * 1.3 && g > b * 1.3) {
-                            availableSeats.push({ x, y, type: 'available' });
+                        // 녹색 계열 (선택 가능 좌석) - 다양한 녹색 톤
+                        const isGreen = (g > 120 && g > r * 1.2 && g > b * 1.2) ||
+                                       (g > 100 && r < 100 && b < 100);  // 진한 녹색
+                        if (isGreen) {
+                            availableSeats.push({ x, y, type: 'available', score: g });
                         }
                         // 파란색/보라색 계열 (VIP/프리미엄)
-                        else if (b > 150 && b > r * 1.2 && b > g * 0.8) {
-                            availableSeats.push({ x, y, type: 'premium' });
+                        else if (b > 130 && b > r * 1.1 && b > g * 0.9) {
+                            availableSeats.push({ x, y, type: 'premium', score: b });
+                        }
+                        // 노란색/금색 (특별석)
+                        else if (r > 180 && g > 150 && b < 100) {
+                            availableSeats.push({ x, y, type: 'special', score: r + g });
                         }
                     }
                 }
@@ -1378,8 +1544,9 @@ async def _click_canvas_seat(page) -> bool:
         seat_list = seats['seats']
         rect = seats['rect']
         
-        # 우선순위: premium > available
-        seat_list.sort(key=lambda s: (0 if s['type'] == 'premium' else 1))
+        # 우선순위: special > premium > available, 점수 높은 순
+        type_priority = {'special': 0, 'premium': 1, 'available': 2}
+        seat_list.sort(key=lambda s: (type_priority.get(s.get('type', 'available'), 3), -s.get('score', 0)))
         
         logger.info(f"🎯 {len(seat_list)}개 좌석 발견 (픽셀 분석)")
         
@@ -1430,31 +1597,173 @@ async def _click_canvas_seat(page) -> bool:
 
 
 async def _complete_selection(page) -> bool:
-    """선택 완료"""
-    # 1단계: 선택 완료
-    for btn_text in ['선택완료', '선택 완료']:
-        btn = await find_by_text(page, btn_text, timeout=1.0)
-        if btn:
-            await human_click(page, btn)
-            await wait_for_navigation(page, timeout=5.0)
-            await human_delay(1, 2)
-            break
+    """선택 완료 (에러 복구 포함)
     
-    # 2단계: 다음
-    next_btn = await find_by_text(page, '다음', timeout=2.0)
-    if next_btn:
-        await human_click(page, next_btn)
-        await wait_for_navigation(page, timeout=5.0)
-        await human_delay(1, 2)
+    단계:
+    1. 선택 완료 버튼
+    2. 다음 버튼 (있으면)
+    3. 결제하기 버튼
     
-    # 3단계: 결제
-    for btn_text in ['결제하기', '결제']:
-        btn = await find_by_text(page, btn_text, timeout=2.0)
-        if btn:
-            await human_click(page, btn)
-            return True
+    각 단계에서 에러 발생 시 재시도
+    """
+    max_retries = 3
+    
+    for retry in range(max_retries):
+        try:
+            # 1단계: 선택 완료
+            btn_found = False
+            for btn_text in ['선택완료', '선택 완료', '좌석선택완료', '선택하기']:
+                btn = await find_by_text(page, btn_text, timeout=1.5)
+                if btn:
+                    logger.debug(f"✓ '{btn_text}' 버튼 발견")
+                    await human_click(page, btn)
+                    await wait_for_navigation(page, timeout=5.0)
+                    await human_delay(0.5, 1.0)
+                    btn_found = True
+                    break
+            
+            # 에러 메시지 확인
+            error_msg = await _check_selection_error(page)
+            if error_msg:
+                logger.warning(f"⚠️ 선택 오류: {error_msg}")
+                if retry < max_retries - 1:
+                    logger.info(f"재시도 {retry + 2}/{max_retries}...")
+                    await asyncio.sleep(1)
+                    continue
+                return False
+            
+            # 2단계: 다음
+            next_btn = await find_by_text(page, '다음', timeout=2.0)
+            if next_btn:
+                await human_click(page, next_btn)
+                await wait_for_navigation(page, timeout=5.0)
+                await human_delay(0.5, 1.0)
+            
+            # 3단계: 결제
+            for btn_text in ['결제하기', '결제', '예매하기', '주문하기']:
+                btn = await find_by_text(page, btn_text, timeout=2.0)
+                if btn:
+                    logger.info(f"✅ '{btn_text}' 버튼 발견 - 결제 진행")
+                    await human_click(page, btn)
+                    return True
+            
+            # 버튼을 못 찾았으면 재시도
+            if retry < max_retries - 1:
+                logger.warning("결제 버튼 없음 - 재시도")
+                await asyncio.sleep(1)
+                continue
+                
+        except Exception as e:
+            logger.warning(f"선택 완료 오류: {e}")
+            if retry < max_retries - 1:
+                await asyncio.sleep(1)
+                continue
     
     return False
+
+
+async def _check_selection_error(page) -> Optional[str]:
+    """좌석 선택 에러 메시지 확인"""
+    error_texts = [
+        '이미 선택된 좌석',
+        '선택할 수 없는 좌석',
+        '매진',
+        '예매가 마감',
+        '시간 초과',
+        '다시 선택',
+        '좌석이 없습니다',
+    ]
+    
+    for text in error_texts:
+        elem = await find_by_text(page, text, timeout=0.5)
+        if elem:
+            return text
+    
+    return None
+
+
+async def _wait_for_payment(page, config: Config, session_id: int, timeout_min: int = 30) -> bool:
+    """결제 완료 대기 (개선된 모니터링)
+    
+    Args:
+        page: 결제 페이지
+        config: 설정
+        session_id: 세션 ID
+        timeout_min: 타임아웃 (분)
+    
+    Returns:
+        bool: 결제 성공 여부
+    """
+    logger.info(f"[세션 {session_id}] 💳 결제 대기 ({timeout_min}분)")
+    
+    start_time = time.time()
+    timeout_sec = timeout_min * 60
+    last_notification = 0
+    notification_interval = 300  # 5분마다 알림
+    
+    # 성공/실패 키워드
+    success_keywords = ['예매 완료', '결제 완료', '예매가 완료', '결제가 완료', '예매성공']
+    failure_keywords = ['결제 실패', '결제 취소', '시간 초과', '세션 만료', '예매 실패']
+    warning_keywords = ['결제 대기', '결제중', '처리중']
+    
+    check_count = 0
+    while True:
+        elapsed = time.time() - start_time
+        remaining_min = int((timeout_sec - elapsed) / 60)
+        
+        # 타임아웃 체크
+        if elapsed >= timeout_sec:
+            await send_telegram(config, f"[세션 {session_id}] ⏰ 결제 대기 시간 초과 ({timeout_min}분)")
+            return False
+        
+        check_count += 1
+        
+        # 성공 확인
+        for keyword in success_keywords:
+            elem = await find_by_text(page, keyword, timeout=2.0)
+            if elem:
+                logger.info(f"[세션 {session_id}] 🎉 결제 성공! ('{keyword}' 감지)")
+                await send_telegram(config, f"[세션 {session_id}] 🎉 예매 완료!!!")
+                return True
+        
+        # 실패 확인
+        for keyword in failure_keywords:
+            elem = await find_by_text(page, keyword, timeout=1.0)
+            if elem:
+                logger.warning(f"[세션 {session_id}] ❌ 결제 실패 ('{keyword}' 감지)")
+                await send_telegram(config, f"[세션 {session_id}] ❌ 결제 실패: {keyword}")
+                return False
+        
+        # 세션 유효성 확인 (페이지가 살아있는지)
+        try:
+            page_url = await evaluate_js(page, 'window.location.href')
+            if not page_url:
+                logger.warning(f"[세션 {session_id}] ⚠️ 페이지 연결 끊김")
+                await send_telegram(config, f"[세션 {session_id}] ⚠️ 페이지 연결 확인 필요!")
+        except Exception:
+            logger.warning(f"[세션 {session_id}] ⚠️ 세션 상태 확인 실패")
+        
+        # 진행 상태 확인
+        for keyword in warning_keywords:
+            elem = await find_by_text(page, keyword, timeout=0.5)
+            if elem:
+                logger.debug(f"[세션 {session_id}] 💳 {keyword}...")
+                break
+        
+        # 주기적 알림 (5분마다)
+        if elapsed - last_notification >= notification_interval:
+            last_notification = elapsed
+            logger.info(f"[세션 {session_id}] 💳 결제 대기 중... (남은 시간: {remaining_min}분, 체크: {check_count}회)")
+            if remaining_min <= 10:
+                await send_telegram(config, f"[세션 {session_id}] ⚠️ 결제 남은 시간: {remaining_min}분")
+        
+        # 대기 (처음엔 빠르게, 나중엔 느리게)
+        if elapsed < 60:
+            await asyncio.sleep(5)  # 첫 1분: 5초 간격
+        elif elapsed < 300:
+            await asyncio.sleep(10)  # 1-5분: 10초 간격
+        else:
+            await asyncio.sleep(15)  # 5분 이후: 15초 간격
 
 
 # ============ CAPTCHA 감지 ============
@@ -1499,23 +1808,39 @@ async def wait_captcha_solved(page, config: Config, timeout: float = 300.0) -> b
 # ============ 메인 플로우 ============
 async def run_single_session(config: Config, session_id: int, live: bool) -> bool:
     """단일 세션 실행"""
-    logger.info(f"[세션 {session_id}] 시작")
+    # 세션별 보안 로거 (비밀번호 자동 마스킹)
+    secure_log = SecureLogger(logger, secrets=[config.user_pwd, config.telegram_bot_token])
+    secure_log.info(f"[세션 {session_id}] 시작")
     
     browser = None
+    user_data_dir = None
     try:
         # 세션별 프로필 디렉토리 (멀티 세션 충돌 방지)
-        user_data_dir = os.path.join(tempfile.gettempdir(), f'bts-session-{session_id}')
+        user_data_dir = os.path.join(tempfile.gettempdir(), f'bts-session-{session_id}-{int(time.time())}')
         os.makedirs(user_data_dir, exist_ok=True)
         
         # 브라우저 시작 (봇 탐지 우회 옵션)
+        # User-Agent 랜덤화 (탐지 패턴 방지)
+        chrome_versions = ['120.0.6099.109', '121.0.6167.85', '122.0.6261.94', '123.0.6312.58', '124.0.6367.78']
+        ua_version = random.choice(chrome_versions)
+        ua_platforms = [
+            'Macintosh; Intel Mac OS X 10_15_7',
+            'Macintosh; Intel Mac OS X 11_6_0',
+            'Windows NT 10.0; Win64; x64',
+        ]
+        ua_platform = random.choice(ua_platforms)
+        user_agent = f'Mozilla/5.0 ({ua_platform}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{ua_version} Safari/537.36'
+        
         browser = await nd.start(
             headless=False,
             browser_args=[
                 '--window-size=1920,1080',
                 '--lang=ko-KR',
                 '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--disable-dev-shm-usage',
                 f'--user-data-dir={user_data_dir}',
-                f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.{120 + session_id}.0 Safari/537.36',
+                f'--user-agent={user_agent}',
             ]
         )
         
@@ -1552,32 +1877,10 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
         # 5. 좌석 선택
         await step_select_seat(booking_page, config)
         
-        # 결제 대기
+        # 결제 대기 (개선된 모니터링)
         await send_telegram(config, f"[세션 {session_id}] 💳 결제 진행하세요!")
-        logger.info(f"[세션 {session_id}] 💳 결제 대기 (30분)")
-        
-        # 결제 완료 감지 (30분 대기)
-        payment_timeout = 180  # 10초 * 180 = 30분
-        for i in range(payment_timeout):
-            completed = await find_by_text(booking_page, '예매 완료', timeout=5.0)
-            if completed:
-                await send_telegram(config, f"[세션 {session_id}] 🎉 예매 완료!!!")
-                return True
-            
-            failed = await find_by_text(booking_page, '결제 실패', timeout=5.0)
-            if failed:
-                await send_telegram(config, f"[세션 {session_id}] ❌ 결제 실패")
-                return False
-            
-            # 5분마다 알림
-            if i > 0 and i % 30 == 0:
-                remaining_min = (payment_timeout - i) * 10 // 60
-                logger.info(f"[세션 {session_id}] 💳 결제 대기 중... (남은 시간: {remaining_min}분)")
-            
-            await asyncio.sleep(10)
-        
-        await send_telegram(config, f"[세션 {session_id}] ⏰ 결제 대기 시간 초과 (30분)")
-        return False
+        payment_result = await _wait_for_payment(booking_page, config, session_id, timeout_min=30)
+        return payment_result
         
     except KeyboardInterrupt:
         logger.info(f"[세션 {session_id}] ⛔ 중단")
@@ -1589,11 +1892,17 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
         await send_telegram(config, f"[세션 {session_id}] ❌ 오류: {error}")
         return False
     finally:
-        await cleanup_browser(browser, session_id)
+        await cleanup_browser(browser, session_id, user_data_dir)
 
 
-async def cleanup_browser(browser, session_id: int):
-    """브라우저 완전 정리 (좀비 프로세스 방지)"""
+async def cleanup_browser(browser, session_id: int, user_data_dir: str = None):
+    """브라우저 완전 정리 (좀비 프로세스 + 임시 디렉토리)
+    
+    Args:
+        browser: nodriver 브라우저 인스턴스
+        session_id: 세션 ID
+        user_data_dir: 정리할 사용자 데이터 디렉토리 (선택)
+    """
     if not browser:
         return
     
@@ -1601,56 +1910,71 @@ async def cleanup_browser(browser, session_id: int):
     try:
         await asyncio.wait_for(browser.stop(), timeout=5.0)
         logger.debug(f"[세션 {session_id}] 브라우저 정상 종료")
-        return
     except asyncio.TimeoutError:
         logger.warning(f"[세션 {session_id}] 브라우저 종료 타임아웃")
     except Exception as e:
         logger.warning(f"[세션 {session_id}] 브라우저 종료 실패: {e}")
     
     # 2. 프로세스 강제 종료 (psutil 사용)
-    if not HAS_PSUTIL:
-        logger.debug("psutil 미설치 - 강제 종료 건너뜀")
-        return
+    if HAS_PSUTIL:
+        try:
+            if hasattr(browser, '_process') and browser._process:
+                pid = browser._process.pid
+                try:
+                    parent = psutil.Process(pid)
+                    children = parent.children(recursive=True)
+                    
+                    for child in children:
+                        try:
+                            child.terminate()
+                        except Exception:
+                            pass
+                    parent.terminate()
+                    
+                    # 3초 대기 후 KILL
+                    gone, alive = psutil.wait_procs([parent] + children, timeout=3)
+                    for p in alive:
+                        try:
+                            p.kill()
+                        except Exception:
+                            pass
+                    
+                    logger.info(f"[세션 {session_id}] 브라우저 강제 종료 (PID: {pid})")
+                except psutil.NoSuchProcess:
+                    pass
+        except Exception as e:
+            logger.error(f"[세션 {session_id}] 프로세스 정리 실패: {e}")
     
-    try:
-        if hasattr(browser, '_process') and browser._process:
-            pid = browser._process.pid
-            try:
-                parent = psutil.Process(pid)
-                children = parent.children(recursive=True)
-                
-                for child in children:
-                    try:
-                        child.terminate()
-                    except Exception:
-                        pass
-                parent.terminate()
-                
-                # 3초 대기 후 KILL
-                gone, alive = psutil.wait_procs([parent] + children, timeout=3)
-                for p in alive:
-                    try:
-                        p.kill()
-                    except Exception:
-                        pass
-                
-                logger.info(f"[세션 {session_id}] 브라우저 강제 종료 (PID: {pid})")
-            except psutil.NoSuchProcess:
-                pass
-    except Exception as e:
-        logger.error(f"[세션 {session_id}] 프로세스 정리 실패: {e}")
+    # 3. 임시 사용자 데이터 디렉토리 정리 (선택적)
+    if user_data_dir and os.path.exists(user_data_dir):
+        try:
+            import shutil
+            # 짧은 대기 후 삭제 (파일 핸들 해제)
+            await asyncio.sleep(1.0)
+            shutil.rmtree(user_data_dir, ignore_errors=True)
+            logger.debug(f"[세션 {session_id}] 임시 디렉토리 정리: {user_data_dir}")
+        except Exception as e:
+            logger.debug(f"[세션 {session_id}] 디렉토리 정리 실패 (무시): {e}")
 
 
 async def run_multi_session(config: Config, live: bool):
-    """멀티 세션 실행 (개선된 성공 감지)"""
+    """멀티 세션 실행 (개선된 성공 감지 + 세션 복구)"""
     if config.num_sessions == 1:
-        await run_single_session(config, 1, live)
+        # 단일 세션도 복구 기능 적용
+        success = await _run_with_recovery(config, 1, live, max_retries=2)
+        if success:
+            logger.info("🎉 티켓팅 성공!")
+        else:
+            logger.warning("😢 세션 실패")
         return
     
     logger.info(f"🚀 {config.num_sessions}개 세션 시작")
     
     tasks = [
-        asyncio.create_task(run_single_session(config, i + 1, live), name=f"session-{i+1}")
+        asyncio.create_task(
+            _run_with_recovery(config, i + 1, live, max_retries=1),
+            name=f"session-{i+1}"
+        )
         for i in range(config.num_sessions)
     ]
     
@@ -1690,6 +2014,40 @@ async def run_multi_session(config: Config, live: bool):
         logger.info("🎉 티켓팅 성공!")
     else:
         logger.warning("😢 모든 세션 실패")
+
+
+async def _run_with_recovery(config: Config, session_id: int, live: bool, max_retries: int = 2) -> bool:
+    """세션 실행 (크래시 복구 포함)
+    
+    Args:
+        config: 설정
+        session_id: 세션 ID
+        live: 실전 모드 여부
+        max_retries: 최대 재시도 횟수
+    
+    Returns:
+        bool: 성공 여부
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                logger.info(f"[세션 {session_id}] 🔄 복구 시도 {attempt}/{max_retries}")
+                await asyncio.sleep(2)  # 복구 전 짧은 대기
+            
+            result = await run_single_session(config, session_id, live)
+            return result
+            
+        except asyncio.CancelledError:
+            # 명시적 취소는 재시도하지 않음
+            raise
+        except Exception as e:
+            logger.error(f"[세션 {session_id}] 치명적 오류: {e}")
+            if attempt < max_retries:
+                logger.info(f"[세션 {session_id}] 복구 대기 중...")
+            else:
+                logger.error(f"[세션 {session_id}] 최대 재시도 초과")
+    
+    return False
 
 
 async def run_ticketing(config: Config, live: bool):
