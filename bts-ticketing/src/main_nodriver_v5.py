@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
-BTS 티켓팅 매크로 v5.7 - 프로덕션 레디
+BTS 티켓팅 매크로 v5.8 - Production Ready (10/10 Target)
 2026-02-11
 
-v5.7 주요 변경:
+v5.8 주요 변경 (from v5.7):
+- 완전한 타입 힌트 (Python 3.10+ | Union syntax)
+- 명명된 상수 (magic number 제거)
+- 구체적 예외 클래스 정의
+- 향상된 봇 탐지 우회 (Canvas/Audio/WebRTC fingerprint)
+- NTP 주기적 재동기화 (drift 보정)
+- 마우스 움직임 개선 (속도/가속도 랜덤화, 휴식 패턴)
+- Circuit breaker 패턴 (외부 호출 보호)
+- 메모리 모니터링 (리소스 제한)
+- 브라우저 health check
+
+v5.7 기능 유지:
 - Thread-safe NTP 동기화 (멀티 세션 안전)
 - User-Agent 완전 랜덤화 (봇 탐지 우회 강화)
 - JS 문자 이스케이프 안전성 개선
@@ -16,18 +27,11 @@ v5.7 주요 변경:
 - 결제 대기 개선 (적응형 폴링, 세션 유효성 검사)
 - 세션 복구 메커니즘 (_run_with_recovery)
 - 임시 디렉토리 자동 정리
-
-핵심 기능:
-- wait_for_navigation: CDP readyState 실제 구현
-- NTP 시간 동기화 (한국 서버 우선)
-- 봇 탐지 우회 (webdriver, User-Agent, 마우스 베지어)
-- 멀티 세션 지원 (개선된 성공 감지)
-- 셀렉터 config 분리
-- Turnstile 다중 전략
-- Rate limiting 적응형 대응
 """
 
-__version__ = "5.7.0"
+from __future__ import annotations
+
+__version__ = "5.8.0"
 __author__ = "BTS Ticketing Bot"
 
 import nodriver as nd
@@ -43,7 +47,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass, field
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, TypeVar, Protocol, Final, Callable, Awaitable
 import aiohttp
 import tempfile
 
@@ -53,6 +57,116 @@ try:
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
+
+
+# ============ 타입 별칭 (Type Aliases) ============
+# nodriver는 타입 힌트를 완전히 제공하지 않으므로 별칭 정의
+Page = TypeVar('Page')  # nodriver page type
+Browser = TypeVar('Browser')  # nodriver browser type
+Element = TypeVar('Element')  # nodriver element type
+
+
+# ============ 명명된 상수 (Named Constants) ============
+class Timeouts:
+    """타임아웃 상수 (초 단위)"""
+    PAGE_LOAD: Final[float] = 10.0
+    ELEMENT_WAIT: Final[float] = 3.0
+    LOGIN_WAIT: Final[float] = 5.0
+    TURNSTILE_MAX: Final[float] = 60.0
+    CAPTCHA_MAX: Final[float] = 300.0
+    PAYMENT_MAX_MIN: Final[int] = 30
+    BROWSER_STOP: Final[float] = 5.0
+    NTP_SOCKET: Final[float] = 2.0
+    HTTP_REQUEST: Final[float] = 10.0
+    BOOKING_CLICK: Final[float] = 0.3
+    SEAT_SEARCH: Final[float] = 1.0
+    NAVIGATION_DELAY: Final[float] = 0.3
+
+
+class Limits:
+    """제한 상수"""
+    MAX_LOGIN_RETRIES: Final[int] = 3
+    MAX_BOOKING_ATTEMPTS: Final[int] = 50
+    MAX_SEAT_ATTEMPTS: Final[int] = 30
+    MAX_RAPID_REFRESH: Final[int] = 15
+    MAX_CHECKBOX_ATTEMPTS: Final[int] = 3
+    MAX_SELECTION_RETRIES: Final[int] = 3
+    MAX_TELEGRAM_RETRIES: Final[int] = 3
+    NUM_SESSIONS_MIN: Final[int] = 1
+    NUM_SESSIONS_MAX: Final[int] = 10
+    CANVAS_SAMPLE_STEP: Final[int] = 8
+    CANVAS_MAX_SEATS: Final[int] = 30
+    NTP_RESYNC_INTERVAL: Final[float] = 300.0  # 5분마다 재동기화
+
+
+class MouseParams:
+    """마우스 움직임 파라미터"""
+    BEZIER_STEPS: Final[int] = 10
+    MOVE_DELAY_MIN: Final[float] = 0.008
+    MOVE_DELAY_MAX: Final[float] = 0.025
+    CLICK_DELAY_MIN: Final[float] = 0.05
+    CLICK_DELAY_MAX: Final[float] = 0.15
+    POSITION_JITTER: Final[float] = 3.0
+    CTRL_POINT_VARIANCE: Final[float] = 50.0
+
+
+class ColorThresholds:
+    """좌석 색상 분석 임계값"""
+    GREEN_MIN: Final[int] = 120
+    GREEN_RATIO: Final[float] = 1.2
+    DARK_GREEN_MIN: Final[int] = 100
+    BLUE_MIN: Final[int] = 130
+    BLUE_RATIO: Final[float] = 1.1
+    YELLOW_R_MIN: Final[int] = 180
+    YELLOW_G_MIN: Final[int] = 150
+    YELLOW_B_MAX: Final[int] = 100
+
+
+# ============ 커스텀 예외 클래스 ============
+class TicketingError(Exception):
+    """티켓팅 기본 예외"""
+    pass
+
+
+class LoginError(TicketingError):
+    """로그인 실패"""
+    pass
+
+
+class BotDetectedError(TicketingError):
+    """봇 탐지됨"""
+    pass
+
+
+class SessionExpiredError(TicketingError):
+    """세션 만료"""
+    pass
+
+
+class SeatUnavailableError(TicketingError):
+    """좌석 없음 (매진)"""
+    pass
+
+
+class NetworkTimeoutError(TicketingError):
+    """네트워크 타임아웃"""
+    pass
+
+
+class CaptchaRequiredError(TicketingError):
+    """CAPTCHA 필요"""
+    pass
+
+
+class RateLimitError(TicketingError):
+    """Rate limiting 감지"""
+    pass
+
+
+class BrowserCrashError(TicketingError):
+    """브라우저 크래시"""
+    pass
+
 
 # ============ 로깅 (파일 + 콘솔) ============
 log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
@@ -166,23 +280,31 @@ class Config:
         )
 
 
-# ============ NTP 시간 동기화 (비동기) ============
+# ============ NTP 시간 동기화 (v5.8 - 주기적 재동기화) ============
 import threading as _threading
 
-# Thread-safe NTP offset (멀티 세션 안전)
+# Thread-safe NTP state (멀티 세션 안전)
 _ntp_offset: float = 0.0
 _ntp_lock = _threading.Lock()
+_ntp_last_sync: float = 0.0  # 마지막 동기화 시간
+_ntp_server_used: Optional[str] = None  # 사용된 서버
 
-def _sync_ntp_blocking() -> Tuple[bool, float, Optional[str]]:
+
+def _sync_ntp_blocking() -> tuple[bool, float, str | None]:
     """NTP 동기화 (블로킹 - executor에서 실행)
     
     Returns:
-        Tuple of (success, offset_seconds, server_name)
+        tuple of (success, offset_seconds, server_name)
+    
+    Note:
+        - 한국 서버 우선 사용
+        - DNS 실패 시 다음 서버 시도
+        - 소켓 타임아웃: 2초
     """
     import socket
     import struct
     
-    ntp_servers = [
+    ntp_servers: list[tuple[str, int]] = [
         ('time.bora.net', 123),      # 한국 1순위
         ('time.kriss.re.kr', 123),   # 한국표준과학연구원
         ('ntp.kornet.net', 123),     # KT
@@ -191,50 +313,130 @@ def _sync_ntp_blocking() -> Tuple[bool, float, Optional[str]]:
     ]
     
     for server, port in ntp_servers:
+        client = None
         try:
             client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client.settimeout(2)
+            client.settimeout(Timeouts.NTP_SOCKET)
             
+            # NTP 요청 패킷 (version 3, mode 3 = client)
             data = b'\x1b' + 47 * b'\0'
             client.sendto(data, (server, port))
             
             data, _ = client.recvfrom(1024)
-            client.close()
             
-            if data:
+            if data and len(data) >= 48:
+                # Transmit Timestamp (offset 40-47)
                 t = struct.unpack('!12I', data)[10]
-                t -= 2208988800
+                t -= 2208988800  # NTP epoch (1900) to Unix epoch (1970)
                 offset = t - time.time()
                 return True, offset, server
+        except socket.gaierror:
+            # DNS 실패 - 다음 서버
+            continue
+        except socket.timeout:
+            # 타임아웃 - 다음 서버
+            continue
         except Exception:
             continue
+        finally:
+            if client:
+                try:
+                    client.close()
+                except Exception:
+                    pass
     
     return False, 0.0, None
 
-async def sync_ntp_time():
-    """NTP 서버와 시간 동기화 (비동기 - executor 사용, Thread-safe)"""
-    global _ntp_offset
+
+async def sync_ntp_time(force: bool = False) -> bool:
+    """NTP 서버와 시간 동기화 (비동기 - executor 사용, Thread-safe)
     
-    loop = asyncio.get_event_loop()
+    Args:
+        force: True면 재동기화 간격 무시하고 강제 동기화
+    
+    Returns:
+        bool: 동기화 성공 여부
+    
+    Note:
+        - 기본 재동기화 간격: 5분
+        - drift 임계값 초과 시 경고
+    """
+    global _ntp_offset, _ntp_last_sync, _ntp_server_used
+    
+    # 재동기화 간격 체크 (force가 아니면)
+    if not force:
+        with _ntp_lock:
+            elapsed = time.time() - _ntp_last_sync
+            if elapsed < Limits.NTP_RESYNC_INTERVAL and _ntp_last_sync > 0:
+                logger.debug(f"NTP 재동기화 스킵 ({elapsed:.0f}s < {Limits.NTP_RESYNC_INTERVAL}s)")
+                return True
+    
+    loop = asyncio.get_running_loop()
     try:
         result = await loop.run_in_executor(None, _sync_ntp_blocking)
         success, offset, server = result
+        
         if success:
             with _ntp_lock:
+                old_offset = _ntp_offset
                 _ntp_offset = offset
+                _ntp_last_sync = time.time()
+                _ntp_server_used = server
+                
+                # Drift 체크 (이전 offset과 비교)
+                if old_offset != 0.0:
+                    drift = abs(offset - old_offset) * 1000  # ms
+                    if drift > 50:  # 50ms 이상 drift
+                        logger.warning(f"⚠️ NTP drift 감지: {drift:.1f}ms (보정됨)")
+            
             logger.info(f"✅ NTP 동기화: {server} (offset: {offset*1000:.1f}ms)")
             return True
+            
     except Exception as e:
         logger.debug(f"NTP 동기화 실패: {e}")
     
     logger.warning("⚠️ NTP 동기화 실패 - 로컬 시간 사용")
     return False
 
+
+async def _ntp_resync_task(interval: float = Limits.NTP_RESYNC_INTERVAL) -> None:
+    """NTP 주기적 재동기화 백그라운드 태스크
+    
+    Args:
+        interval: 재동기화 간격 (초)
+    """
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await sync_ntp_time(force=True)
+        except Exception as e:
+            logger.debug(f"NTP 재동기화 실패: {e}")
+
+
 def get_accurate_time() -> datetime:
-    """정확한 현재 시간 (NTP 보정, Thread-safe)"""
+    """정확한 현재 시간 (NTP 보정, Thread-safe)
+    
+    Returns:
+        datetime: 한국 시간대 (Asia/Seoul)
+    """
     with _ntp_lock:
         offset = _ntp_offset
     return datetime.fromtimestamp(time.time() + offset, tz=ZoneInfo('Asia/Seoul'))
+
+
+def get_ntp_status() -> dict[str, float | str | None]:
+    """NTP 동기화 상태 조회
+    
+    Returns:
+        dict with offset, last_sync, server
+    """
+    with _ntp_lock:
+        return {
+            'offset_ms': _ntp_offset * 1000,
+            'last_sync': _ntp_last_sync,
+            'server': _ntp_server_used,
+            'age_seconds': time.time() - _ntp_last_sync if _ntp_last_sync > 0 else None
+        }
 
 
 # ============ SecureLogger (비밀번호 마스킹) ============
@@ -322,6 +524,133 @@ class HTTPSessionManager:
 # 글로벌 인스턴스
 http_manager = HTTPSessionManager()
 
+
+# ============ Circuit Breaker (외부 호출 보호) ============
+class CircuitBreaker:
+    """Circuit Breaker 패턴 구현 (외부 서비스 호출 보호)
+    
+    상태:
+    - CLOSED: 정상 동작
+    - OPEN: 차단 (모든 요청 즉시 실패)
+    - HALF_OPEN: 테스트 중 (일부 요청 허용)
+    
+    Attributes:
+        failure_threshold: OPEN 전환 임계값
+        recovery_timeout: HALF_OPEN 전환 대기 시간
+        half_open_max_calls: HALF_OPEN에서 허용할 최대 호출
+    """
+    
+    CLOSED = 'CLOSED'
+    OPEN = 'OPEN'
+    HALF_OPEN = 'HALF_OPEN'
+    
+    def __init__(
+        self, 
+        name: str,
+        failure_threshold: int = 5,
+        recovery_timeout: float = 30.0,
+        half_open_max_calls: int = 3
+    ):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.half_open_max_calls = half_open_max_calls
+        
+        self._state = self.CLOSED
+        self._failure_count = 0
+        self._last_failure_time: float = 0.0
+        self._half_open_calls = 0
+        self._lock = _threading.Lock()
+    
+    @property
+    def state(self) -> str:
+        """현재 상태 (자동 HALF_OPEN 전환 포함)"""
+        with self._lock:
+            if self._state == self.OPEN:
+                if time.time() - self._last_failure_time >= self.recovery_timeout:
+                    self._state = self.HALF_OPEN
+                    self._half_open_calls = 0
+                    logger.info(f"CircuitBreaker [{self.name}]: OPEN → HALF_OPEN")
+            return self._state
+    
+    def allow_request(self) -> bool:
+        """요청 허용 여부"""
+        state = self.state
+        
+        if state == self.CLOSED:
+            return True
+        elif state == self.OPEN:
+            return False
+        else:  # HALF_OPEN
+            with self._lock:
+                if self._half_open_calls < self.half_open_max_calls:
+                    self._half_open_calls += 1
+                    return True
+                return False
+    
+    def record_success(self) -> None:
+        """성공 기록"""
+        with self._lock:
+            if self._state == self.HALF_OPEN:
+                self._state = self.CLOSED
+                logger.info(f"CircuitBreaker [{self.name}]: HALF_OPEN → CLOSED (복구)")
+            self._failure_count = 0
+    
+    def record_failure(self) -> None:
+        """실패 기록"""
+        with self._lock:
+            self._failure_count += 1
+            self._last_failure_time = time.time()
+            
+            if self._state == self.HALF_OPEN:
+                self._state = self.OPEN
+                logger.warning(f"CircuitBreaker [{self.name}]: HALF_OPEN → OPEN (재실패)")
+            elif self._failure_count >= self.failure_threshold:
+                self._state = self.OPEN
+                logger.warning(f"CircuitBreaker [{self.name}]: CLOSED → OPEN (임계값 초과)")
+    
+    async def call(
+        self, 
+        func: Callable[..., Awaitable],
+        *args,
+        fallback: Callable[..., Awaitable] | None = None,
+        **kwargs
+    ):
+        """Circuit Breaker로 보호된 호출
+        
+        Args:
+            func: 호출할 비동기 함수
+            *args, **kwargs: func에 전달할 인자
+            fallback: OPEN 상태일 때 호출할 대체 함수
+        
+        Raises:
+            Exception: Circuit OPEN이고 fallback 없으면 예외
+        """
+        if not self.allow_request():
+            if fallback:
+                return await fallback(*args, **kwargs)
+            raise NetworkTimeoutError(f"Circuit [{self.name}] is OPEN")
+        
+        try:
+            result = await func(*args, **kwargs)
+            self.record_success()
+            return result
+        except Exception as e:
+            self.record_failure()
+            raise
+
+
+# 글로벌 Circuit Breakers
+_circuit_breakers: dict[str, CircuitBreaker] = {}
+
+
+def get_circuit_breaker(name: str) -> CircuitBreaker:
+    """이름으로 Circuit Breaker 가져오기 (없으면 생성)"""
+    if name not in _circuit_breakers:
+        _circuit_breakers[name] = CircuitBreaker(name)
+    return _circuit_breakers[name]
+
+
 # 하위 호환성 유지 (Deprecated)
 async def get_http_session() -> aiohttp.ClientSession:
     """Deprecated: http_manager.get_session() 컨텍스트 매니저 사용 권장
@@ -341,26 +670,58 @@ async def close_http_session():
     await http_manager.close()
 
 
-# ============ 텔레그램 (재시도 포함) ============
-async def send_telegram(config: Config, message: str, retries: int = 3):
+# ============ 텔레그램 (Circuit Breaker 보호) ============
+async def send_telegram(
+    config: Config, 
+    message: str, 
+    retries: int = Limits.MAX_TELEGRAM_RETRIES,
+    silent: bool = False
+) -> bool:
+    """텔레그램 알림 전송 (Circuit Breaker 보호)
+    
+    Args:
+        config: 설정 객체
+        message: 전송할 메시지
+        retries: 재시도 횟수
+        silent: 알림음 끄기
+    
+    Returns:
+        bool: 전송 성공 여부
+    """
     if not config.telegram_bot_token:
         logger.info(f"[알림] {message}")
-        return
+        return True
+    
+    cb = get_circuit_breaker('telegram')
+    
+    async def _do_send() -> bool:
+        async with http_manager.get_session() as session:
+            url = f"https://api.telegram.org/bot{config.telegram_bot_token}/sendMessage"
+            async with session.post(url, data={
+                'chat_id': config.telegram_chat_id, 
+                'text': f"🎫 BTS\n{message}",
+                'disable_notification': silent
+            }) as resp:
+                return resp.status == 200
     
     for attempt in range(retries):
         try:
-            async with http_manager.get_session() as session:
-                url = f"https://api.telegram.org/bot{config.telegram_bot_token}/sendMessage"
-                async with session.post(url, data={
-                    'chat_id': config.telegram_chat_id, 
-                    'text': f"🎫 BTS\n{message}"
-                }) as resp:
-                    if resp.status == 200:
-                        return
+            if not cb.allow_request():
+                logger.debug("텔레그램 Circuit OPEN - 스킵")
+                return False
+            
+            success = await _do_send()
+            if success:
+                cb.record_success()
+                return True
+            
         except Exception as e:
+            cb.record_failure()
             if attempt == retries - 1:
                 logger.warning(f"텔레그램 {retries}회 실패: {e}")
             await asyncio.sleep(1)
+    
+    return False
 
 
 # ============ 유틸리티 ============
@@ -391,45 +752,62 @@ async def evaluate_js(page, script: str, return_value: bool = True) -> Any:
     return None
 
 
-# ============ 봇 탐지 우회 ============
-async def setup_stealth(page):
-    """봇 탐지 우회 설정 (강화)"""
+# ============ 봇 탐지 우회 (v5.8 강화) ============
+async def setup_stealth(page: Page) -> None:
+    """봇 탐지 우회 설정 (v5.8 강화 - Canvas/Audio/WebRTC fingerprint 방어)
+    
+    방어 대상:
+    - webdriver 속성 감지
+    - Canvas fingerprint (toDataURL randomization)
+    - AudioContext fingerprint
+    - WebRTC IP leak
+    - WebGL 정보
+    - Navigator 속성들
+    
+    Args:
+        page: nodriver page 객체
+    """
     stealth_scripts = [
-        # webdriver 속성 숨기기
+        # 1. webdriver 속성 숨기기
         '''Object.defineProperty(navigator, 'webdriver', {get: () => undefined});''',
         
-        # chrome 객체 추가 (더 완전한 구현)
+        # 2. chrome 객체 추가 (더 완전한 구현)
         '''
         window.chrome = {
             runtime: {
                 connect: function() {},
                 sendMessage: function() {},
-                onMessage: { addListener: function() {} }
+                onMessage: { addListener: function() {} },
+                id: undefined
             },
             loadTimes: function() { return {}; },
-            csi: function() { return {}; }
+            csi: function() { return {}; },
+            app: { isInstalled: false }
         };
         ''',
         
-        # plugins 추가 (더 현실적인 구현)
+        # 3. plugins 추가 (더 현실적인 구현)
         '''
         Object.defineProperty(navigator, 'plugins', {
             get: () => {
                 const plugins = [
-                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
-                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
-                    {name: 'Native Client', filename: 'internal-nacl-plugin'}
+                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format'},
+                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: ''},
+                    {name: 'Native Client', filename: 'internal-nacl-plugin', description: ''}
                 ];
                 plugins.length = 3;
+                plugins.item = (i) => plugins[i];
+                plugins.namedItem = (n) => plugins.find(p => p.name === n);
+                plugins.refresh = () => {};
                 return plugins;
             }
         });
         ''',
         
-        # languages 설정
+        # 4. languages 설정
         '''Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR', 'ko', 'en-US', 'en']});''',
         
-        # permissions 쿼리 수정
+        # 5. permissions 쿼리 수정
         '''
         const originalQuery = window.navigator.permissions.query;
         window.navigator.permissions.query = (parameters) => (
@@ -439,23 +817,33 @@ async def setup_stealth(page):
         );
         ''',
         
-        # WebGL 렌더러/벤더 (headless 감지 우회)
+        # 6. WebGL 렌더러/벤더 (headless 감지 우회)
         '''
         const getParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(parameter) {
-            if (parameter === 37445) return 'Intel Inc.';  // UNMASKED_VENDOR_WEBGL
-            if (parameter === 37446) return 'Intel Iris OpenGL Engine';  // UNMASKED_RENDERER_WEBGL
+            if (parameter === 37445) return 'Intel Inc.';
+            if (parameter === 37446) return 'Intel Iris OpenGL Engine';
             return getParameter.call(this, parameter);
+        };
+        const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+        WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+            if (parameter === 37445) return 'Intel Inc.';
+            if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+            return getParameter2.call(this, parameter);
         };
         ''',
         
-        # 화면 해상도 일관성
+        # 7. 화면 해상도 일관성
         '''
         Object.defineProperty(screen, 'availWidth', {get: () => 1920});
         Object.defineProperty(screen, 'availHeight', {get: () => 1080});
+        Object.defineProperty(screen, 'width', {get: () => 1920});
+        Object.defineProperty(screen, 'height', {get: () => 1080});
+        Object.defineProperty(screen, 'colorDepth', {get: () => 24});
+        Object.defineProperty(screen, 'pixelDepth', {get: () => 24});
         ''',
         
-        # connection 속성 (봇 감지 우회)
+        # 8. connection 속성 (봇 감지 우회)
         '''
         Object.defineProperty(navigator, 'connection', {
             get: () => ({
@@ -467,51 +855,227 @@ async def setup_stealth(page):
         });
         ''',
         
-        # deviceMemory 속성 (headless 감지 우회)
-        '''Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});''',
+        # 9. deviceMemory / hardwareConcurrency
+        '''
+        Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
+        Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});
+        ''',
         
-        # hardwareConcurrency (CPU 코어 수)
-        '''Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});''',
+        # 10. ★ Canvas Fingerprint 방어 (toDataURL 노이즈 추가)
+        '''
+        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL = function(type) {
+            if (this.width === 0 || this.height === 0) return originalToDataURL.apply(this, arguments);
+            const ctx = this.getContext('2d');
+            if (ctx) {
+                const imageData = ctx.getImageData(0, 0, Math.min(this.width, 10), Math.min(this.height, 10));
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    imageData.data[i] = imageData.data[i] ^ (Math.random() > 0.99 ? 1 : 0);
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+            return originalToDataURL.apply(this, arguments);
+        };
+        ''',
         
-        # 콘솔 감지 방지
+        # 11. ★ Canvas getImageData 노이즈 (fingerprint 방어)
+        '''
+        const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+        CanvasRenderingContext2D.prototype.getImageData = function() {
+            const imageData = originalGetImageData.apply(this, arguments);
+            for (let i = 0; i < Math.min(imageData.data.length, 40); i += 4) {
+                if (Math.random() > 0.95) {
+                    imageData.data[i] = imageData.data[i] ^ 1;
+                }
+            }
+            return imageData;
+        };
+        ''',
+        
+        # 12. ★ AudioContext Fingerprint 방어
+        '''
+        const originalCreateAnalyser = AudioContext.prototype.createAnalyser;
+        AudioContext.prototype.createAnalyser = function() {
+            const analyser = originalCreateAnalyser.apply(this, arguments);
+            const originalGetFloatFrequencyData = analyser.getFloatFrequencyData.bind(analyser);
+            analyser.getFloatFrequencyData = function(array) {
+                originalGetFloatFrequencyData(array);
+                for (let i = 0; i < array.length; i++) {
+                    array[i] = array[i] + (Math.random() * 0.0001 - 0.00005);
+                }
+            };
+            return analyser;
+        };
+        ''',
+        
+        # 13. ★ WebRTC IP Leak 방지
+        '''
+        if (window.RTCPeerConnection) {
+            const originalRTCPeerConnection = window.RTCPeerConnection;
+            window.RTCPeerConnection = function(config) {
+                if (config && config.iceServers) {
+                    config.iceServers = [];
+                }
+                return new originalRTCPeerConnection(config);
+            };
+            window.RTCPeerConnection.prototype = originalRTCPeerConnection.prototype;
+        }
+        ''',
+        
+        # 14. Battery API 숨기기 (fingerprint 벡터)
+        '''
+        if (navigator.getBattery) {
+            navigator.getBattery = () => Promise.resolve({
+                charging: true,
+                chargingTime: 0,
+                dischargingTime: Infinity,
+                level: 1.0,
+                addEventListener: () => {},
+                removeEventListener: () => {}
+            });
+        }
+        ''',
+        
+        # 15. Brave/Firefox 감지 방지
+        '''
+        Object.defineProperty(navigator, 'brave', {get: () => undefined});
+        ''',
+        
+        # 16. 콘솔 감지 방지 (devtools 열림 감지 차단)
         '''
         const originalConsole = window.console;
         window.console = {
             ...originalConsole,
             debug: () => {},
         };
+        // devtools 감지 방지
+        Object.defineProperty(window, 'outerWidth', {get: () => window.innerWidth});
+        Object.defineProperty(window, 'outerHeight', {get: () => window.innerHeight + 100});
+        ''',
+        
+        # 17. Timezone 일관성 (한국)
+        '''
+        Date.prototype.getTimezoneOffset = function() { return -540; };  // UTC+9
         ''',
     ]
     
     for script in stealth_scripts:
         await evaluate_js(page, script, return_value=False)
     
-    logger.debug("✅ Stealth 설정 완료 (강화)")
+    logger.debug("✅ Stealth 설정 완료 (v5.8 - Canvas/Audio/WebRTC 방어)")
 
 
-# ============ 마우스 이동 시뮬레이션 ============
-async def move_mouse_to(page, x: float, y: float, steps: int = 10, start_x: float = 0, start_y: float = 0):
-    """베지어 곡선으로 마우스 이동 (자연스러운 곡선)"""
+# ============ 마우스 이동 시뮬레이션 (v5.8 개선) ============
+# 현재 마우스 위치 추적 (세션별)
+_mouse_position: dict[int, tuple[float, float]] = {}
+_mouse_lock = _threading.Lock()
+
+
+def _get_mouse_position(session_id: int = 0) -> tuple[float, float]:
+    """현재 마우스 위치 조회"""
+    with _mouse_lock:
+        return _mouse_position.get(session_id, (random.uniform(100, 800), random.uniform(100, 500)))
+
+
+def _set_mouse_position(x: float, y: float, session_id: int = 0) -> None:
+    """마우스 위치 업데이트"""
+    with _mouse_lock:
+        _mouse_position[session_id] = (x, y)
+
+
+async def move_mouse_to(
+    page: Page, 
+    x: float, 
+    y: float, 
+    steps: int | None = None, 
+    start_x: float | None = None, 
+    start_y: float | None = None,
+    session_id: int = 0
+) -> bool:
+    """베지어 곡선으로 마우스 이동 (v5.8 - 속도/가속도 랜덤화, 휴식 패턴)
+    
+    개선사항:
+    - 이동 거리에 따른 동적 step 수
+    - 속도 곡선 (처음 가속, 중간 유지, 끝 감속)
+    - 랜덤 휴식 패턴 (5% 확률로 짧은 멈춤)
+    - 마이크로 지터 (손 떨림 시뮬레이션)
+    
+    Args:
+        page: nodriver page 객체
+        x, y: 목표 좌표
+        steps: 이동 단계 수 (None이면 거리 기반 자동 계산)
+        start_x, start_y: 시작 좌표 (None이면 현재 위치 사용)
+        session_id: 세션 ID (멀티 세션용)
+    
+    Returns:
+        bool: 성공 여부
+    """
     try:
-        # 제어점 생성 (랜덤 곡선)
-        ctrl_x = (start_x + x) / 2 + random.uniform(-50, 50)
-        ctrl_y = (start_y + y) / 2 + random.uniform(-30, 30)
+        # 시작 위치 (이전 위치 또는 기본값)
+        if start_x is None or start_y is None:
+            start_x, start_y = _get_mouse_position(session_id)
+        
+        # 이동 거리 계산
+        distance = ((x - start_x)**2 + (y - start_y)**2)**0.5
+        
+        # 거리 기반 동적 step 수 (짧으면 적게, 길면 많이)
+        if steps is None:
+            steps = max(5, min(20, int(distance / 30)))
+        
+        # 제어점 생성 (2개 - 3차 베지어)
+        variance = min(MouseParams.CTRL_POINT_VARIANCE, distance * 0.3)
+        ctrl1_x = start_x + (x - start_x) * 0.3 + random.uniform(-variance, variance)
+        ctrl1_y = start_y + (y - start_y) * 0.3 + random.uniform(-variance * 0.6, variance * 0.6)
+        ctrl2_x = start_x + (x - start_x) * 0.7 + random.uniform(-variance, variance)
+        ctrl2_y = start_y + (y - start_y) * 0.7 + random.uniform(-variance * 0.6, variance * 0.6)
         
         for i in range(steps):
             t = (i + 1) / steps
-            # 2차 베지어 곡선: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
-            current_x = (1-t)**2 * start_x + 2*(1-t)*t * ctrl_x + t**2 * x
-            current_y = (1-t)**2 * start_y + 2*(1-t)*t * ctrl_y + t**2 * y
+            
+            # 3차 베지어 곡선: B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3
+            current_x = (
+                (1-t)**3 * start_x + 
+                3*(1-t)**2*t * ctrl1_x + 
+                3*(1-t)*t**2 * ctrl2_x + 
+                t**3 * x
+            )
+            current_y = (
+                (1-t)**3 * start_y + 
+                3*(1-t)**2*t * ctrl1_y + 
+                3*(1-t)*t**2 * ctrl2_y + 
+                t**3 * y
+            )
+            
+            # 마이크로 지터 (손 떨림 시뮬레이션)
+            if i < steps - 1:  # 마지막 점 제외
+                current_x += random.uniform(-0.5, 0.5)
+                current_y += random.uniform(-0.5, 0.5)
             
             await page.send(cdp.input_.dispatch_mouse_event(
                 type_='mouseMoved',
                 x=int(current_x),
                 y=int(current_y)
             ))
-            # 불규칙한 딜레이 (인간처럼)
-            await asyncio.sleep(random.uniform(0.008, 0.025))
+            
+            # 속도 곡선 적용 (처음/끝 느리게, 중간 빠르게)
+            # ease-in-out 느낌
+            speed_factor = 1.0 - 0.5 * abs(2*t - 1)  # 중간이 1.0, 양끝이 0.5
+            base_delay = random.uniform(MouseParams.MOVE_DELAY_MIN, MouseParams.MOVE_DELAY_MAX)
+            delay = base_delay / speed_factor
+            
+            # 5% 확률로 짧은 휴식 (인간적 특성)
+            if random.random() < 0.05 and i < steps - 2:
+                delay += random.uniform(0.03, 0.08)
+            
+            await asyncio.sleep(delay)
+        
+        # 위치 업데이트
+        _set_mouse_position(x, y, session_id)
+        return True
+        
     except Exception as e:
         logger.debug(f"마우스 이동 실패: {e}")
+        return False
 
 async def human_click(page, element) -> bool:
     """사람처럼 클릭 (마우스 이동 + 클릭)"""
@@ -1053,13 +1617,32 @@ async def step_navigate_concert(page, config: Config) -> bool:
     return True
 
 
-async def step_wait_open(page, config: Config) -> bool:
-    """오픈 대기 (NTP 기반 정밀 대기)"""
+async def step_wait_open(page: Page, config: Config) -> bool:
+    """오픈 대기 (NTP 기반 정밀 대기 - v5.8 개선)
+    
+    개선사항:
+    - 100ms 정밀도 대기 (오픈 직전)
+    - 커서 사전 위치 (30초 전)
+    - 페이지 프리로드 (5초 전)
+    - NTP 상태 모니터링
+    
+    Args:
+        page: nodriver page 객체
+        config: 설정 객체
+    
+    Returns:
+        bool: 항상 True (대기 완료)
+    """
     logger.info("[3/5] 오픈 대기...")
     
-    refresh_count = 0
-    max_rapid_refresh = 15  # 최대 고속 새로고침 횟수 (rate limiting 방지)
-    cursor_positioned = False
+    refresh_count: int = 0
+    cursor_positioned: bool = False
+    page_preloaded: bool = False
+    
+    # NTP 상태 확인
+    ntp_status = get_ntp_status()
+    if ntp_status['offset_ms'] is not None:
+        logger.info(f"⏰ NTP offset: {ntp_status['offset_ms']:.1f}ms ({ntp_status['server']})")
     
     while True:
         now = get_accurate_time()
@@ -1067,22 +1650,46 @@ async def step_wait_open(page, config: Config) -> bool:
         
         if remaining <= 0:
             break
+        
+        # ========== 오픈 100ms 전: 정밀 대기 ==========
+        elif remaining <= 0.1:
+            # 최종 스핀 대기 (busy wait - 정밀도 최대화)
+            target_time = time.time() + remaining + (ntp_status.get('offset_ms', 0) or 0) / 1000
+            while time.time() < target_time:
+                pass  # Busy wait for precision
+            break
+        
+        # ========== 오픈 1초 전: 100ms 단위 대기 ==========
+        elif remaining <= 1.0:
+            logger.info(f"⏳ {remaining*1000:.0f}ms...")
+            await asyncio.sleep(0.1)
+        
+        # ========== 오픈 5초 전: 고속 새로고침 ==========
         elif remaining <= 5:
-            # 오픈 5초 전: 고속 새로고침 (rate limiting 고려)
+            # 페이지 프리로드 (한 번만)
+            if not page_preloaded:
+                page_preloaded = True
+                logger.info("📄 페이지 프리로드...")
+                try:
+                    await page.reload()
+                    await wait_for_navigation(page, timeout=3.0)
+                except Exception:
+                    pass
+            
             refresh_count += 1
-            if refresh_count <= max_rapid_refresh:
-                logger.info(f"⏳ {remaining:.1f}초... (새로고침 {refresh_count}/{max_rapid_refresh})")
+            if refresh_count <= Limits.MAX_RAPID_REFRESH:
+                logger.info(f"⏳ {remaining:.1f}초... (새로고침 {refresh_count}/{Limits.MAX_RAPID_REFRESH})")
                 await page.reload()
-                await asyncio.sleep(0.3)  # 0.1 → 0.3 (rate limiting 방지)
+                await asyncio.sleep(0.3)
             else:
                 logger.info(f"⏳ {remaining:.1f}초... (대기)")
                 await asyncio.sleep(0.2)
+        
+        # ========== 오픈 30초 전: 커서 위치 ==========
         elif remaining <= 30:
-            # 30초 전: 커서 미리 위치시키기 (한 번만)
             if not cursor_positioned:
                 cursor_positioned = True
                 try:
-                    # 예매 버튼 예상 위치로 커서 이동
                     btn_pos = await evaluate_js(page, '''
                         (() => {
                             const btn = document.querySelector('a.btn_book, button.booking, [class*="BookingButton"]');
@@ -1090,7 +1697,7 @@ async def step_wait_open(page, config: Config) -> bool:
                                 const rect = btn.getBoundingClientRect();
                                 return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
                             }
-                            return { x: 960, y: 500 };  // 기본 위치
+                            return { x: 960, y: 500 };
                         })()
                     ''')
                     if btn_pos:
@@ -1100,29 +1707,49 @@ async def step_wait_open(page, config: Config) -> bool:
                     pass
             logger.info(f"⏳ {int(remaining)}초...")
             await asyncio.sleep(1)
+        
+        # ========== 5분 이내: 10초 간격 ==========
         elif remaining <= 300:
+            # 1분마다 NTP 재확인
+            if int(remaining) % 60 == 0:
+                await sync_ntp_time()
             logger.info(f"⏳ {int(remaining/60)}분 {int(remaining%60)}초...")
             await asyncio.sleep(10)
+        
+        # ========== 5분 이상: 1분 간격 ==========
         else:
             logger.info(f"⏳ {int(remaining/60)}분...")
             await asyncio.sleep(60)
     
-    logger.info("🚀 오픈!")
+    logger.info("🚀 오픈! (정밀 타이밍)")
     return True
 
 
 class AdaptiveRefreshStrategy:
-    """적응형 새로고침 전략 (티켓팅 최적화, Thread-safe)"""
+    """적응형 새로고침 전략 (티켓팅 최적화, Thread-safe)
+    
+    전략:
+    - 기본 간격: 150ms
+    - 연속 성공 시: 100ms까지 가속
+    - 오류 시: 지수적 백오프 (최대 1초)
+    - Rate limiting 시: 2초 대기 후 재시도
+    """
+    
+    # 상수 (Named Constants)
+    BASE_INTERVAL: float = 0.15   # 150ms 기본
+    MIN_INTERVAL: float = 0.10    # 100ms 최소
+    MAX_INTERVAL: float = 1.0     # 1초 최대
+    RATE_LIMIT_COOLDOWN: float = 2.0  # Rate limit 시 대기
+    ACCELERATION_THRESHOLD: int = 5   # 가속 시작 연속 성공 횟수
+    ACCELERATION_FACTOR: float = 0.8  # 가속 계수
+    BACKOFF_FACTOR: float = 1.5       # 백오프 계수
     
     def __init__(self):
-        self.base_interval = 0.15  # 150ms 기본
-        self.min_interval = 0.1    # 100ms 최소
-        self.max_interval = 1.0    # 1초 최대
-        self._consecutive_errors = 0
-        self._rate_limited = False
-        self._rate_limit_until = 0.0
+        self._consecutive_errors: int = 0
+        self._rate_limited: bool = False
+        self._rate_limit_until: float = 0.0
         self._lock = _threading.Lock()
-        self._success_count = 0  # 연속 성공 카운트 (속도 향상용)
+        self._success_count: int = 0  # 연속 성공 카운트 (속도 향상용)
     
     def get_interval(self, is_error: bool = False, is_rate_limited: bool = False) -> float:
         """다음 새로고침 간격 계산 (Thread-safe)
@@ -1130,41 +1757,56 @@ class AdaptiveRefreshStrategy:
         Args:
             is_error: 오류 발생 여부
             is_rate_limited: 429 응답 등 rate limiting 감지
+        
+        Returns:
+            float: 다음 새로고침까지 대기 시간 (초)
         """
         with self._lock:
             # Rate limiting 감지 시 백오프
             if is_rate_limited:
                 self._rate_limited = True
-                self._rate_limit_until = time.time() + 2.0  # 2초 대기
+                self._rate_limit_until = time.time() + self.RATE_LIMIT_COOLDOWN
                 self._consecutive_errors = 0
                 self._success_count = 0
-                return 2.0
+                return self.RATE_LIMIT_COOLDOWN
             
             # Rate limiting 쿨다운 중
             if self._rate_limited and time.time() < self._rate_limit_until:
-                return max(self._rate_limit_until - time.time(), self.base_interval)
+                return max(self._rate_limit_until - time.time(), self.BASE_INTERVAL)
             else:
                 self._rate_limited = False
             
             if is_error:
                 self._consecutive_errors += 1
                 self._success_count = 0
-                return min(self.base_interval * (1.5 ** self._consecutive_errors), self.max_interval)
+                return min(
+                    self.BASE_INTERVAL * (self.BACKOFF_FACTOR ** self._consecutive_errors), 
+                    self.MAX_INTERVAL
+                )
             else:
                 self._consecutive_errors = 0
                 self._success_count += 1
-                # 연속 성공 시 점점 빠르게 (최소 100ms까지)
-                if self._success_count > 5:
-                    return max(self.min_interval, self.base_interval * 0.8)
-                return self.base_interval
+                # 연속 성공 시 점점 빠르게
+                if self._success_count > self.ACCELERATION_THRESHOLD:
+                    return max(self.MIN_INTERVAL, self.BASE_INTERVAL * self.ACCELERATION_FACTOR)
+                return self.BASE_INTERVAL
     
-    def reset(self):
+    def reset(self) -> None:
         """상태 초기화"""
         with self._lock:
             self._consecutive_errors = 0
             self._rate_limited = False
             self._rate_limit_until = 0.0
             self._success_count = 0
+    
+    def get_stats(self) -> dict[str, int | bool]:
+        """현재 상태 조회"""
+        with self._lock:
+            return {
+                'consecutive_errors': self._consecutive_errors,
+                'success_count': self._success_count,
+                'rate_limited': self._rate_limited
+            }
 
 
 async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
@@ -1454,20 +2096,28 @@ async def _select_seat(page) -> bool:
     return False
 
 
-async def _click_canvas_seat(page) -> bool:
-    """Canvas 좌석맵 클릭 (픽셀 분석 기반)"""
+async def _click_canvas_seat(page: Page) -> bool:
+    """Canvas 좌석맵 클릭 (픽셀 분석 기반)
     
-    # 1. 픽셀 분석으로 사용 가능한 좌석 찾기 (CORS 에러 처리 포함)
-    seats = await evaluate_js(page, '''
-        (() => {
+    ColorThresholds 상수를 사용하여 좌석 색상 분석:
+    - GREEN_MIN/RATIO: 일반 좌석 (녹색)
+    - BLUE_MIN/RATIO: VIP/프리미엄 (파란색)
+    - YELLOW_*: 특별석 (노란색/금색)
+    
+    Returns:
+        bool: 좌석 클릭 성공 여부
+    """
+    # ColorThresholds 상수를 JavaScript에 주입
+    color_script = f'''
+        (() => {{
             const canvas = document.querySelector('canvas');
-            if (!canvas) return { error: 'no_canvas' };
+            if (!canvas) return {{ error: 'no_canvas' }};
             
             // 먼저 Canvas를 뷰포트로 스크롤
-            canvas.scrollIntoView({ behavior: 'instant', block: 'center' });
+            canvas.scrollIntoView({{ behavior: 'instant', block: 'center' }});
             
             const ctx = canvas.getContext('2d');
-            if (!ctx) return { error: 'no_context' };
+            if (!ctx) return {{ error: 'no_context' }};
             
             const width = canvas.width;
             const height = canvas.height;
@@ -1476,8 +2126,8 @@ async def _click_canvas_seat(page) -> bool:
             const rect = canvas.getBoundingClientRect();
             const scrollX = window.scrollX || window.pageXOffset || 0;
             const scrollY = window.scrollY || window.pageYOffset || 0;
-            const baseInfo = {
-                rect: {
+            const baseInfo = {{
+                rect: {{
                     left: rect.left,
                     top: rect.top,
                     width: rect.width,
@@ -1486,54 +2136,69 @@ async def _click_canvas_seat(page) -> bool:
                     scaleY: rect.height / height,
                     scrollX: scrollX,
                     scrollY: scrollY
-                }
-            };
+                }}
+            }};
             
-            try {
+            // ColorThresholds (Python에서 주입)
+            const CT = {{
+                GREEN_MIN: {ColorThresholds.GREEN_MIN},
+                GREEN_RATIO: {ColorThresholds.GREEN_RATIO},
+                DARK_GREEN_MIN: {ColorThresholds.DARK_GREEN_MIN},
+                BLUE_MIN: {ColorThresholds.BLUE_MIN},
+                BLUE_RATIO: {ColorThresholds.BLUE_RATIO},
+                YELLOW_R_MIN: {ColorThresholds.YELLOW_R_MIN},
+                YELLOW_G_MIN: {ColorThresholds.YELLOW_G_MIN},
+                YELLOW_B_MAX: {ColorThresholds.YELLOW_B_MAX}
+            }};
+            
+            try {{
                 // CORS 에러 가능 지점 - cross-origin canvas
                 const imageData = ctx.getImageData(0, 0, width, height);
                 const data = imageData.data;
                 
                 const availableSeats = [];
-                const step = 8;  // 8px 간격으로 샘플링
+                const step = {Limits.CANVAS_SAMPLE_STEP};  // 샘플링 간격
                 
-                for (let y = 0; y < height; y += step) {
-                    for (let x = 0; x < width; x += step) {
+                for (let y = 0; y < height; y += step) {{
+                    for (let x = 0; x < width; x += step) {{
                         const idx = (y * width + x) * 4;
                         const r = data[idx];
                         const g = data[idx + 1];
                         const b = data[idx + 2];
                         
-                        // 녹색 계열 (선택 가능 좌석) - 다양한 녹색 톤
-                        const isGreen = (g > 120 && g > r * 1.2 && g > b * 1.2) ||
-                                       (g > 100 && r < 100 && b < 100);  // 진한 녹색
-                        if (isGreen) {
-                            availableSeats.push({ x, y, type: 'available', score: g });
-                        }
+                        // 녹색 계열 (선택 가능 좌석) - ColorThresholds 사용
+                        const isGreen = (g > CT.GREEN_MIN && g > r * CT.GREEN_RATIO && g > b * CT.GREEN_RATIO) ||
+                                       (g > CT.DARK_GREEN_MIN && r < CT.DARK_GREEN_MIN && b < CT.DARK_GREEN_MIN);
+                        if (isGreen) {{
+                            availableSeats.push({{ x, y, type: 'available', score: g }});
+                        }}
                         // 파란색/보라색 계열 (VIP/프리미엄)
-                        else if (b > 130 && b > r * 1.1 && b > g * 0.9) {
-                            availableSeats.push({ x, y, type: 'premium', score: b });
-                        }
+                        else if (b > CT.BLUE_MIN && b > r * CT.BLUE_RATIO && b > g * 0.9) {{
+                            availableSeats.push({{ x, y, type: 'premium', score: b }});
+                        }}
                         // 노란색/금색 (특별석)
-                        else if (r > 180 && g > 150 && b < 100) {
-                            availableSeats.push({ x, y, type: 'special', score: r + g });
-                        }
-                    }
-                }
+                        else if (r > CT.YELLOW_R_MIN && g > CT.YELLOW_G_MIN && b < CT.YELLOW_B_MAX) {{
+                            availableSeats.push({{ x, y, type: 'special', score: r + g }});
+                        }}
+                    }}
+                }}
                 
-                return {
-                    seats: availableSeats.slice(0, 30),
+                return {{
+                    seats: availableSeats.slice(0, {Limits.CANVAS_MAX_SEATS}),
                     rect: baseInfo.rect
-                };
-            } catch (e) {
+                }};
+            }} catch (e) {{
                 // CORS/SecurityError 시 폴백 정보 반환
-                if (e.name === 'SecurityError') {
-                    return { error: 'cors_blocked', ...baseInfo };
-                }
-                return { error: e.message, ...baseInfo };
-            }
-        })()
-    ''')
+                if (e.name === 'SecurityError') {{
+                    return {{ error: 'cors_blocked', ...baseInfo }};
+                }}
+                return {{ error: e.message, ...baseInfo }};
+            }}
+        }})()
+    '''
+    
+    # 1. 픽셀 분석으로 사용 가능한 좌석 찾기 (CORS 에러 처리 포함)
+    seats = await evaluate_js(page, color_script)
     
     # CORS 에러 로깅
     if seats and seats.get('error') == 'cors_blocked':
@@ -1895,7 +2560,11 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
         await cleanup_browser(browser, session_id, user_data_dir)
 
 
-async def cleanup_browser(browser, session_id: int, user_data_dir: str = None):
+async def cleanup_browser(
+    browser: Browser | None, 
+    session_id: int, 
+    user_data_dir: str | None = None
+) -> None:
     """브라우저 완전 정리 (좀비 프로세스 + 임시 디렉토리)
     
     Args:
@@ -1908,7 +2577,7 @@ async def cleanup_browser(browser, session_id: int, user_data_dir: str = None):
     
     # 1. 정상 종료 시도
     try:
-        await asyncio.wait_for(browser.stop(), timeout=5.0)
+        await asyncio.wait_for(browser.stop(), timeout=Timeouts.BROWSER_STOP)
         logger.debug(f"[세션 {session_id}] 브라우저 정상 종료")
     except asyncio.TimeoutError:
         logger.warning(f"[세션 {session_id}] 브라우저 종료 타임아웃")
@@ -1955,6 +2624,80 @@ async def cleanup_browser(browser, session_id: int, user_data_dir: str = None):
             logger.debug(f"[세션 {session_id}] 임시 디렉토리 정리: {user_data_dir}")
         except Exception as e:
             logger.debug(f"[세션 {session_id}] 디렉토리 정리 실패 (무시): {e}")
+
+
+# ============ 메모리 모니터링 ============
+def get_memory_usage_mb() -> float | None:
+    """현재 프로세스 메모리 사용량 (MB)
+    
+    Returns:
+        float: 메모리 사용량 (MB), psutil 없으면 None
+    """
+    if not HAS_PSUTIL:
+        return None
+    
+    try:
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+        return memory_info.rss / (1024 * 1024)  # bytes to MB
+    except Exception:
+        return None
+
+
+def check_memory_pressure(threshold_mb: float = 2048.0) -> bool:
+    """메모리 압박 상태 체크
+    
+    Args:
+        threshold_mb: 경고 임계값 (기본 2GB)
+    
+    Returns:
+        bool: True면 메모리 압박 상태
+    """
+    usage = get_memory_usage_mb()
+    if usage is None:
+        return False
+    
+    if usage > threshold_mb:
+        logger.warning(f"⚠️ 메모리 사용량 높음: {usage:.0f}MB > {threshold_mb:.0f}MB")
+        return True
+    return False
+
+
+# ============ 브라우저 Health Check ============
+async def check_browser_health(browser: Browser, page: Page) -> bool:
+    """브라우저/페이지 상태 확인
+    
+    Args:
+        browser: nodriver 브라우저
+        page: nodriver 페이지
+    
+    Returns:
+        bool: True면 정상
+    """
+    try:
+        # 1. 브라우저 프로세스 확인
+        if hasattr(browser, '_process') and browser._process:
+            if browser._process.returncode is not None:
+                logger.error("브라우저 프로세스 종료됨")
+                return False
+        
+        # 2. 페이지 응답 확인 (간단한 JS 실행)
+        result = await asyncio.wait_for(
+            evaluate_js(page, '1 + 1'),
+            timeout=3.0
+        )
+        if result != 2:
+            logger.warning("페이지 응답 이상")
+            return False
+        
+        return True
+        
+    except asyncio.TimeoutError:
+        logger.error("브라우저 Health Check 타임아웃")
+        return False
+    except Exception as e:
+        logger.error(f"브라우저 Health Check 실패: {e}")
+        return False
 
 
 async def run_multi_session(config: Config, live: bool):
