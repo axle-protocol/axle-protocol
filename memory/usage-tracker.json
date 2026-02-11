@@ -1,10 +1,10 @@
 {
-  "lastCheck": "2026-02-12T08:11:00+09:00",
-  "contextPercent": 73,
-  "contextUsed": "145k",
+  "lastCheck": "2026-02-12T08:27:00+09:00",
+  "contextPercent": 92,
+  "contextUsed": "184k",
   "contextMax": "200k",
   "model": "anthropic/claude-opus-4-5",
   "compactions": 1,
-  "nextThreshold": 80,
-  "notes": "BTS 예매버튼 성공! 대기열 토론 의회 진행 중."
+  "nextThreshold": 100,
+  "notes": "BTS 모달 클릭 문제 해결 중. 곧 압축 예상."
 }
