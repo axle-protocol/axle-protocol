@@ -877,7 +877,32 @@ class TicketingMacro:
         self._log(f'💳 결제: {self.config.payment_method}, 자동={self.config.auto_pay}')
         self._log('=' * 60)
         
-        with SB(uc=True, headless=self.config.headless, incognito=True) as sb:
+        # IPRoyal 프록시 설정
+        proxy_host = os.getenv('PROXY_HOST', '')
+        proxy_port = os.getenv('PROXY_PORT', '')
+        proxy_user = os.getenv('PROXY_USER', '')
+        proxy_pass = os.getenv('PROXY_PASS', '')
+        
+        proxy_str = None
+        if proxy_host and proxy_port and proxy_user and proxy_pass:
+            # SeleniumBase UC 모드 프록시 형식
+            proxy_str = f"{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+            self._log(f'🌐 프록시 활성화: {proxy_host}:{proxy_port}')
+        else:
+            self._log('⚠️ 프록시 미설정 - 직접 연결')
+        
+        # SeleniumBase 옵션
+        sb_kwargs = {
+            'uc': True,
+            'headless': self.config.headless,
+            'incognito': True,
+            'locale_code': 'ko',
+        }
+        
+        if proxy_str:
+            sb_kwargs['proxy'] = proxy_str
+        
+        with SB(**sb_kwargs) as sb:
             self.sb = sb
             
             try:

@@ -109,11 +109,12 @@ class PaymentStatus(Enum):
 @dataclass
 class PaymentConfig:
     """결제 설정 - 확장"""
-    # 결제수단 우선순위
+    # 결제수단 우선순위 (계좌이체는 검증됨 ✅)
     payment_methods: List[PaymentMethod] = field(default_factory=lambda: [
         PaymentMethod.KAKAO_PAY,
         PaymentMethod.NAVER_PAY,
         PaymentMethod.CREDIT_CARD,
+        PaymentMethod.BANK_TRANSFER,  # 검증됨 - 폴백으로 추가
         PaymentMethod.TOSS,
     ])
     
@@ -154,19 +155,26 @@ class PaymentHandler:
         'payment_frame': ['#ifrmPayment', 'iframe[name="ifrmPayment"]'],
     }
     
-    # 버튼 셀렉터 (다중)
+    # 버튼 셀렉터 (다중) - ⚠️ 버튼은 default_content에 있음!
     NEXT_STEP_SELECTORS = [
+        # XPATH 우선 (검증됨)
+        '//*[@id="SmallNextBtnImage"]',
+        '//*[@id="LargeNextBtnImage"]',
+        '//*[@id="NextStepImage"]',
+        # CSS 폴백
         '#SmallNextBtnImage',
         '#LargeNextBtnImage',
         '#NextStepImage',
         'button:contains("다음")',
         'a:contains("다음")',
         '[class*="next"][class*="btn"]',
-        '[class*="btn"][class*="next"]',
         'button[type="submit"]',
     ]
     
     PAY_BUTTON_SELECTORS = [
+        # XPATH 우선 (검증됨)
+        '//*[@id="LargeNextBtnImage"]',
+        # CSS 폴백
         '#LargeNextBtnImage',
         'button:contains("결제하기")',
         'a:contains("결제하기")',
@@ -175,9 +183,12 @@ class PaymentHandler:
         'input[value*="결제"]',
     ]
     
-    # 가격 선택 - 인터파크 실제 DOM
+    # 가격 선택 - 인터파크 실제 DOM (XPATH 우선, 검증됨)
     PRICE_SELECTORS = [
-        # 인터파크 실제: #PriceRow001 > td:nth-child(3) > select
+        # XPATH 우선 (블로그에서 검증됨)
+        '//*[@id="PriceRow001"]/td[3]/select',
+        '//*[@id="PriceRow001"]/td/select',
+        # CSS 폴백
         '#PriceRow001 > td:nth-child(3) > select',
         '#PriceRow001 td select',
         '#PriceRow001 select',
@@ -185,7 +196,6 @@ class PaymentHandler:
         'select[id*="Price"]',
         'select[name*="price"]',
         '[class*="price"] select',
-        'select[name*="Discount"]',  # 할인 선택도 같이
     ]
     
     DISCOUNT_SELECTORS = [
@@ -195,9 +205,12 @@ class PaymentHandler:
         '#DiscountCode',
     ]
     
-    # 예매자 정보 - 인터파크 실제 DOM
+    # 예매자 정보 - 인터파크 실제 DOM (검증됨 ✅)
     BIRTH_SELECTORS = [
-        '#YYMMDD',  # 인터파크 메인
+        # XPATH 우선 (검증됨)
+        '//*[@id="YYMMDD"]',
+        # CSS 폴백
+        '#YYMMDD',
         'input#YYMMDD',
         'input[name="YYMMDD"]',
         '#birthDate',
@@ -244,83 +257,85 @@ class PaymentHandler:
     ]
     
     # 결제수단 (우선순위별 다중 셀렉터) - 인터파크 실제 DOM 기반 (2024-2026)
+    # ⚠️ 계좌이체(22004)만 검증됨, 나머지는 추정값
     PAYMENT_METHOD_SELECTORS = {
         PaymentMethod.CREDIT_CARD: [
-            # 인터파크 실제 셀렉터 (테이블 내 input)
+            # XPATH 우선 (가장 안정적)
+            '//*[@id="Payment_22001"]/td/input',
+            '//*[@id="Payment_22001"]//input',
+            # CSS 폴백
+            '#Payment_22001 > td > input',
             '#Payment_22001 td input',
             '#Payment_22001 input',
-            '#Payment_22001',
             'input[id*="Payment"][id*="22001"]',
             'input[value*="카드"]',
             'label:contains("신용카드")',
-            '[class*="card"][class*="pay"]',
-            'td:contains("신용카드") input[type="radio"]',
         ],
         PaymentMethod.BANK_TRANSFER: [
-            # 인터파크 실제 셀렉터
+            # XPATH 우선 (검증됨 ✅)
+            '//*[@id="Payment_22004"]/td/input',
+            '//*[@id="Payment_22004"]//input',
+            # CSS 폴백
+            '#Payment_22004 > td > input',
             '#Payment_22004 td input',
             '#Payment_22004 input',
-            '#Payment_22004',
             'input[id*="Payment"][id*="22004"]',
             'input[value*="이체"]',
             'label:contains("계좌이체")',
-            '[class*="bank"]',
-            'td:contains("계좌이체") input[type="radio"]',
         ],
         PaymentMethod.KAKAO_PAY: [
-            # 간편결제 셀렉터
+            # XPATH 우선 (ID 추정)
+            '//*[@id="Payment_22019"]/td/input',
+            '//*[@id="Payment_22019"]//input',
+            # CSS 폴백
+            '#Payment_22019 > td > input',
             '#Payment_22019 td input',
             '#Payment_22019 input',
-            '#Payment_22019',
+            # 이미지/클래스 기반 폴백
             'input[id*="kakao"]',
-            '[class*="kakao"]',
-            'input[value*="kakao"]',
-            'label:contains("카카오페이")',
+            '[class*="kakao"] input',
             'img[alt*="카카오"]',
             'img[src*="kakao"]',
-            '#kakaopay',
-            'td:contains("카카오페이") input[type="radio"]',
+            'label:contains("카카오페이")',
         ],
         PaymentMethod.NAVER_PAY: [
+            # XPATH 우선 (ID 추정)
+            '//*[@id="Payment_22020"]/td/input',
+            '//*[@id="Payment_22020"]//input',
+            # CSS 폴백
+            '#Payment_22020 > td > input',
             '#Payment_22020 td input',
             '#Payment_22020 input',
-            '#Payment_22020',
             'input[id*="naver"]',
-            '[class*="naver"]',
-            'input[value*="naver"]',
-            'label:contains("네이버페이")',
+            '[class*="naver"] input',
             'img[alt*="네이버"]',
             'img[src*="naver"]',
-            '#naverpay',
-            'td:contains("네이버페이") input[type="radio"]',
+            'label:contains("네이버페이")',
         ],
         PaymentMethod.PAYCO: [
+            '//*[@id="Payment_22021"]/td/input',
+            '//*[@id="Payment_22021"]//input',
+            '#Payment_22021 > td > input',
             '#Payment_22021 td input',
-            '#Payment_22021 input',
-            '#Payment_22021',
-            '[class*="payco"]',
-            'input[value*="payco"]',
-            'label:contains("PAYCO")',
+            '[class*="payco"] input',
             'img[alt*="PAYCO"]',
             'img[src*="payco"]',
         ],
         PaymentMethod.TOSS: [
+            '//*[@id="Payment_22022"]/td/input',
+            '//*[@id="Payment_22022"]//input',
+            '#Payment_22022 > td > input',
             '#Payment_22022 td input',
-            '#Payment_22022 input',
-            '#Payment_22022',
-            '[class*="toss"]',
-            'input[value*="toss"]',
-            'label:contains("토스")',
+            '[class*="toss"] input',
             'img[alt*="토스"]',
             'img[src*="toss"]',
         ],
         PaymentMethod.SAMSUNG_PAY: [
+            '//*[@id="Payment_22023"]/td/input',
+            '//*[@id="Payment_22023"]//input',
+            '#Payment_22023 > td > input',
             '#Payment_22023 td input',
-            '#Payment_22023 input',
-            '#Payment_22023',
-            '[class*="samsung"]',
-            'input[value*="samsung"]',
-            'label:contains("삼성페이")',
+            '[class*="samsung"] input',
         ],
     }
     
@@ -343,8 +358,12 @@ class PaymentHandler:
         'select[id*="Bank"]',
     ]
     
-    # 약관 동의
+    # 약관 동의 (검증됨 ✅)
     AGREE_ALL_SELECTORS = [
+        # XPATH 우선 (검증됨)
+        '//*[@id="checkAll"]',
+        '//*[@id="agreeAll"]',
+        # CSS 폴백
         '#checkAll',
         '#agreeAll',
         'input[id*="agreeAll"]',
@@ -446,12 +465,31 @@ class PaymentHandler:
     
     @retry(max_attempts=3, delay=0.3)
     def click_next_step(self) -> bool:
-        """다음 단계 버튼 클릭"""
+        """다음 단계 버튼 클릭 - ⚠️ 버튼은 default_content에 있음!"""
         try:
+            # 핵심: 버튼 클릭 전 반드시 default_content로!
             self.sb.switch_to_default_content()
             
-            selector = self._multi_select(self.NEXT_STEP_SELECTORS, '다음 단계')
+            # XPATH 우선 시도 (가장 안정적)
+            for sel in self.NEXT_STEP_SELECTORS:
+                try:
+                    if sel.startswith('/'):
+                        # XPATH
+                        from selenium.webdriver.common.by import By
+                        elem = self.sb.find_element(By.XPATH, sel)
+                    else:
+                        elem = self.sb.find_element(sel)
+                    
+                    if elem and elem.is_displayed():
+                        elem.click()
+                        self._log(f'✅ 다음 단계 클릭 ({sel[:30]}...)')
+                        adaptive_sleep(Timing.LONG)
+                        return True
+                except:
+                    continue
             
+            # MultiSelector 폴백
+            selector = self._multi_select(self.NEXT_STEP_SELECTORS, '다음 단계')
             if selector.click(timeout=Timing.ELEMENT_TIMEOUT):
                 self._log('✅ 다음 단계 클릭')
                 adaptive_sleep(Timing.LONG)
@@ -466,15 +504,34 @@ class PaymentHandler:
     
     @retry(max_attempts=3, delay=0.2)
     def select_price(self, discount_index: int = 1) -> bool:
-        """가격/할인 선택"""
+        """가격/할인 선택 - XPATH 우선"""
         self._log('💰 가격 선택...')
         
         try:
             self.switch_to_book_frame()
             
-            # 가격 선택 드롭다운
-            price_selector = self._multi_select(self.PRICE_SELECTORS, '가격')
-            price_elem = price_selector.find_element()
+            # XPATH 우선 시도 (검증된 셀렉터)
+            price_elem = None
+            for sel in self.PRICE_SELECTORS:
+                try:
+                    if sel.startswith('/'):
+                        # XPATH
+                        from selenium.webdriver.common.by import By
+                        price_elem = self.sb.find_element(By.XPATH, sel)
+                    else:
+                        price_elem = self.sb.find_element(sel)
+                    
+                    if price_elem and price_elem.is_displayed():
+                        self._log(f'✅ 가격 요소 발견: {sel[:40]}')
+                        break
+                except:
+                    price_elem = None
+                    continue
+            
+            # MultiSelector 폴백
+            if not price_elem:
+                price_selector = self._multi_select(self.PRICE_SELECTORS, '가격')
+                price_elem = price_selector.find_element()
             
             if price_elem and price_elem.is_displayed() and Select:
                 try:
@@ -522,52 +579,72 @@ class PaymentHandler:
     
     @retry(max_attempts=3, delay=0.2)
     def input_buyer_info(self) -> bool:
-        """예매자 정보 입력"""
+        """예매자 정보 입력 - 기존값 체크 강화"""
         self._log('👤 예매자 정보 입력...')
         
         try:
             self.switch_to_book_frame()
             
-            # 생년월일 입력
+            # 생년월일 입력 (기존값 있으면 스킵)
             if self.config.birth_date:
                 birth_selector = self._multi_select(self.BIRTH_SELECTORS, '생년월일')
                 birth_elem = birth_selector.find_element()
                 
                 if birth_elem and birth_elem.is_displayed():
                     try:
-                        birth_elem.clear()
-                        # 인간 같은 타이핑
-                        AntiDetection.human_typing(self.sb, birth_elem, self.config.birth_date, clear_first=False)
-                        # 마스킹 로깅
-                        masked = self.config.birth_date[:2] + '****' if len(self.config.birth_date) > 2 else '******'
-                        self._log(f'✅ 생년월일 입력: {masked}')
+                        existing_value = birth_elem.get_attribute('value') or ''
+                        
+                        # 기존값이 없거나 불완전할 때만 입력
+                        if len(existing_value) < 6:
+                            if existing_value:
+                                birth_elem.clear()
+                            # 인간 같은 타이핑
+                            AntiDetection.human_typing(self.sb, birth_elem, self.config.birth_date, clear_first=False)
+                            # 마스킹 로깅
+                            masked = self.config.birth_date[:2] + '****' if len(self.config.birth_date) > 2 else '******'
+                            self._log(f'✅ 생년월일 입력: {masked}')
+                        else:
+                            self._log(f'ℹ️ 생년월일 이미 입력됨')
                     except Exception as e:
                         # 폴백: 직접 입력
-                        birth_elem.send_keys(self.config.birth_date)
+                        try:
+                            birth_elem.send_keys(self.config.birth_date)
+                        except:
+                            pass
             
-            # 연락처 입력
+            # 연락처 입력 (기존값 체크)
             if self.config.phone_number:
                 phone_selector = self._multi_select(self.PHONE_SELECTORS, '연락처')
                 phone_elem = phone_selector.find_element()
                 
                 if phone_elem and phone_elem.is_displayed():
                     try:
-                        phone_elem.clear()
-                        phone_elem.send_keys(self.config.phone_number)
-                        self._log('✅ 연락처 입력')
+                        existing_phone = phone_elem.get_attribute('value') or ''
+                        if len(existing_phone) < 10:  # 전화번호 최소 길이
+                            if existing_phone:
+                                phone_elem.clear()
+                            phone_elem.send_keys(self.config.phone_number)
+                            self._log('✅ 연락처 입력')
+                        else:
+                            self._log('ℹ️ 연락처 이미 입력됨')
                     except:
                         pass
             
-            # 이메일 입력
+            # 이메일 입력 (기존값 체크)
             if self.config.email:
                 email_selector = self._multi_select(self.EMAIL_SELECTORS, '이메일')
                 email_elem = email_selector.find_element()
                 
                 if email_elem and email_elem.is_displayed():
                     try:
-                        email_elem.clear()
-                        email_elem.send_keys(self.config.email)
-                        self._log('✅ 이메일 입력')
+                        existing_email = email_elem.get_attribute('value') or ''
+                        if '@' not in existing_email:  # 이메일 형식 아니면 입력
+                            if existing_email:
+                                email_elem.clear()
+                            email_elem.send_keys(self.config.email)
+                            self._log('✅ 이메일 입력')
+                        else:
+                            self._log('ℹ️ 이메일 이미 입력됨')
                     except:
                         pass
             
@@ -581,9 +658,42 @@ class PaymentHandler:
             self._log(f'⚠️ 예매자 정보 입력 실패: {e}')
             return True
     
+    def _find_element_fast(self, selectors: List[str]) -> Optional[Any]:
+        """빠른 요소 검색 (JS 병렬 검색)"""
+        try:
+            # JavaScript로 병렬 검색 (더 빠름)
+            result = self.sb.execute_script("""
+                var selectors = arguments[0];
+                for (var i = 0; i < selectors.length; i++) {
+                    try {
+                        var elem = document.querySelector(selectors[i]);
+                        if (elem && elem.offsetParent !== null) {
+                            return {index: i, found: true};
+                        }
+                    } catch(e) {}
+                }
+                return {index: -1, found: false};
+            """, selectors)
+            
+            if result and result.get('found'):
+                idx = result.get('index', 0)
+                return self.sb.find_element(selectors[idx])
+        except:
+            pass
+        
+        # 폴백: 순차 검색
+        for sel in selectors:
+            try:
+                elem = self.sb.find_element(sel)
+                if elem and elem.is_displayed():
+                    return elem
+            except:
+                continue
+        return None
+    
     @retry(max_attempts=3, delay=0.3)
     def select_payment_method(self) -> bool:
-        """결제수단 선택 - 인터파크 프레임 구조 대응"""
+        """결제수단 선택 - 인터파크 프레임 구조 대응 + XPATH 강화"""
         self._log('💳 결제수단 선택...')
         
         try:
@@ -599,38 +709,49 @@ class PaymentHandler:
                 
                 self._log(f'🔍 {method.value} 결제수단 찾는 중...')
                 
-                # 각 셀렉터 직접 시도 (더 안정적)
+                # 각 셀렉터 직접 시도 (XPATH 우선!)
                 for sel in selectors:
                     try:
-                        # JS로 요소 찾기 (더 안정적)
-                        elem = self.sb.execute_script(f"""
-                            var elem = document.querySelector('{sel}');
-                            if (elem && elem.offsetParent !== null) return elem;
-                            
-                            // input 타입이면 부모 행 찾아서 input 클릭
-                            var row = document.querySelector('tr[id*="Payment"]');
-                            if (row) {{
-                                var input = row.querySelector('input[type="radio"]');
-                                if (input) return input;
-                            }}
-                            return null;
-                        """)
+                        elem = None
                         
-                        if not elem:
-                            elem = self.sb.find_element(sel)
+                        # XPATH 처리 (우선)
+                        if sel.startswith('/'):
+                            from selenium.webdriver.common.by import By
+                            try:
+                                elem = self.sb.find_element(By.XPATH, sel)
+                            except:
+                                pass
+                        else:
+                            # CSS: JS로 요소 찾기 (더 안정적)
+                            try:
+                                elem = self.sb.execute_script(f"""
+                                    var elem = document.querySelector('{sel}');
+                                    if (elem && elem.offsetParent !== null) return elem;
+                                    return null;
+                                """)
+                            except:
+                                pass
+                            
+                            if not elem:
+                                try:
+                                    elem = self.sb.find_element(sel)
+                                except:
+                                    pass
                         
                         if elem and elem.is_displayed():
-                            # 라디오 버튼이면 클릭, 아니면 부모 클릭
+                            # 라디오 버튼이면 JS 클릭이 더 안정적
                             tag = elem.tag_name.lower() if hasattr(elem, 'tag_name') else ''
                             input_type = elem.get_attribute('type') or ''
                             
                             if tag == 'input' and input_type == 'radio':
-                                # 라디오 버튼은 JS 클릭이 더 안정적
                                 self.sb.execute_script("arguments[0].click();", elem)
                             else:
-                                AntiDetection.human_click(self.sb, elem)
+                                try:
+                                    AntiDetection.human_click(self.sb, elem)
+                                except:
+                                    elem.click()
                             
-                            self._log(f'✅ 결제수단 선택: {method.value} ({sel[:30]}...)')
+                            self._log(f'✅ 결제수단 선택: {method.value} ({sel[:40]}...)')
                             adaptive_sleep(Timing.MEDIUM)
                             
                             # 추가 선택
@@ -794,13 +915,16 @@ class PaymentHandler:
             return False
     
     def check_payment_complete(self, timeout: Optional[int] = None) -> bool:
-        """결제 완료 확인"""
+        """결제 완료 확인 - 최적화"""
         timeout = timeout or self.config.payment_timeout
         self._log(f'⏳ 결제 완료 대기 (최대 {timeout}초)...')
         
         start_time = time.time()
+        last_status_log = 0
         
         while time.time() - start_time < timeout:
+            elapsed = time.time() - start_time
+            
             try:
                 # 결제 완료 페이지 확인
                 complete_selector = self._multi_select(self.COMPLETE_SELECTORS, '결제 완료')
@@ -833,7 +957,19 @@ class PaymentHandler:
             if self._check_payment_error():
                 return False
             
-            time.sleep(2)
+            # 간편결제 팝업 처리
+            self._handle_simple_pay_popup()
+            
+            # 상태 로그 (30초마다)
+            if elapsed - last_status_log >= 30:
+                self._log(f'⏳ 결제 대기 중... ({int(elapsed)}초 경과)')
+                last_status_log = elapsed
+            
+            # 타임아웃 경고 (4분 경과 시)
+            if 240 <= elapsed < 242 and timeout >= 300:
+                self._log('⚠️ 결제 완료까지 1분 남음!')
+            
+            time.sleep(1)  # 2초 → 1초로 단축
         
         self._log('⏰ 결제 완료 대기 타임아웃')
         self.status = PaymentStatus.TIMEOUT
@@ -859,6 +995,76 @@ class PaymentHandler:
                 
         except Exception as e:
             self._log(f'⚠️ 주문번호 추출 실패: {e}')
+    
+    def _handle_simple_pay_popup(self) -> bool:
+        """간편결제 팝업 핸들링 (카카오페이/네이버페이/토스 등)"""
+        try:
+            # 현재 창 핸들 저장
+            main_window = self.sb.driver.current_window_handle
+            all_windows = self.sb.driver.window_handles
+            
+            # 새 창이 열렸는지 확인
+            if len(all_windows) > 1:
+                # 새 창으로 전환
+                for window in all_windows:
+                    if window != main_window:
+                        self.sb.driver.switch_to.window(window)
+                        self._log('🔄 간편결제 팝업 감지, 창 전환')
+                        
+                        # 팝업 내용 확인 (URL 기반)
+                        popup_url = self.sb.get_current_url().lower()
+                        
+                        # 결제 완료 감지 (팝업에서)
+                        if 'success' in popup_url or 'complete' in popup_url or 'done' in popup_url:
+                            self._log('✅ 간편결제 팝업에서 완료 감지')
+                            # 메인 창으로 복귀 (팝업은 자동 닫힘)
+                            try:
+                                self.sb.driver.switch_to.window(main_window)
+                            except:
+                                pass
+                            return True
+                        
+                        # 결제 진행 중이면 대기 (5초)
+                        adaptive_sleep(5.0)
+                        
+                        # 메인 창으로 복귀
+                        try:
+                            self.sb.driver.switch_to.window(main_window)
+                        except:
+                            # 메인 창이 닫혔으면 현재 창이 메인
+                            pass
+                        
+                        break
+            
+            # iframe 기반 간편결제 확인 (네이버페이 등)
+            try:
+                self.sb.switch_to_default_content()
+                simplepay_frames = [
+                    'iframe[src*="kakao"]',
+                    'iframe[src*="naver"]',
+                    'iframe[src*="toss"]',
+                    'iframe[src*="pay"]',
+                    '#payFrame',
+                ]
+                
+                for frame_sel in simplepay_frames:
+                    try:
+                        frame = self.sb.find_element(frame_sel)
+                        if frame and frame.is_displayed():
+                            self._log(f'🔍 간편결제 iframe 감지: {frame_sel}')
+                            # iframe 내부에서 결제 진행 - 사용자 조작 필요
+                            break
+                    except:
+                        continue
+                        
+            except:
+                pass
+            
+            return False
+            
+        except Exception as e:
+            # 팝업 처리 실패해도 계속 진행
+            return False
     
     def _check_payment_error(self) -> bool:
         """결제 에러 확인"""

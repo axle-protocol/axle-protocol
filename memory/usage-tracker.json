@@ -1,10 +1,10 @@
 {
-  "lastCheck": "2026-02-11T22:21:00+09:00",
-  "contextPercent": 96,
-  "contextUsed": "191k",
+  "lastCheck": "2026-02-12T07:25:00+09:00",
+  "contextPercent": 71,
+  "contextUsed": "142k",
   "contextMax": "200k",
   "model": "anthropic/claude-opus-4-5",
-  "compactions": 1,
-  "nextThreshold": 100,
-  "notes": "BTS 실제 7/10, 모달 문제 남음"
+  "compactions": 0,
+  "nextThreshold": 80,
+  "notes": "70% crossed. 13 projects engaged. Fields complete!"
 }

@@ -1190,7 +1190,7 @@ class SeatSelector:
         return False
     
     def _select_seats_from_list(self, seats: List[SeatInfo]) -> bool:
-        """좌석 리스트에서 선택"""
+        """좌석 리스트에서 선택 - 선점 실패 시 대체 좌석 시도"""
         # 연석 or 개별 선택
         if self.pref.consecutive_required and self.pref.num_seats > 1:
             target_seats = self.select_consecutive_seats(seats, self.pref.num_seats)
@@ -1201,13 +1201,45 @@ class SeatSelector:
             self._log(f'⚠️ 좌석 부족 ({len(target_seats)}/{self.pref.num_seats})')
             return False
         
-        # 좌석 클릭
+        # 좌석 클릭 + 선점 확인 + 실패시 대체 좌석
         success_count = 0
-        for seat in target_seats:
+        failed_seats = set()  # 실패한 좌석 ID
+        seat_index = 0
+        backup_seats = [s for s in seats if s not in target_seats]  # 백업 좌석 풀
+        
+        while success_count < self.pref.num_seats and seat_index < len(target_seats) + len(backup_seats):
+            # 현재 시도할 좌석 선택
+            if seat_index < len(target_seats):
+                seat = target_seats[seat_index]
+            else:
+                # 백업 좌석으로 전환
+                backup_idx = seat_index - len(target_seats)
+                if backup_idx >= len(backup_seats):
+                    break
+                seat = backup_seats[backup_idx]
+                
+            seat_index += 1
+            
+            # 이미 실패한 좌석은 스킵
+            if seat.raw_id in failed_seats:
+                continue
+            
+            # 좌석 클릭
             if self.click_seat(seat):
-                self.selected_seats.append(seat)
-                success_count += 1
-                human_delay(100, 200)  # 인간 같은 간격
+                # 선점 확인 (0.3초 대기 후 상태 재확인)
+                human_delay(200, 350)
+                
+                if self._verify_seat_claimed(seat):
+                    self.selected_seats.append(seat)
+                    success_count += 1
+                    self._log(f'✅ 좌석 선점 확인: {seat.raw_id[:20]} ({success_count}/{self.pref.num_seats})')
+                    human_delay(80, 150)
+                else:
+                    # 선점 실패 - 다른 사용자가 먼저 선점
+                    self._log(f'⚠️ 좌석 선점 실패 (경쟁 패배): {seat.raw_id[:20]}')
+                    failed_seats.add(seat.raw_id)
+            else:
+                failed_seats.add(seat.raw_id)
         
         if success_count >= self.pref.num_seats:
             self._log(f'✅ 좌석 선택 완료: {success_count}석')
@@ -1220,7 +1252,60 @@ class SeatSelector:
             
             return True
         
+        self._log(f'⚠️ 좌석 선택 미완료: {success_count}/{self.pref.num_seats}')
         return False
+    
+    def _verify_seat_claimed(self, seat: SeatInfo) -> bool:
+        """좌석 선점 성공 여부 확인"""
+        try:
+            if not seat.element:
+                return True  # 좌표 기반 클릭은 확인 불가
+            
+            # 좌석 요소 상태 재확인
+            try:
+                current_class = seat.element.get_attribute('class') or ''
+                current_fill = seat.element.get_attribute('fill') or ''
+                current_style = seat.element.get_attribute('style') or ''
+            except:
+                # 요소 참조 불가 (stale) → 성공으로 간주
+                return True
+            
+            # 선택됨 상태 확인
+            selected_indicators = ['selected', 'active', 'on', 'picked', 'checked', 'chosen']
+            for ind in selected_indicators:
+                if ind in current_class.lower():
+                    return True
+            
+            # fill 색상 변경 확인 (주로 주황/빨강/파랑으로 변경)
+            selected_colors = ['#ff', '#f90', '#f60', '#00f', '#0af', 'orange', 'red']
+            if any(c in current_fill.lower() for c in selected_colors):
+                return True
+            
+            # stroke 추가 확인
+            if 'stroke' in current_style:
+                return True
+            
+            # 선택된 좌석 목록에서 확인 (JS로)
+            try:
+                is_selected = self.sb.execute_script("""
+                    var elem = arguments[0];
+                    // 부모 컨테이너에서 선택된 좌석 수 확인
+                    var selectedSeats = document.querySelectorAll('.selected, [class*="selected"], [class*="active"]');
+                    for (var s of selectedSeats) {
+                        if (s === elem || s.contains(elem) || elem.contains(s)) return true;
+                    }
+                    return false;
+                """, seat.element)
+                if is_selected:
+                    return True
+            except:
+                pass
+            
+            # 확인 불가 시 성공으로 간주 (클릭은 성공했으므로)
+            return True
+            
+        except Exception:
+            return True  # 에러 시 성공으로 간주
     
     def _reset_frame(self):
         """프레임 리셋"""

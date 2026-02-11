@@ -44,6 +44,9 @@ class CaptchaType(Enum):
 @dataclass
 class CaptchaConfig:
     """캡챠 솔버 설정"""
+    # CapSolver (추천 - Turnstile 특화)
+    capsolver_key: str = field(default_factory=lambda: os.getenv('CAPSOLVER_API_KEY', ''))
+    
     # 2captcha
     two_captcha_key: str = field(default_factory=lambda: os.getenv('TWO_CAPTCHA_KEY', ''))
     
@@ -55,7 +58,7 @@ class CaptchaConfig:
     
     # 타임아웃
     solve_timeout: int = 120      # 솔버 타임아웃 (초)
-    poll_interval: float = 5.0    # 폴링 간격
+    poll_interval: float = 3.0    # 폴링 간격 (CapSolver는 빠름)
     
     # 수동 대기
     manual_wait_timeout: int = 180  # 수동 캡챠 대기 시간
@@ -170,19 +173,25 @@ class CaptchaSolver:
                 self._solve_count += 1
                 return True
         
-        # 2. 2captcha API
+        # 2. CapSolver API (추천 - Turnstile 특화, 빠름)
+        if self.config.capsolver_key:
+            if self._solve_with_capsolver(captcha_type):
+                self._solve_count += 1
+                return True
+        
+        # 3. 2captcha API
         if self.config.two_captcha_key:
             if self._solve_with_2captcha(captcha_type):
                 self._solve_count += 1
                 return True
         
-        # 3. Anti-Captcha API
+        # 4. Anti-Captcha API
         if self.config.anti_captcha_key:
             if self._solve_with_anti_captcha(captcha_type):
                 self._solve_count += 1
                 return True
         
-        # 4. CapMonster API
+        # 5. CapMonster API
         if self.config.capmonster_key:
             if self._solve_with_capmonster(captcha_type):
                 self._solve_count += 1
@@ -511,6 +520,126 @@ class CaptchaSolver:
             
         except Exception as e:
             log(f'⚠️ CapMonster 실패: {e}')
+            return False
+    
+    def _solve_with_capsolver(self, captcha_type: CaptchaType) -> bool:
+        """CapSolver API 사용 - Turnstile 특화, 빠른 응답"""
+        try:
+            import requests
+        except ImportError:
+            log('⚠️ requests 모듈 필요')
+            return False
+        
+        try:
+            api_key = self.config.capsolver_key
+            
+            sitekey = self._extract_sitekey()
+            if not sitekey:
+                log('⚠️ sitekey 추출 실패')
+                return False
+            
+            page_url = self.sb.get_current_url()
+            
+            # 캡챠 타입별 작업 타입
+            if captcha_type == CaptchaType.TURNSTILE:
+                task_type = 'AntiTurnstileTaskProxyLess'
+            elif captcha_type == CaptchaType.RECAPTCHA_V2:
+                task_type = 'ReCaptchaV2TaskProxyLess'
+            elif captcha_type == CaptchaType.RECAPTCHA_V3:
+                task_type = 'ReCaptchaV3TaskProxyLess'
+            elif captcha_type == CaptchaType.HCAPTCHA:
+                task_type = 'HCaptchaTaskProxyLess'
+            else:
+                return False
+            
+            log(f'📤 CapSolver 요청 전송 ({task_type})...')
+            
+            # 작업 생성
+            task_data = {
+                'type': task_type,
+                'websiteURL': page_url,
+                'websiteKey': sitekey,
+            }
+            
+            # reCAPTCHA v3 추가 파라미터
+            if captcha_type == CaptchaType.RECAPTCHA_V3:
+                task_data['pageAction'] = 'verify'
+                task_data['minScore'] = 0.5
+            
+            create_resp = requests.post(
+                'https://api.capsolver.com/createTask',
+                json={
+                    'clientKey': api_key,
+                    'task': task_data,
+                },
+                timeout=30
+            )
+            create_result = create_resp.json()
+            
+            if create_result.get('errorId') != 0:
+                log(f'⚠️ CapSolver 생성 실패: {create_result.get("errorDescription", create_result)}')
+                return False
+            
+            task_id = create_result.get('taskId')
+            
+            # 즉시 결과 반환된 경우 (CapSolver 특성)
+            if create_result.get('status') == 'ready':
+                solution = create_result.get('solution', {})
+                token = solution.get('token') or solution.get('gRecaptchaResponse')
+                if token:
+                    log('✅ CapSolver 즉시 토큰 수신!')
+                    return self._inject_token(token, captcha_type)
+            
+            if not task_id:
+                log('⚠️ CapSolver taskId 없음')
+                return False
+            
+            log(f'📋 CapSolver 작업 ID: {task_id}')
+            
+            # 결과 폴링
+            start_time = time.time()
+            while time.time() - start_time < self.config.solve_timeout:
+                time.sleep(self.config.poll_interval)
+                
+                result_resp = requests.post(
+                    'https://api.capsolver.com/getTaskResult',
+                    json={
+                        'clientKey': api_key,
+                        'taskId': task_id,
+                    },
+                    timeout=30
+                )
+                result = result_resp.json()
+                
+                if result.get('errorId') != 0:
+                    log(f'⚠️ CapSolver 에러: {result.get("errorDescription", result)}')
+                    return False
+                
+                if result.get('status') == 'ready':
+                    solution = result.get('solution', {})
+                    token = solution.get('token') or solution.get('gRecaptchaResponse')
+                    if token:
+                        log(f'✅ CapSolver 토큰 수신! ({int(time.time() - start_time)}초)')
+                        return self._inject_token(token, captcha_type)
+                    else:
+                        log('⚠️ CapSolver 토큰 없음')
+                        return False
+                
+                elif result.get('status') == 'processing':
+                    elapsed = int(time.time() - start_time)
+                    if elapsed % 10 == 0:  # 10초마다 로그
+                        log(f'⏳ CapSolver 처리 중... ({elapsed}s)')
+                    continue
+                
+                else:
+                    log(f'⚠️ CapSolver 상태 불명: {result}')
+                    return False
+            
+            log('⏰ CapSolver 타임아웃')
+            return False
+            
+        except Exception as e:
+            log(f'⚠️ CapSolver 실패: {e}')
             return False
     
     def _extract_sitekey(self) -> Optional[str]:

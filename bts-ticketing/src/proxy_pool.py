@@ -21,6 +21,7 @@ import os
 import random
 import asyncio
 import time
+import secrets
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Set
 from pathlib import Path
@@ -35,6 +36,9 @@ class Proxy:
     username: str = ''
     password: str = ''
     
+    # IPRoyal 세션 키 (동일 IP 유지용)
+    session_id: str = ''
+    
     # 상태 추적
     fail_count: int = 0
     success_count: int = 0
@@ -45,9 +49,20 @@ class Proxy:
     @property
     def url(self) -> str:
         """프록시 URL 생성"""
-        if self.username and self.password:
-            return f"http://{self.username}:{self.password}@{self.host}:{self.port}"
+        password = self._build_password()
+        if self.username and password:
+            return f"http://{self.username}:{password}@{self.host}:{self.port}"
         return f"http://{self.host}:{self.port}"
+    
+    def _build_password(self) -> str:
+        """IPRoyal 형식: 비밀번호에 세션 키 추가"""
+        if not self.password:
+            return ''
+        if self.session_id:
+            # IPRoyal 세션 형식: password_session-XXXXX
+            base_pass = self.password.split('_session-')[0]  # 기존 세션 제거
+            return f"{base_pass}_session-{self.session_id}"
+        return self.password
     
     @property
     def playwright_format(self) -> dict:
@@ -55,16 +70,32 @@ class Proxy:
         proxy_dict = {'server': f'http://{self.host}:{self.port}'}
         if self.username:
             proxy_dict['username'] = self.username
-        if self.password:
-            proxy_dict['password'] = self.password
+        password = self._build_password()
+        if password:
+            proxy_dict['password'] = password
         return proxy_dict
     
+    def with_session(self, session_id: str) -> 'Proxy':
+        """새 세션 ID로 프록시 복제"""
+        return Proxy(
+            host=self.host,
+            port=self.port,
+            username=self.username,
+            password=self.password,
+            session_id=session_id,
+            fail_count=0,
+            success_count=0,
+            is_healthy=True,
+        )
+    
     def __hash__(self):
-        return hash(f"{self.host}:{self.port}")
+        return hash(f"{self.host}:{self.port}:{self.session_id}")
     
     def __eq__(self, other):
         if isinstance(other, Proxy):
-            return self.host == other.host and self.port == other.port
+            return (self.host == other.host and 
+                    self.port == other.port and 
+                    self.session_id == other.session_id)
         return False
 
 
@@ -380,6 +411,127 @@ class ProxyPool:
 
 # 글로벌 프록시 풀 인스턴스
 proxy_pool = ProxyPool()
+
+
+def create_iproyal_proxy(
+    username: str,
+    password: str,
+    country: str = 'kr',
+    session_id: str = None,
+    host: str = 'geo.iproyal.com',
+    port: int = 12321
+) -> Proxy:
+    """IPRoyal 프록시 생성 헬퍼
+    
+    Args:
+        username: IPRoyal 사용자명
+        password: IPRoyal 비밀번호
+        country: 국가 코드 (kr, us, jp 등)
+        session_id: 세션 ID (동일 IP 유지용, None이면 랜덤 생성)
+        host: 프록시 호스트
+        port: 프록시 포트
+        
+    Returns:
+        Proxy 객체
+        
+    Example:
+        >>> proxy = create_iproyal_proxy(
+        ...     username='myuser',
+        ...     password='mypass',
+        ...     country='kr',
+        ...     session_id='session123'
+        ... )
+        >>> print(proxy.url)
+        http://myuser:mypass_country-kr_session-session123@geo.iproyal.com:12321
+    """
+    import secrets
+    
+    # 세션 ID 생성
+    if session_id is None:
+        session_id = secrets.token_hex(8)
+    
+    # 비밀번호에 국가 코드 추가 (아직 없으면)
+    if f'_country-{country}' not in password:
+        password = f'{password}_country-{country}'
+    
+    return Proxy(
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        session_id=session_id,
+    )
+
+
+def create_iproyal_pool(
+    username: str,
+    password: str,
+    country: str = 'kr',
+    num_sessions: int = 10,
+    host: str = 'geo.iproyal.com',
+    port: int = 12321
+) -> ProxyPool:
+    """IPRoyal 프록시 풀 생성 (멀티세션용)
+    
+    각 세션마다 고유한 세션 ID를 가진 프록시 생성
+    
+    Args:
+        username: IPRoyal 사용자명
+        password: IPRoyal 비밀번호 (country 포함 가능)
+        country: 국가 코드
+        num_sessions: 세션 수
+        host: 프록시 호스트
+        port: 프록시 포트
+        
+    Returns:
+        ProxyPool with N proxies
+    """
+    pool = ProxyPool()
+    
+    for i in range(num_sessions):
+        session_id = f's{i:02d}_{secrets.token_hex(4)}'
+        proxy = create_iproyal_proxy(
+            username=username,
+            password=password,
+            country=country,
+            session_id=session_id,
+            host=host,
+            port=port,
+        )
+        pool.proxies.append(proxy)
+    
+    print(f"[ProxyPool] IPRoyal 프록시 풀 생성: {num_sessions}개 세션")
+    return pool
+
+
+# 환경변수에서 IPRoyal 프록시 로드
+def load_iproyal_from_env(num_sessions: int = 10) -> Optional[ProxyPool]:
+    """환경변수에서 IPRoyal 프록시 로드
+    
+    필요한 환경변수:
+    - PROXY_HOST (기본: geo.iproyal.com)
+    - PROXY_PORT (기본: 12321)
+    - PROXY_USER
+    - PROXY_PASS
+    """
+    import secrets
+    
+    host = os.getenv('PROXY_HOST', 'geo.iproyal.com')
+    port = int(os.getenv('PROXY_PORT', '12321'))
+    username = os.getenv('PROXY_USER', '')
+    password = os.getenv('PROXY_PASS', '')
+    
+    if not username or not password:
+        print("[ProxyPool] ⚠️ PROXY_USER, PROXY_PASS 환경변수 필요")
+        return None
+    
+    return create_iproyal_pool(
+        username=username,
+        password=password,
+        num_sessions=num_sessions,
+        host=host,
+        port=port,
+    )
 
 
 def init_proxy_pool(
