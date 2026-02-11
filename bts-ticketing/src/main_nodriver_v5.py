@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-BTS 티켓팅 매크로 v5.0 - 딥 리뷰 기반 완전 재작성
+BTS 티켓팅 매크로 v5.1 - 딥 리뷰 기반 완전 재작성
 2026-02-11
 
 주요 변경:
 - wait_for_navigation: CDP readyState 실제 구현
-- NTP 시간 동기화
-- 봇 탐지 우회 (webdriver, User-Agent, 마우스 이동)
-- 멀티 세션 지원
+- NTP 시간 동기화 (한국 서버 우선)
+- 봇 탐지 우회 (webdriver, User-Agent, 마우스 베지어)
+- 멀티 세션 지원 (개선된 성공 감지)
 - 셀렉터 config 분리
 - 엔터키 CDP 방식
 - iframe 접근 개선
+- Turnstile 다중 전략
+- Rate limiting 적응형 대응
 """
+
+__version__ = "5.1.0"
+__author__ = "BTS Ticketing Bot"
 
 import nodriver as nd
 from nodriver import cdp
@@ -28,6 +33,14 @@ from zoneinfo import ZoneInfo
 from dataclasses import dataclass, field
 from typing import Optional, List, Tuple, Dict, Any
 import aiohttp
+import tempfile
+
+# psutil 선택적 import (브라우저 프로세스 정리용)
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 # ============ 로깅 (파일 + 콘솔) ============
 log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
@@ -112,6 +125,13 @@ class Config:
         if not concert_url:
             raise ValueError("CONCERT_URL 환경변수 필수")
         
+        # URL 유효성 검사
+        if not concert_url.startswith('https://'):
+            if concert_url.startswith('http://'):
+                concert_url = concert_url.replace('http://', 'https://')
+            else:
+                raise ValueError(f"CONCERT_URL은 https://로 시작해야 합니다: {concert_url}")
+        
         try:
             open_time = datetime.strptime(open_time_str, '%Y-%m-%d %H:%M:%S')
             open_time = open_time.replace(tzinfo=ZoneInfo('Asia/Seoul'))
@@ -129,7 +149,7 @@ class Config:
             seat_priority=seat_priority,
             telegram_bot_token=os.getenv('TELEGRAM_BOT_TOKEN', ''),
             telegram_chat_id=os.getenv('TELEGRAM_CHAT_ID', ''),
-            num_sessions=int(os.getenv('NUM_SESSIONS', '1')),
+            num_sessions=max(1, min(10, int(os.getenv('NUM_SESSIONS', '1')))),  # 1-10 범위 제한
             use_ntp=os.getenv('USE_NTP', 'true').lower() == 'true',
         )
 
@@ -137,14 +157,20 @@ class Config:
 # ============ NTP 시간 동기화 (비동기) ============
 _ntp_offset: float = 0.0
 
-def _sync_ntp_blocking() -> Tuple[bool, float]:
-    """NTP 동기화 (블로킹 - executor에서 실행)"""
+def _sync_ntp_blocking() -> Tuple[bool, float, Optional[str]]:
+    """NTP 동기화 (블로킹 - executor에서 실행)
+    
+    Returns:
+        Tuple of (success, offset_seconds, server_name)
+    """
     import socket
     import struct
     
     ntp_servers = [
-        ('time.google.com', 123),
-        ('time.nist.gov', 123),
+        ('time.bora.net', 123),      # 한국 1순위
+        ('time.kriss.re.kr', 123),   # 한국표준과학연구원
+        ('ntp.kornet.net', 123),     # KT
+        ('time.google.com', 123),    # 글로벌 폴백
         ('pool.ntp.org', 123),
     ]
     
@@ -194,9 +220,10 @@ def get_accurate_time() -> datetime:
 
 # ============ SecureLogger (비밀번호 마스킹) ============
 import re
+import threading
 
 class SecureLogger:
-    """민감정보 자동 마스킹 로거"""
+    """민감정보 자동 마스킹 로거 (Thread-safe)"""
     
     PATTERNS = [
         (re.compile(r'password["\s:=]+["\']?([^"\'&\s]+)', re.I), r'password=****'),
@@ -208,14 +235,18 @@ class SecureLogger:
     def __init__(self, base_logger, secrets: List[str] = None):
         self._logger = base_logger
         self._secrets = [s for s in (secrets or []) if s and len(s) > 3]
+        self._lock = threading.Lock()
     
     def add_secret(self, secret: str):
         if secret and len(secret) > 3:
-            self._secrets.append(secret)
+            with self._lock:
+                self._secrets.append(secret)
     
     def _sanitize(self, message: str) -> str:
         result = str(message)
-        for secret in self._secrets:
+        with self._lock:
+            secrets_copy = self._secrets.copy()
+        for secret in secrets_copy:
             if secret in result:
                 result = result.replace(secret, '****')
         for pattern, replacement in self.PATTERNS:
@@ -295,14 +326,14 @@ async def send_telegram(config: Config, message: str, retries: int = 3):
     
     for attempt in range(retries):
         try:
-            session = await get_http_session()
-            url = f"https://api.telegram.org/bot{config.telegram_bot_token}/sendMessage"
-            async with session.post(url, data={
-                'chat_id': config.telegram_chat_id, 
-                'text': f"🎫 BTS\n{message}"
-            }) as resp:
-                if resp.status == 200:
-                    return
+            async with http_manager.get_session() as session:
+                url = f"https://api.telegram.org/bot{config.telegram_bot_token}/sendMessage"
+                async with session.post(url, data={
+                    'chat_id': config.telegram_chat_id, 
+                    'text': f"🎫 BTS\n{message}"
+                }) as resp:
+                    if resp.status == 200:
+                        return
         except Exception as e:
             if attempt == retries - 1:
                 logger.warning(f"텔레그램 {retries}회 실패: {e}")
@@ -339,16 +370,38 @@ async def evaluate_js(page, script: str, return_value: bool = True) -> Any:
 
 # ============ 봇 탐지 우회 ============
 async def setup_stealth(page):
-    """봇 탐지 우회 설정"""
+    """봇 탐지 우회 설정 (강화)"""
     stealth_scripts = [
         # webdriver 속성 숨기기
         '''Object.defineProperty(navigator, 'webdriver', {get: () => undefined});''',
         
-        # chrome 객체 추가
-        '''window.chrome = {runtime: {}};''',
+        # chrome 객체 추가 (더 완전한 구현)
+        '''
+        window.chrome = {
+            runtime: {
+                connect: function() {},
+                sendMessage: function() {},
+                onMessage: { addListener: function() {} }
+            },
+            loadTimes: function() { return {}; },
+            csi: function() { return {}; }
+        };
+        ''',
         
-        # plugins 추가
-        '''Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});''',
+        # plugins 추가 (더 현실적인 구현)
+        '''
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => {
+                const plugins = [
+                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                    {name: 'Native Client', filename: 'internal-nacl-plugin'}
+                ];
+                plugins.length = 3;
+                return plugins;
+            }
+        });
+        ''',
         
         # languages 설정
         '''Object.defineProperty(navigator, 'languages', {get: () => ['ko-KR', 'ko', 'en-US', 'en']});''',
@@ -362,27 +415,63 @@ async def setup_stealth(page):
                 originalQuery(parameters)
         );
         ''',
+        
+        # WebGL 렌더러/벤더 (headless 감지 우회)
+        '''
+        const getParameter = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+            if (parameter === 37445) return 'Intel Inc.';  // UNMASKED_VENDOR_WEBGL
+            if (parameter === 37446) return 'Intel Iris OpenGL Engine';  // UNMASKED_RENDERER_WEBGL
+            return getParameter.call(this, parameter);
+        };
+        ''',
+        
+        # 화면 해상도 일관성
+        '''
+        Object.defineProperty(screen, 'availWidth', {get: () => 1920});
+        Object.defineProperty(screen, 'availHeight', {get: () => 1080});
+        ''',
+        
+        # connection 속성 (봇 감지 우회)
+        '''
+        Object.defineProperty(navigator, 'connection', {
+            get: () => ({
+                effectiveType: '4g',
+                rtt: 50,
+                downlink: 10,
+                saveData: false
+            })
+        });
+        ''',
     ]
     
     for script in stealth_scripts:
         await evaluate_js(page, script, return_value=False)
     
-    logger.debug("✅ Stealth 설정 완료")
+    logger.debug("✅ Stealth 설정 완료 (강화)")
 
 
 # ============ 마우스 이동 시뮬레이션 ============
-async def move_mouse_to(page, x: float, y: float, steps: int = 10):
-    """베지어 곡선으로 마우스 이동"""
+async def move_mouse_to(page, x: float, y: float, steps: int = 10, start_x: float = 0, start_y: float = 0):
+    """베지어 곡선으로 마우스 이동 (자연스러운 곡선)"""
     try:
+        # 제어점 생성 (랜덤 곡선)
+        ctrl_x = (start_x + x) / 2 + random.uniform(-50, 50)
+        ctrl_y = (start_y + y) / 2 + random.uniform(-30, 30)
+        
         for i in range(steps):
             t = (i + 1) / steps
-            # 간단한 선형 이동 (실제로는 베지어가 더 자연스러움)
+            # 2차 베지어 곡선: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+            current_x = (1-t)**2 * start_x + 2*(1-t)*t * ctrl_x + t**2 * x
+            current_y = (1-t)**2 * start_y + 2*(1-t)*t * ctrl_y + t**2 * y
+            
             await page.send(cdp.input_.dispatch_mouse_event(
                 type_='mouseMoved',
-                x=int(x * t),
-                y=int(y * t)
+                x=int(current_x),
+                y=int(current_y)
             ))
-            await asyncio.sleep(random.uniform(0.01, 0.03))
+            # 불규칙한 딜레이 (인간처럼)
+            await asyncio.sleep(random.uniform(0.008, 0.025))
     except Exception as e:
         logger.debug(f"마우스 이동 실패: {e}")
 
@@ -433,8 +522,8 @@ async def human_type(page, element, text: str, with_mistakes: bool = True):
         try:
             await element.send_keys(char)
         except Exception:
-            # 특수문자 실패 시 JS로 직접 입력
-            escaped_char = char.replace('"', '\\"')
+            # 특수문자 실패 시 JS로 직접 입력 (모든 특수문자 escape)
+            escaped_char = char.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r')
             script = f'document.activeElement.value += "{escaped_char}"; document.activeElement.dispatchEvent(new Event("input", {{bubbles: true}}));'
             await evaluate_js(page, script)
         
@@ -637,7 +726,8 @@ async def _do_login(browser, page, config: Config) -> Tuple[bool, any]:
     await human_delay(0.3, 0.5)
     
     # Turnstile/CAPTCHA 완료 대기 (버튼 enabled 될 때까지)
-    turnstile_ok = await _wait_for_turnstile(page, timeout=30.0)
+    # 티켓팅 환경에서는 60초까지 대기 (Turnstile 처리 시간 고려)
+    turnstile_ok = await _wait_for_turnstile(page, timeout=60.0)
     if not turnstile_ok:
         logger.warning("⚠️ Turnstile 대기 타임아웃 - 클릭 시도 계속")
     
@@ -659,19 +749,23 @@ async def _do_login(browser, page, config: Config) -> Tuple[bool, any]:
     return await _verify_login(page), page
 
 
-async def _wait_for_turnstile(page, timeout: float = 90.0) -> bool:
+async def _wait_for_turnstile(page, timeout: float = 60.0) -> bool:
     """Cloudflare Turnstile 챌린지 완료 대기 (다중 전략)
     
     전략:
     1. 자연스러운 마우스 움직임 (베지어 곡선)
-    2. Turnstile iframe 체크박스 클릭
+    2. Turnstile iframe 체크박스 클릭 (최대 3회)
     3. 스크롤 + 포커스 이벤트
+    
+    Args:
+        timeout: 최대 대기 시간 (기본 60초)
     """
     logger.info("⏳ Turnstile 챌린지 완료 대기 중... (다중 전략)")
     start = time.time()
     last_log = 0
     mouse_move_count = 0
-    checkbox_attempted = False
+    checkbox_attempts = 0
+    max_checkbox_attempts = 3
     
     async def _check_button_enabled():
         """로그인 버튼 활성화 확인"""
@@ -750,10 +844,14 @@ async def _wait_for_turnstile(page, timeout: float = 90.0) -> bool:
         
         elapsed = time.time() - start
         
-        # 5초 후 체크박스 클릭 시도 (1회만)
-        if elapsed > 5 and not checkbox_attempted:
-            checkbox_attempted = True
-            await _try_checkbox_click()
+        # 5초, 15초, 30초에 체크박스 클릭 시도 (최대 3회)
+        checkpoint_times = [5, 15, 30]
+        if checkbox_attempts < max_checkbox_attempts:
+            if elapsed > checkpoint_times[checkbox_attempts]:
+                checkbox_attempts += 1
+                clicked = await _try_checkbox_click()
+                if clicked:
+                    logger.info(f"✅ Turnstile 체크박스 클릭 {checkbox_attempts}/{max_checkbox_attempts}")
         
         # 3초마다 인간 행동 시뮬레이션
         if int(elapsed) % 3 == 0 and mouse_move_count < int(elapsed) // 3:
@@ -827,6 +925,20 @@ async def _verify_login(page) -> bool:
             logger.error(f"❌ 로그인 실패: {indicator}")
             return False
     
+    # 5. 쿠키 기반 확인 (마지막 수단)
+    try:
+        cookies = await page.send(cdp.network.get_cookies())
+        if cookies and cookies.cookies:
+            auth_cookies = [c for c in cookies.cookies 
+                          if 'token' in c.name.lower() or 
+                             'session' in c.name.lower() or
+                             'auth' in c.name.lower()]
+            if auth_cookies:
+                logger.info(f"✅ 로그인 성공! (인증 쿠키 {len(auth_cookies)}개 발견)")
+                return True
+    except Exception as e:
+        logger.debug(f"쿠키 확인 실패: {e}")
+    
     logger.warning("⚠️ 로그인 상태 불확실")
     return False
 
@@ -846,6 +958,9 @@ async def step_wait_open(page, config: Config) -> bool:
     """오픈 대기 (NTP 기반 정밀 대기)"""
     logger.info("[3/5] 오픈 대기...")
     
+    refresh_count = 0
+    max_rapid_refresh = 15  # 최대 고속 새로고침 횟수 (rate limiting 방지)
+    
     while True:
         now = get_accurate_time()
         remaining = (config.open_time - now).total_seconds()
@@ -853,10 +968,15 @@ async def step_wait_open(page, config: Config) -> bool:
         if remaining <= 0:
             break
         elif remaining <= 5:
-            # 오픈 5초 전: 고속 새로고침
-            logger.info(f"⏳ {remaining:.1f}초...")
-            await page.reload()
-            await asyncio.sleep(0.1)
+            # 오픈 5초 전: 고속 새로고침 (rate limiting 고려)
+            refresh_count += 1
+            if refresh_count <= max_rapid_refresh:
+                logger.info(f"⏳ {remaining:.1f}초... (새로고침 {refresh_count}/{max_rapid_refresh})")
+                await page.reload()
+                await asyncio.sleep(0.3)  # 0.1 → 0.3 (rate limiting 방지)
+            else:
+                logger.info(f"⏳ {remaining:.1f}초... (대기)")
+                await asyncio.sleep(0.2)
         elif remaining <= 30:
             logger.info(f"⏳ {int(remaining)}초...")
             await asyncio.sleep(1)
@@ -880,9 +1000,27 @@ class AdaptiveRefreshStrategy:
         self.max_interval = 1.0    # 1초 최대
         self.consecutive_errors = 0
         self.rate_limited = False
+        self._rate_limit_until = 0.0
     
-    def get_interval(self, is_error: bool = False) -> float:
-        """다음 새로고침 간격 계산"""
+    def get_interval(self, is_error: bool = False, is_rate_limited: bool = False) -> float:
+        """다음 새로고침 간격 계산
+        
+        Args:
+            is_error: 오류 발생 여부
+            is_rate_limited: 429 응답 등 rate limiting 감지
+        """
+        # Rate limiting 감지 시 백오프
+        if is_rate_limited:
+            self.rate_limited = True
+            self._rate_limit_until = time.time() + 2.0  # 2초 대기
+            return 2.0
+        
+        # Rate limiting 쿨다운 중
+        if self.rate_limited and time.time() < self._rate_limit_until:
+            return max(self._rate_limit_until - time.time(), self.base_interval)
+        else:
+            self.rate_limited = False
+        
         if is_error:
             self.consecutive_errors += 1
             return min(self.base_interval * (1.5 ** self.consecutive_errors), self.max_interval)
@@ -915,8 +1053,20 @@ async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
                     break
             
             if booking:
-                # 즉시 클릭 (딜레이 최소화)
+                # 즉시 클릭 (딜레이 최소화 + 더블 클릭 방지)
                 try:
+                    # 버튼 비활성화 확인
+                    is_disabled = await evaluate_js(page, '''
+                        (() => {
+                            const btn = document.querySelector('a.btn_book, button.booking, [class*="BookingButton"]');
+                            return btn && (btn.disabled || btn.classList.contains('disabled'));
+                        })()
+                    ''')
+                    if is_disabled:
+                        logger.debug("버튼 비활성화 상태 - 건너뜀")
+                        await asyncio.sleep(0.2)
+                        continue
+                    
                     await booking.click()
                 except Exception:
                     await evaluate_js(page, '''
@@ -939,15 +1089,18 @@ async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
             status = await evaluate_js(page, '''
                 (() => {
                     const text = document.body.innerText;
-                    if (text.includes('매진')) return 'sold_out';
-                    if (text.includes('예매대기')) return 'waiting';
+                    if (text.includes('매진') || text.includes('SOLD OUT')) return 'sold_out';
+                    if (text.includes('예매대기') || text.includes('준비중')) return 'waiting';
                     if (text.includes('예매하기')) return 'available';
                     return 'unknown';
                 })()
             ''')
             
             if status == 'sold_out':
-                logger.warning(f"❌ 매진 (시도 {attempt + 1})")
+                logger.warning(f"❌ 매진 (시도 {attempt + 1}) - 3초 대기 후 재시도")
+                await asyncio.sleep(3.0)  # 매진 시 더 긴 대기
+                await page.reload()
+                continue
             elif status == 'waiting':
                 logger.info(f"⏳ 예매대기 (시도 {attempt + 1})")
             
@@ -957,8 +1110,16 @@ async def step_click_booking(browser, page, config: Config) -> Tuple[bool, any]:
             await asyncio.sleep(interval)
             
         except Exception as e:
-            interval = strategy.get_interval(is_error=True)
-            logger.warning(f"예매 시도 {attempt + 1} 오류: {e}")
+            error_str = str(e).lower()
+            # Rate limiting 감지 (429, too many requests 등)
+            is_rate_limited = '429' in error_str or 'rate' in error_str or 'too many' in error_str
+            interval = strategy.get_interval(is_error=True, is_rate_limited=is_rate_limited)
+            
+            if is_rate_limited:
+                logger.warning(f"⚠️ Rate limiting 감지 - {interval:.1f}초 대기")
+            else:
+                logger.warning(f"예매 시도 {attempt + 1} 오류: {e}")
+            
             await asyncio.sleep(interval)
     
     logger.error("❌ 예매 버튼 50회 실패")
@@ -1126,7 +1287,7 @@ async def _select_seat(page) -> bool:
 async def _click_canvas_seat(page) -> bool:
     """Canvas 좌석맵 클릭 (픽셀 분석 기반)"""
     
-    # 1. 픽셀 분석으로 사용 가능한 좌석 찾기
+    # 1. 픽셀 분석으로 사용 가능한 좌석 찾기 (CORS 에러 처리 포함)
     seats = await evaluate_js(page, '''
         (() => {
             const canvas = document.querySelector('canvas');
@@ -1138,7 +1299,21 @@ async def _click_canvas_seat(page) -> bool:
             const width = canvas.width;
             const height = canvas.height;
             
+            // Canvas 위치 정보 (CORS 에러 시에도 사용 가능)
+            const rect = canvas.getBoundingClientRect();
+            const baseInfo = {
+                rect: {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                    scaleX: rect.width / width,
+                    scaleY: rect.height / height
+                }
+            };
+            
             try {
+                // CORS 에러 가능 지점 - cross-origin canvas
                 const imageData = ctx.getImageData(0, 0, width, height);
                 const data = imageData.data;
                 
@@ -1163,23 +1338,23 @@ async def _click_canvas_seat(page) -> bool:
                     }
                 }
                 
-                // Canvas 실제 위치
-                const rect = canvas.getBoundingClientRect();
-                
                 return {
                     seats: availableSeats.slice(0, 30),
-                    rect: {
-                        left: rect.left,
-                        top: rect.top,
-                        scaleX: rect.width / width,
-                        scaleY: rect.height / height
-                    }
+                    rect: baseInfo.rect
                 };
             } catch (e) {
-                return { error: e.message };
+                // CORS/SecurityError 시 폴백 정보 반환
+                if (e.name === 'SecurityError') {
+                    return { error: 'cors_blocked', ...baseInfo };
+                }
+                return { error: e.message, ...baseInfo };
             }
         })()
     ''')
+    
+    # CORS 에러 로깅
+    if seats and seats.get('error') == 'cors_blocked':
+        logger.debug("Canvas CORS 차단 - 폴백 모드 사용")
     
     # 픽셀 분석 성공 시
     if seats and not seats.get('error') and seats.get('seats'):
@@ -1312,7 +1487,6 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
     browser = None
     try:
         # 세션별 프로필 디렉토리 (멀티 세션 충돌 방지)
-        import tempfile
         user_data_dir = os.path.join(tempfile.gettempdir(), f'bts-session-{session_id}')
         os.makedirs(user_data_dir, exist_ok=True)
         
@@ -1365,8 +1539,9 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
         await send_telegram(config, f"[세션 {session_id}] 💳 결제 진행하세요!")
         logger.info(f"[세션 {session_id}] 💳 결제 대기 (30분)")
         
-        # 결제 완료 감지
-        for _ in range(180):
+        # 결제 완료 감지 (30분 대기)
+        payment_timeout = 180  # 10초 * 180 = 30분
+        for i in range(payment_timeout):
             completed = await find_by_text(booking_page, '예매 완료', timeout=5.0)
             if completed:
                 await send_telegram(config, f"[세션 {session_id}] 🎉 예매 완료!!!")
@@ -1377,8 +1552,14 @@ async def run_single_session(config: Config, session_id: int, live: bool) -> boo
                 await send_telegram(config, f"[세션 {session_id}] ❌ 결제 실패")
                 return False
             
+            # 5분마다 알림
+            if i > 0 and i % 30 == 0:
+                remaining_min = (payment_timeout - i) * 10 // 60
+                logger.info(f"[세션 {session_id}] 💳 결제 대기 중... (남은 시간: {remaining_min}분)")
+            
             await asyncio.sleep(10)
         
+        await send_telegram(config, f"[세션 {session_id}] ⏰ 결제 대기 시간 초과 (30분)")
         return False
         
     except KeyboardInterrupt:
@@ -1410,8 +1591,11 @@ async def cleanup_browser(browser, session_id: int):
         logger.warning(f"[세션 {session_id}] 브라우저 종료 실패: {e}")
     
     # 2. 프로세스 강제 종료 (psutil 사용)
+    if not HAS_PSUTIL:
+        logger.debug("psutil 미설치 - 강제 종료 건너뜀")
+        return
+    
     try:
-        import psutil
         if hasattr(browser, '_process') and browser._process:
             pid = browser._process.pid
             try:
@@ -1436,14 +1620,12 @@ async def cleanup_browser(browser, session_id: int):
                 logger.info(f"[세션 {session_id}] 브라우저 강제 종료 (PID: {pid})")
             except psutil.NoSuchProcess:
                 pass
-    except ImportError:
-        logger.debug("psutil 미설치 - 강제 종료 건너뜀")
     except Exception as e:
         logger.error(f"[세션 {session_id}] 프로세스 정리 실패: {e}")
 
 
 async def run_multi_session(config: Config, live: bool):
-    """멀티 세션 실행"""
+    """멀티 세션 실행 (개선된 성공 감지)"""
     if config.num_sessions == 1:
         await run_single_session(config, 1, live)
         return
@@ -1451,37 +1633,52 @@ async def run_multi_session(config: Config, live: bool):
     logger.info(f"🚀 {config.num_sessions}개 세션 시작")
     
     tasks = [
-        run_single_session(config, i + 1, live) 
+        asyncio.create_task(run_single_session(config, i + 1, live), name=f"session-{i+1}")
         for i in range(config.num_sessions)
     ]
     
-    # 하나라도 성공하면 나머지 취소
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    success_found = False
     
-    # 취소 및 cleanup 대기 (좀비 프로세스 방지)
-    for task in pending:
-        task.cancel()
+    # 태스크 완료 시마다 확인 (성공 시까지 대기)
+    while tasks:
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        
+        for task in done:
+            try:
+                result = task.result()
+                if result:
+                    logger.info(f"🎉 세션 성공! ({task.get_name()})")
+                    success_found = True
+                    break
+                else:
+                    logger.info(f"세션 실패 ({task.get_name()})")
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.debug(f"세션 예외 ({task.get_name()}): {e}")
+        
+        if success_found:
+            break
+        
+        tasks = list(pending)
     
+    # 남은 태스크 취소 (성공 시 또는 모두 실패 시)
     if pending:
+        for task in pending:
+            task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
         logger.info(f"🧹 {len(pending)}개 세션 정리 완료")
     
-    # 결과 확인
-    for task in done:
-        try:
-            if task.result():
-                logger.info("🎉 성공!")
-                return
-        except Exception:
-            pass
-    
-    logger.warning("😢 모든 세션 실패")
+    if success_found:
+        logger.info("🎉 티켓팅 성공!")
+    else:
+        logger.warning("😢 모든 세션 실패")
 
 
 async def run_ticketing(config: Config, live: bool):
     """메인 실행"""
     logger.info("=" * 50)
-    logger.info("🎫 BTS 티켓팅 v5.0")
+    logger.info(f"🎫 BTS 티켓팅 v{__version__}")
     logger.info(f"오픈: {config.open_time}")
     logger.info(f"현재: {get_accurate_time()}")
     logger.info(f"모드: {'실전' if live else '테스트'}")
@@ -1507,18 +1704,27 @@ def main():
     
     if not args.test and not args.live:
         print("사용법: python main_nodriver_v5.py --test 또는 --live")
-        print("옵션: --sessions N (멀티 세션)")
+        print("옵션: --sessions N (멀티 세션, 1-10)")
         return
     
     try:
         config = Config.from_env()
         if args.sessions > 1:
-            config.num_sessions = args.sessions
+            # 세션 수 검증 (환경변수와 동일 로직)
+            config.num_sessions = max(1, min(10, args.sessions))
+            if args.sessions != config.num_sessions:
+                logger.warning(f"세션 수 조정: {args.sessions} → {config.num_sessions}")
     except ValueError as e:
         logger.error(f"설정 오류: {e}")
         return
     
-    asyncio.run(run_ticketing(config, args.live))
+    try:
+        asyncio.run(run_ticketing(config, args.live))
+    except KeyboardInterrupt:
+        logger.info("⛔ 사용자 중단 (Ctrl+C)")
+    except Exception as e:
+        logger.error(f"❌ 치명적 오류: {e}")
+        traceback.print_exc()
 
 
 if __name__ == '__main__':

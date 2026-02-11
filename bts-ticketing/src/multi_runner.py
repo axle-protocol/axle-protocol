@@ -47,15 +47,21 @@ class RunnerState:
     
     def __post_init__(self):
         """Lock 초기화 (dataclass 호환)"""
+        # asyncio.Lock()은 이벤트 루프 컨텍스트에서 생성해야 함
+        # 초기화는 async 함수에서 수행
+        pass
+    
+    def _ensure_lock(self):
+        """Lock 지연 초기화 (이벤트 루프 내에서)"""
         if self._lock is None:
             self._lock = asyncio.Lock()
+        return self._lock
     
     async def claim_victory(self, instance_id: int) -> bool:
         """원자적으로 승리 선언 - 먼저 호출한 인스턴스만 True 반환"""
-        if self._lock is None:
-            self._lock = asyncio.Lock()
+        lock = self._ensure_lock()
         
-        async with self._lock:
+        async with lock:
             if self.winner_instance is None:
                 self.winner_instance = instance_id
                 if self.success_event:
@@ -67,10 +73,9 @@ class RunnerState:
     
     async def record_result(self, instance_id: int, result: str):
         """결과 기록 (스레드 안전)"""
-        if self._lock is None:
-            self._lock = asyncio.Lock()
+        lock = self._ensure_lock()
         
-        async with self._lock:
+        async with lock:
             if self.results is None:
                 self.results = {}
             self.results[instance_id] = result
@@ -359,14 +364,14 @@ async def run_multi(config: Config, test_mode: bool = False) -> bool:
         # 인스턴스 로거
         inst_logger = get_instance_logger(logger, i + 1)
         
-        # 태스크 생성 (스태거링 딜레이 포함)
-        async def run_with_delay(idx, acc, prx, log):
-            if idx > 0 and multi_cfg.stagger_delay > 0:
-                await asyncio.sleep(idx * multi_cfg.stagger_delay)
+        # 태스크 생성 (스태거링 딜레이 포함 - 클로저 캡처 방지)
+        async def run_with_delay(idx, acc, prx, log, stagger_delay):
+            if idx > 0 and stagger_delay > 0:
+                await asyncio.sleep(idx * stagger_delay)
             return await run_instance(idx + 1, config, acc, prx, log, test_mode)
         
         task = asyncio.create_task(
-            run_with_delay(i, account, proxy, inst_logger),
+            run_with_delay(i, account, proxy, inst_logger, multi_cfg.stagger_delay),
             name=f"instance-{i+1}"
         )
         tasks.append(task)
@@ -405,8 +410,15 @@ async def run_multi(config: Config, test_mode: bool = False) -> bool:
             # 취소 완료 대기
             await asyncio.gather(*pending, return_exceptions=True)
         
-        # 결과 정리
-        success_count = sum(1 for t in done if not t.cancelled() and t.result())
+        # 결과 정리 (예외 안전)
+        success_count = 0
+        for t in done:
+            if not t.cancelled():
+                try:
+                    if t.result():
+                        success_count += 1
+                except Exception:
+                    pass
         fail_count = len(done) - success_count
         cancelled_count = len(pending) + sum(1 for t in done if t.cancelled())
         

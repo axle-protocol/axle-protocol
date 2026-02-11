@@ -13,6 +13,7 @@ interface NetworkNode {
   tasks: number;
   capabilities: string[];
   rating: number;
+  isReal?: boolean;
   x?: number;
   y?: number;
   fx?: number;
@@ -101,19 +102,34 @@ export default function NetworkGraph({ width = 800, height = 600 }: NetworkGraph
   const paintNode = (node: any, ctx: CanvasRenderingContext2D) => {
     const size = getNodeSize(node);
     const color = getNodeColor(node);
+    const isReal = node.isReal === true;
     
-    // Add glow effect for online nodes
-    if (node.status === 'online' || node.status === 'busy') {
-      ctx.save();
+    ctx.save();
+    
+    // Enhanced glow for real agents
+    if (isReal) {
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 25;
+      ctx.globalAlpha = 1.0;
+    } else if (node.status === 'online' || node.status === 'busy') {
       ctx.shadowColor = color;
       ctx.shadowBlur = 15;
       ctx.globalAlpha = 0.8;
       
-      // Pulse effect for very active nodes (with animation)
+      // Pulse effect for very active nodes
       if (node.tasks > 10) {
         const pulseMultiplier = 1 + 0.3 * Math.sin(Date.now() * 0.005 + node.id.length);
         ctx.shadowBlur = 20 * pulseMultiplier;
       }
+    }
+    
+    // Draw outer ring for real agents
+    if (isReal) {
+      ctx.beginPath();
+      ctx.arc(node.x || 0, node.y || 0, size + 4, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
     
     // Draw main node circle
@@ -133,8 +149,19 @@ export default function NetworkGraph({ width = 800, height = 600 }: NetworkGraph
     if (node.rating > 4.0) {
       ctx.beginPath();
       ctx.arc((node.x || 0) + size * 0.6, (node.y || 0) - size * 0.6, 3, 0, 2 * Math.PI);
-      ctx.fillStyle = '#FFD700'; // Gold for high rating
+      ctx.fillStyle = '#FFD700';
       ctx.fill();
+    }
+    
+    // Draw "verified" badge for real agents
+    if (isReal) {
+      ctx.beginPath();
+      ctx.arc((node.x || 0) - size * 0.6, (node.y || 0) - size * 0.6, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = '#22C55E';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
     
     ctx.restore();
@@ -227,9 +254,14 @@ export default function NetworkGraph({ width = 800, height = 600 }: NetworkGraph
           <div className="flex items-center gap-3 mb-3">
             <div 
               className="w-4 h-4 rounded-full"
-              style={{ backgroundColor: getNodeColor(hoveredNode) }}
+              style={{ backgroundColor: getNodeColor(hoveredNode), border: hoveredNode.isReal ? '2px solid #FFD700' : 'none' }}
             ></div>
             <h3 className="font-semibold text-white">{hoveredNode.name}</h3>
+            {hoveredNode.isReal && (
+              <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                ✓ On-chain
+              </span>
+            )}
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
               hoveredNode.status === 'online' ? 'bg-green-500/20 text-green-400' :
               hoveredNode.status === 'busy' ? 'bg-orange-500/20 text-orange-400' :
@@ -273,8 +305,12 @@ export default function NetworkGraph({ width = 800, height = 600 }: NetworkGraph
         <div className="font-semibold text-white mb-2">Legend</div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-[#22C55E] rounded-full border-2 border-[#FFD700]"></div>
+            <span className="text-white/80">On-chain Agent</span>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#22C55E] rounded-full"></div>
-            <span className="text-white/80">Online Agent</span>
+            <span className="text-white/80">Online (Simulated)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#F97316] rounded-full"></div>
@@ -295,6 +331,12 @@ export default function NetworkGraph({ width = 800, height = 600 }: NetworkGraph
       <div className="absolute top-4 right-4 bg-black/90 backdrop-blur-sm rounded-lg p-3 border border-white/20 text-sm">
         <div className="font-semibold text-white mb-2">Network Stats</div>
         <div className="space-y-1">
+          <div className="flex justify-between gap-4">
+            <span className="text-white/80">On-chain Agents:</span>
+            <span className="font-medium text-yellow-400">
+              {networkData.nodes.filter((n: any) => n.isReal).length}
+            </span>
+          </div>
           <div className="flex justify-between gap-4">
             <span className="text-white/80">Total Agents:</span>
             <span className="font-medium">{networkData.nodes.length}</span>

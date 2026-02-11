@@ -329,8 +329,8 @@ export default function DashboardPage() {
   // Tab navigation state
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Network Graph state
-  const [showNetworkGraph, setShowNetworkGraph] = useState(false);
+  // Network Graph state (기본 표시)
+  const [showNetworkGraph, setShowNetworkGraph] = useState(true);
   
   // Social data state
   const [socialData, setSocialData] = useState<any>(null);

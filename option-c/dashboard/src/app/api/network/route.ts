@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchAgentsAndTasks, type AgentData } from '@/lib/solana-utils';
 
 export interface NetworkNode {
   id: string;
@@ -7,6 +8,7 @@ export interface NetworkNode {
   tasks: number;
   capabilities: string[];
   rating: number;
+  isReal?: boolean; // Flag to identify real vs mock agents
 }
 
 export interface NetworkLink {
@@ -22,124 +24,202 @@ export interface NetworkData {
 }
 
 // Mock agent names inspired by molten.gg style
-const agentNames = [
+const mockAgentNames = [
   'CryptoNinja', 'DefiWizard', 'BlockchainBeast', 'SolanaShark', 'TokenTitan',
   'NftMaster', 'DappBuilder', 'SmartContract', 'YieldFarmer', 'LiquidityKing',
   'GasOptimizer', 'ConsensusKeeper', 'ValidatorPro', 'NodeRunner', 'ChainAnalyst',
   'MetaTrader', 'DexHunter', 'ProtocolGuru', 'BridgeBuilder', 'OraculeMage',
-  'StakingLord', 'FlashLoanExpert', 'MevBot', 'ArbitrageAce', 'GovernanceVoter'
+  'StakingLord', 'FlashLoanExpert', 'MevBot', 'ArbitrageAce', 'GovernanceVoter',
+  'AuditMaster', 'SecurityPro', 'CodeReviewer', 'DataWrangler', 'AITrainer'
 ];
 
-const capabilities = [
-  'Smart Contracts', 'DeFi', 'NFTs', 'Trading', 'Analysis',
-  'Development', 'Security', 'Frontend', 'Backend', 'Blockchain',
-  'Solana', 'Ethereum', 'Web3', 'React', 'Node.js',
-  'Rust', 'TypeScript', 'Python', 'Go', 'Design'
+const mockCapabilities = [
+  'text-generation', 'image-analysis', 'data-scraping', 'code-review', 'translation',
+  'smart-contracts', 'defi', 'nfts', 'trading', 'analysis',
+  'development', 'security', 'frontend', 'backend', 'blockchain',
+  'solana', 'ethereum', 'web3', 'react', 'rust'
 ];
 
-// Generate mock network data
-function generateNetworkData(): NetworkData {
-  const nodeCount = 25; // Good balance for visualization
+// Convert real agent to network node
+function realAgentToNode(agent: AgentData): NetworkNode {
+  // Determine status based on activity
+  let status: 'online' | 'busy' | 'offline' = 'offline';
+  const hoursSinceRegistered = (Date.now() - agent.registeredAt.getTime()) / (1000 * 60 * 60);
+  
+  if (agent.isActive) {
+    // Active agents are online or busy based on task count
+    status = agent.tasksCompleted > 5 ? 'busy' : 'online';
+  } else if (hoursSinceRegistered < 24) {
+    // Recently registered but not active
+    status = 'offline';
+  }
+
+  // Calculate rating from reputation (0-1000 -> 3.0-5.0)
+  const rating = Math.round((3.0 + (agent.reputation / 1000) * 2.0) * 10) / 10;
+
+  return {
+    id: `real-${agent.pda.slice(0, 8)}`,
+    name: agent.nodeId,
+    status,
+    tasks: agent.tasksCompleted,
+    capabilities: agent.capabilities.slice(0, 5),
+    rating: Math.min(5.0, Math.max(3.0, rating)),
+    isReal: true
+  };
+}
+
+// Generate mock agents to fill the network
+function generateMockNodes(count: number, existingIds: Set<string>): NetworkNode[] {
   const nodes: NetworkNode[] = [];
-  const links: NetworkLink[] = [];
+  let nameIndex = 0;
 
-  // Generate nodes
-  for (let i = 0; i < nodeCount; i++) {
-    const statusWeights = [
-      { status: 'online', weight: 0.4 },
-      { status: 'busy', weight: 0.35 },
-      { status: 'offline', weight: 0.25 }
-    ] as const;
+  for (let i = 0; i < count && nameIndex < mockAgentNames.length; i++) {
+    const id = `mock-agent-${i + 1}`;
+    if (existingIds.has(id)) continue;
 
-    const randomStatus = () => {
-      const random = Math.random();
-      let cumulative = 0;
-      for (const { status, weight } of statusWeights) {
-        cumulative += weight;
-        if (random <= cumulative) return status;
-      }
-      return 'offline';
-    };
+    // Weighted status distribution
+    const rand = Math.random();
+    let status: 'online' | 'busy' | 'offline';
+    if (rand < 0.35) status = 'online';
+    else if (rand < 0.65) status = 'busy';
+    else status = 'offline';
 
-    const status = randomStatus();
+    // Task count based on status
     const baseTasks = status === 'online' ? 15 : status === 'busy' ? 25 : 2;
     const taskVariation = Math.floor(Math.random() * 20);
 
+    // Random capabilities (2-5)
+    const shuffledCaps = [...mockCapabilities].sort(() => 0.5 - Math.random());
+    const capCount = Math.floor(Math.random() * 4) + 2;
+
     nodes.push({
-      id: `agent-${i + 1}`,
-      name: agentNames[i] || `Agent${i + 1}`,
+      id,
+      name: mockAgentNames[nameIndex],
       status,
       tasks: Math.max(0, baseTasks + taskVariation),
-      capabilities: capabilities
-        .sort(() => 0.5 - Math.random())
-        .slice(0, Math.floor(Math.random() * 5) + 2),
-      rating: Math.round((3.0 + Math.random() * 2.0) * 10) / 10 // 3.0 to 5.0
+      capabilities: shuffledCaps.slice(0, capCount),
+      rating: Math.round((3.0 + Math.random() * 2.0) * 10) / 10,
+      isReal: false
     });
+
+    nameIndex++;
   }
 
-  // Generate links (connections between agents)
-  const linkTypes: Array<{ type: NetworkLink['type'], weight: number }> = [
-    { type: 'match', weight: 0.6 },
-    { type: 'collaboration', weight: 0.3 },
-    { type: 'referral', weight: 0.1 }
-  ];
+  return nodes;
+}
 
-  // Create a reasonable number of connections (not too sparse, not too dense)
-  const linkCount = Math.floor(nodeCount * 1.5); // ~1.5 links per node on average
-
+// Generate network links between nodes
+function generateLinks(nodes: NetworkNode[]): NetworkLink[] {
+  const links: NetworkLink[] = [];
   const usedConnections = new Set<string>();
+  
+  // Create links between real agents and mock agents (representing marketplace activity)
+  const realNodes = nodes.filter(n => n.isReal);
+  const mockNodes = nodes.filter(n => !n.isReal);
 
-  for (let i = 0; i < linkCount; i++) {
-    let source: NetworkNode;
-    let target: NetworkNode;
-    let connectionId: string;
+  // Real-to-mock connections (show marketplace reach)
+  for (const realNode of realNodes) {
+    // Each real agent connects to 2-5 mock agents
+    const connectionCount = Math.floor(Math.random() * 4) + 2;
+    const shuffledMocks = [...mockNodes].sort(() => 0.5 - Math.random());
     
-    // Try to find a unique connection
-    let attempts = 0;
-    do {
-      source = nodes[Math.floor(Math.random() * nodes.length)];
-      target = nodes[Math.floor(Math.random() * nodes.length)];
-      connectionId = [source.id, target.id].sort().join('-');
-      attempts++;
-    } while ((source.id === target.id || usedConnections.has(connectionId)) && attempts < 50);
-
-    if (source.id !== target.id && !usedConnections.has(connectionId)) {
-      usedConnections.add(connectionId);
-
-      // Higher chance of connections between online/busy agents
-      const sourceActivity = source.status === 'offline' ? 0.3 : 1.0;
-      const targetActivity = target.status === 'offline' ? 0.3 : 1.0;
-      const strength = Math.random() * sourceActivity * targetActivity;
-
-      // Choose link type based on weights
-      const random = Math.random();
-      let cumulative = 0;
-      let selectedType: NetworkLink['type'] = 'match';
+    for (let i = 0; i < Math.min(connectionCount, shuffledMocks.length); i++) {
+      const target = shuffledMocks[i];
+      const connectionId = [realNode.id, target.id].sort().join('-');
       
-      for (const { type, weight } of linkTypes) {
-        cumulative += weight;
-        if (random <= cumulative) {
-          selectedType = type;
-          break;
-        }
+      if (!usedConnections.has(connectionId)) {
+        usedConnections.add(connectionId);
+        
+        // Match type based on capability overlap
+        const hasOverlap = realNode.capabilities.some(c => 
+          target.capabilities.includes(c)
+        );
+        
+        links.push({
+          source: realNode.id,
+          target: target.id,
+          type: hasOverlap ? 'match' : 'collaboration',
+          strength: Math.random() * 0.6 + 0.4 // 0.4-1.0
+        });
       }
-
-      links.push({
-        source: source.id,
-        target: target.id,
-        type: selectedType,
-        strength: Math.round(strength * 100) / 100
-      });
     }
   }
 
-  return { nodes, links };
+  // Mock-to-mock connections (background network activity)
+  const mockLinkCount = Math.floor(mockNodes.length * 1.2);
+  
+  for (let i = 0; i < mockLinkCount; i++) {
+    const source = mockNodes[Math.floor(Math.random() * mockNodes.length)];
+    const target = mockNodes[Math.floor(Math.random() * mockNodes.length)];
+    
+    if (source.id === target.id) continue;
+    
+    const connectionId = [source.id, target.id].sort().join('-');
+    if (usedConnections.has(connectionId)) continue;
+    
+    usedConnections.add(connectionId);
+    
+    // Determine link type
+    const rand = Math.random();
+    let type: NetworkLink['type'];
+    if (rand < 0.5) type = 'match';
+    else if (rand < 0.8) type = 'collaboration';
+    else type = 'referral';
+
+    // Strength based on status activity
+    const sourceActivity = source.status === 'offline' ? 0.3 : 1.0;
+    const targetActivity = target.status === 'offline' ? 0.3 : 1.0;
+    const strength = Math.random() * sourceActivity * targetActivity;
+
+    links.push({
+      source: source.id,
+      target: target.id,
+      type,
+      strength: Math.round(strength * 100) / 100
+    });
+  }
+
+  return links;
 }
 
-// Cache the data for a short time to avoid regenerating on every request
+// Cache
 let cachedData: NetworkData | null = null;
 let lastGenerated = 0;
 const CACHE_DURATION = 30000; // 30 seconds
+
+async function generateNetworkData(): Promise<NetworkData> {
+  // Fetch real agents from Solana
+  let realAgents: AgentData[] = [];
+  try {
+    const { agents } = await fetchAgentsAndTasks();
+    realAgents = agents;
+  } catch (error) {
+    console.error('Failed to fetch real agents:', error);
+  }
+
+  const nodes: NetworkNode[] = [];
+  const existingIds = new Set<string>();
+
+  // Add real agents as nodes (prioritized, displayed prominently)
+  for (const agent of realAgents) {
+    const node = realAgentToNode(agent);
+    nodes.push(node);
+    existingIds.add(node.id);
+  }
+
+  // Calculate mock count to reach target network size
+  const targetNodeCount = 30; // Good balance for visualization
+  const mockCount = Math.max(0, targetNodeCount - nodes.length);
+  
+  // Add mock agents
+  const mockNodes = generateMockNodes(mockCount, existingIds);
+  nodes.push(...mockNodes);
+
+  // Generate links
+  const links = generateLinks(nodes);
+
+  return { nodes, links };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -147,13 +227,23 @@ export async function GET(request: NextRequest) {
     
     // Regenerate data if cache is expired
     if (!cachedData || (now - lastGenerated) > CACHE_DURATION) {
-      cachedData = generateNetworkData();
+      cachedData = await generateNetworkData();
       lastGenerated = now;
     }
+
+    // Count real vs mock for stats
+    const realCount = cachedData.nodes.filter(n => n.isReal).length;
+    const mockCount = cachedData.nodes.filter(n => !n.isReal).length;
 
     return NextResponse.json({
       success: true,
       data: cachedData,
+      meta: {
+        realAgents: realCount,
+        simulatedAgents: mockCount,
+        totalNodes: cachedData.nodes.length,
+        totalLinks: cachedData.links.length
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -169,22 +259,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Optional: Add POST endpoint for real-time updates
+// POST endpoint for cache invalidation
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
-    // In a real implementation, this would update the actual network state
-    // For now, we'll just invalidate the cache
     cachedData = null;
-    
     return NextResponse.json({
       success: true,
-      message: 'Network data updated'
+      message: 'Network data cache invalidated'
     });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: 'Failed to update network data' },
+      { success: false, error: 'Failed to invalidate cache' },
       { status: 500 }
     );
   }
