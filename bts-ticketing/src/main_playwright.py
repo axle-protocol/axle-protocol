@@ -271,6 +271,7 @@ class NOLTicketing:
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
+        self.booking_page: Optional[Page] = None  # 예매 팝업 페이지
         self.logged_in = False
         
         # 상태 추적
@@ -680,94 +681,91 @@ class NOLTicketing:
         return False
     
     def click_booking_button(self) -> bool:
-        """예매하기 버튼 클릭 (NOL 개편 대응)"""
+        """예매하기 버튼 클릭 + 팝업 핸들링 (NOL 개편 대응)"""
         self._log('📍 예매하기 버튼 클릭...')
         self.stats['booking_attempts'] += 1
         
         # React SPA 로딩 대기
         try:
             self.page.wait_for_load_state('networkidle', timeout=10000)
-            adaptive_sleep(2)  # React 렌더링 추가 대기
+            adaptive_sleep(2)
         except:
             pass
         
-        # NOL 티켓 개편 대응 셀렉터 (2024-2025)
+        # NOL 티켓 예매 버튼 셀렉터
         booking_selectors = [
-            # 1순위: 정확한 텍스트 매칭
-            'button:has-text("예매하기")',
-            'a:has-text("예매하기")',
-            'button:has-text("예매")',
             'a:has-text("예매")',
-            
-            # 2순위: Playwright role 기반
-            'role=button[name=/예매/i]',
-            'role=link[name=/예매/i]',
-            
-            # 3순위: NOL 클래스 패턴
+            'button:has-text("예매")',
+            'a:has-text("예매하기")',
+            'button:has-text("예매하기")',
             '[class*="booking"]',
-            '[class*="Booking"]',
-            '[class*="reserve"]',
-            '[class*="Reserve"]',
             '[class*="prdBtn"]',
-            '[class*="prdBtnWrap"] button',
-            '[class*="prdBtnWrap"] a',
-            
-            # 4순위: 일반 버튼 패턴
-            '[class*="btn"][class*="primary"]',
-            '[data-testid*="booking"]',
-            'form button[type="submit"]',
         ]
         
+        # 예매 버튼 찾기
+        btn = None
         for selector in booking_selectors:
             try:
                 btn = self.page.locator(selector).first
                 if btn.is_visible(timeout=2000):
                     text = btn.text_content() or ""
-                    if '예매' in text or 'booking' in selector.lower():
-                        btn.click()
-                        self._log(f'클릭 성공: {selector[:30]} (텍스트: {text[:20]})', LogLevel.SUCCESS)
-                        adaptive_sleep(2)
-                        return True
+                    if '예매' in text:
+                        self._log(f'버튼 발견: {selector[:30]} (텍스트: {text[:20]})')
+                        break
+                btn = None
             except:
                 continue
         
-        # get_by_role 시도
+        if not btn:
+            self._dump_page_buttons()
+            self._log('예매 버튼 못찾음', LogLevel.WARN)
+            return False
+        
+        # ⭐ 팝업/새 탭 핸들링 (핵심!)
+        self._log('🚀 예매 버튼 클릭 + 팝업 대기...')
+        
         try:
-            btn = self.page.get_by_role("button", name="예매하기")
-            if btn.is_visible(timeout=2000):
+            # 방법 1: expect_popup으로 팝업 캐치
+            with self.page.expect_popup(timeout=30000) as popup_info:
                 btn.click()
-                self._log('get_by_role 클릭 성공', LogLevel.SUCCESS)
-                return True
-        except:
-            pass
-        
-        # JavaScript 폴백: 모든 버튼/링크 스캔
-        try:
-            result = self.page.evaluate('''
-                var elements = document.querySelectorAll('a, button, [role="button"]');
-                for (var i = 0; i < elements.length; i++) {
-                    var text = elements[i].textContent || "";
-                    if (text.includes('예매')) {
-                        console.log('Found booking button:', text);
-                        elements[i].click();
-                        return 'clicked: ' + text.slice(0, 30);
-                    }
-                }
-                return 'not found';
-            ''')
             
-            if result.startswith('clicked'):
-                self._log(f'JS 클릭 성공: {result}', LogLevel.SUCCESS)
-                adaptive_sleep(2)
-                return True
-        except:
-            pass
+            self.booking_page = popup_info.value
+            self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
+            
+            self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
+            return True
+            
+        except Exception as e:
+            self._log(f'팝업 캐치 실패: {e}', LogLevel.WARN)
+            
+            # 방법 2: context에서 새 페이지 찾기
+            try:
+                pages = self.context.pages
+                self._log(f'📋 열린 페이지 수: {len(pages)}')
+                
+                for p in pages:
+                    url = p.url.lower()
+                    if 'book' in url or 'ticket' in url or 'seat' in url:
+                        if p != self.page:
+                            self.booking_page = p
+                            self._log(f'✅ 예매 페이지 발견: {p.url[:50]}...', LogLevel.SUCCESS)
+                            return True
+                
+                # 방법 3: 현재 페이지 URL 변경 확인
+                current_url = self.page.url.lower()
+                if 'book' in current_url or 'seat' in current_url:
+                    self.booking_page = self.page  # 같은 페이지에서 진행
+                    self._log(f'✅ 현재 페이지에서 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
+                    return True
+                    
+            except Exception as e2:
+                self._log(f'페이지 검색 실패: {e2}', LogLevel.ERROR)
         
-        # 디버깅: HTML 덤프
-        self._dump_page_buttons()
-        
-        self._log('예매 버튼 못찾음', LogLevel.WARN)
         return False
+    
+    def _get_active_page(self) -> Page:
+        """예매 진행 중인 페이지 반환 (팝업 또는 현재)"""
+        return self.booking_page if self.booking_page else self.page
     
     def _dump_page_buttons(self):
         """디버깅: 페이지 내 모든 버튼/링크 출력"""
@@ -1417,32 +1415,53 @@ class NOLTicketing:
     
     # ============ 예매 대기열 ============
     def handle_waiting_queue(self) -> bool:
-        """대기열 처리"""
+        """대기열 처리 (팝업/메인 페이지 모두 지원)"""
         max_wait = 300  # 5분
         start_time = time.time()
         
+        # 예매 진행 페이지 (팝업 또는 메인)
+        page = self._get_active_page()
+        self._log(f'📍 대기열 확인 페이지: {page.url[:50]}...')
+        
+        # 대기열 URL 패턴
+        queue_patterns = ['waiting', 'queue', 'onestop', 'book.interpark', 'poticket']
+        seat_patterns = ['seat', 'schedule', 'area', 'zone']
+        
         while time.time() - start_time < max_wait:
-            current_url = self.page.url.lower()
-            
-            # 대기열 페이지 확인
-            if 'waiting' in current_url or 'queue' in current_url:
+            try:
+                current_url = page.url.lower()
+                
+                # 대기열 페이지 확인
+                is_queue = any(p in current_url for p in queue_patterns)
+                if is_queue:
+                    elapsed = int(time.time() - start_time)
+                    if elapsed % 10 == 0:
+                        self._log(f'⏳ 대기열 대기중... ({elapsed}초)')
+                    adaptive_sleep(1)
+                    continue
+                
+                # 좌석 선택 페이지 도달
+                is_seat = any(p in current_url for p in seat_patterns)
+                if is_seat or self.is_seat_page():
+                    self._log(f'✅ 대기열 통과! URL: {current_url[:50]}', LogLevel.SUCCESS)
+                    return True
+                
+                # 에러 페이지
+                if 'error' in current_url:
+                    self._log('에러 페이지 감지', LogLevel.ERROR)
+                    return False
+                
+                # 알 수 없는 페이지 - 스크린샷
                 elapsed = int(time.time() - start_time)
-                if elapsed % 10 == 0:
-                    self._log(f'⏳ 대기열 대기중... ({elapsed}초)')
+                if elapsed % 30 == 0 and elapsed > 0:
+                    page.screenshot(path=f'/tmp/queue_debug_{elapsed}.png')
+                    self._log(f'📸 스크린샷: /tmp/queue_debug_{elapsed}.png')
+                
+                adaptive_sleep(0.5)
+                
+            except Exception as e:
+                self._log(f'대기열 확인 에러: {e}', LogLevel.WARN)
                 adaptive_sleep(1)
-                continue
-            
-            # 좌석 선택 페이지 도달
-            if self.is_seat_page():
-                self._log('대기열 통과!', LogLevel.SUCCESS)
-                return True
-            
-            # 에러 페이지
-            if 'error' in current_url:
-                self._log('에러 페이지 감지', LogLevel.ERROR)
-                return False
-            
-            adaptive_sleep(0.5)
         
         self._log('대기열 타임아웃', LogLevel.ERROR)
         return False
