@@ -1,5 +1,5 @@
 /**
- * PACT SDK — Localnet Quick Test
+ * AXLE SDK — Localnet Quick Test
  * Validates the SDK works with a local validator.
  *
  * Usage: npx tsx scripts/test-sdk.ts
@@ -11,15 +11,15 @@ const require = createRequire(import.meta.url);
 
 // Dynamic imports from sdk path
 const sdkPath = new URL('../sdk/src/index.js', import.meta.url).pathname;
-const { PactSDK } = await import(sdkPath);
+const { AxleSDK } = await import(sdkPath);
 const { LAMPORTS_PER_SOL } = await import(new URL('../sdk/node_modules/@solana/web3.js/lib/index.mjs', import.meta.url).pathname);
 
 async function main() {
-  console.log('=== @pact-protocol/sdk Localnet Test ===\n');
+  console.log('=== @axle-protocol/sdk Localnet Test ===\n');
 
   // Two separate SDK instances
-  const requester = new PactSDK({ cluster: 'localnet' });
-  const provider = new PactSDK({ cluster: 'localnet' });
+  const requester = new AxleSDK({ cluster: 'localnet' });
+  const provider = new AxleSDK({ cluster: 'localnet' });
 
   // Wallets
   const wA = requester.createWallet();

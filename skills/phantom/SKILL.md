@@ -1,5 +1,6 @@
 ---
 name: phantom
+author: han
 description: Work with Phantom browser extension - add custom networks, import tokens, check connected dApps, troubleshoot issues, and manage Solana/Ethereum/Polygon accounts.
 metadata: {"openclaw":{"requires":{"bins":["solana"]},"install":[{"id":"solana","kind":"shell","command":"sh -c \"$(curl -sSfL https://release.solana.com/stable/install)\"","bins":["solana"],"label":"Install Solana CLI"}]}}
 ---

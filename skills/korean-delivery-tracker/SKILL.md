@@ -1,5 +1,6 @@
 ---
 name: korean-delivery-tracker
+author: han
 description: Track Korean delivery packages (택배 추적) across major Korean carriers including CJ대한통운, 한진택배, 롯데택배, 우체국택배, and 로젠택배. Use when a user wants to check delivery status, track packages, or monitor Korean shipping.
 version: 1.0.0
 author: OpenClaw

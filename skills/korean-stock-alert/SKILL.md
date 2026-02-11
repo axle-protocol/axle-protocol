@@ -1,5 +1,6 @@
 ---
 name: korean-stock-alert
+author: han
 description: Monitor Korean stock market (KOSPI/KOSDAQ) with real-time price alerts, portfolio tracking, and daily market summaries. Use when checking Korean stock prices, setting price alerts for Korean stocks, or getting daily Korean market briefings. Supports all KRX-listed stocks.
 ---
 

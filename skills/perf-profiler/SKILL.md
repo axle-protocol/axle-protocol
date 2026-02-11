@@ -1,5 +1,6 @@
 ---
 name: perf-profiler
+author: han
 description: Profile and optimize application performance. Use when diagnosing slow code, measuring CPU/memory usage, generating flame graphs, benchmarking functions, load testing APIs, finding memory leaks, or optimizing database queries.
 metadata: {"clawdbot":{"emoji":"⚡","requires":{"anyBins":["node","python3","go","curl","ab"]},"os":["linux","darwin","win32"]}}
 ---

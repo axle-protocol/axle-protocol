@@ -1,0 +1,13 @@
+# BTS Ticketing Bot Dependencies
+
+# 브라우저 자동화 (안티디텍션)
+camoufox>=0.4.0
+
+# AI 분석 (OpenClaw/Claude)
+anthropic>=0.18.0
+
+# NTP 시간 동기화
+ntplib>=0.4.0
+
+# Windows TTS (optional)
+# pywin32>=306  # Windows only

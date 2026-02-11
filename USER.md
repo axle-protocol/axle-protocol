@@ -1,5 +1,4 @@
 # USER.md - About Your Human
-> Version: 1.1 | Last Updated: 2026-02-07
 
 - **Name:** Han (한)
 - **What to call them:** Han

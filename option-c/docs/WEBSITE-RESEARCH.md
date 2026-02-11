@@ -1,4 +1,4 @@
-# PACT Protocol — 웹사이트 & 브랜딩 리서치
+# AXLE Protocol — 웹사이트 & 브랜딩 리서치
 
 > 작성일: 2026-02-07
 > 목표: Solana 해커톤 수상 + Hashed Vibe Labs 지원
@@ -76,11 +76,11 @@
 
 ---
 
-## 4. PACT 필수 자산 체크리스트
+## 4. AXLE 필수 자산 체크리스트
 
 ### 웹사이트 (pactlayer.io)
 - [ ] **히어로 섹션**: 원라이너 + CTA
-- [ ] **What is PACT**: 3-4문장 설명
+- [ ] **What is AXLE**: 3-4문장 설명
 - [ ] **How it Works**: 다이어그램/애니메이션
 - [ ] **For Developers**: SDK 문서 링크
 - [ ] **Roadmap**: 간단한 타임라인
@@ -89,7 +89,7 @@
 
 ### 소셜
 - [ ] **X (Twitter)**: @pactlayer 또는 @pact_protocol
-- [ ] **GitHub**: github.com/pact-protocol
+- [ ] **GitHub**: github.com/axle-protocol
 - [ ] **Discord**: (선택) 커뮤니티
 - [ ] **OG Image**: 1200x630px 소셜 미리보기
 

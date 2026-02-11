@@ -4,6 +4,10 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+blake3 = { path = "/tmp/constant_time_eq_fix/blake3" }
+constant_time_eq = { path = "/tmp/constant_time_eq_fix/constant_time_eq" }
+
 [profile.release]
 overflow-checks = true
 lto = "fat"

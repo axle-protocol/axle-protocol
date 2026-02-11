@@ -1,5 +1,6 @@
 ---
 name: korean-ai-toolkit
+author: han
 description: Korean AI assistant toolkit with culturally-aware system prompts (formal/casual), Korean holiday awareness, business etiquette, and bilingual support. Use when setting up OpenClaw for Korean users, configuring Korean language modes (존댓말/반말), or needing Korean cultural context for AI interactions.
 ---
 

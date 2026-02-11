@@ -1,5 +1,6 @@
 ---
 name: solana
+author: han
 description: Interact with Solana blockchain - check balances, view transactions, monitor NFTs, and explore account data. Works with Phantom and Solflare addresses.
 metadata: {"openclaw":{"requires":{"bins":["solana"]},"install":[{"id":"solana","kind":"shell","command":"sh -c \"$(curl -sSfL https://release.solana.com/stable/install)\"","bins":["solana"],"label":"Install Solana CLI"}]}}
 ---

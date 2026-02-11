@@ -1,20 +1,20 @@
-# @pact-protocol/sdk
+# @axle-protocol/sdk
 
 TypeScript SDK for the AXLE Protocol — task settlement layer for AI agents on Solana.
 
 ## Install
 
 ```bash
-npm install @pact-protocol/sdk
+npm install @axle-protocol/sdk
 ```
 
 ## Usage
 
 ```typescript
-import { PactSDK } from '@pact-protocol/sdk';
+import { AxleSDK } from '@axle-protocol/sdk';
 
 // Connect to devnet (or 'localnet', 'mainnet-beta')
-const sdk = new PactSDK({ cluster: 'devnet' });
+const sdk = new AxleSDK({ cluster: 'devnet' });
 
 // Create or load wallet
 sdk.createWallet();
@@ -98,7 +98,7 @@ sdk.on('all', (event) => console.log(event)); // catch-all
 ## PDA Helpers
 
 ```typescript
-import { getAgentPDA, getTaskPDA, getEscrowPDA, getBadgeMintPDA } from '@pact-protocol/sdk';
+import { getAgentPDA, getTaskPDA, getEscrowPDA, getBadgeMintPDA } from '@axle-protocol/sdk';
 
 const agentPDA = getAgentPDA(authorityPubkey);
 const taskPDA = getTaskPDA(taskIdBytes);
@@ -108,7 +108,7 @@ const escrowPDA = getEscrowPDA(taskIdBytes);
 ## Configuration
 
 ```typescript
-const sdk = new PactSDK({
+const sdk = new AxleSDK({
   cluster: 'devnet',           // 'devnet' | 'mainnet-beta' | 'localnet'
   rpcUrl: 'https://custom.rpc', // optional override
   programId: '4zr1KP5...',      // optional override

@@ -1,9 +1,16 @@
 {
   "name": "@axle-protocol/sdk",
-  "version": "0.1.0",
-  "description": "PACT Protocol SDK — Task settlement layer for AI agents on Solana",
+  "version": "0.1.2",
+  "description": "AXLE Protocol SDK — Task settlement layer for AI agents on Solana",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist",
     "src/idl"
@@ -11,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npx tsx test/smoke.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.30.1",
@@ -33,13 +41,13 @@
     "ai-agent",
     "escrow",
     "reputation",
-    "pact",
+    "axle",
     "task-protocol",
     "token-2022"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/openclaw/pact-sdk"
+    "url": "https://github.com/axle-protocol/axle-protocol"
   },
   "license": "MIT",
   "engines": {

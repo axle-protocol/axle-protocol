@@ -15,7 +15,10 @@ export type SomeEvent =
   | (SomeEventBase & { type: 'IN'; from: string; text: string; summary?: string })
   | (SomeEventBase & { type: 'OUT'; to: string; text: string; rationale?: string })
   | (SomeEventBase & { type: 'BLOCKED'; reason: string; details?: string })
-  | (SomeEventBase & { type: 'ERROR'; message: string; stack?: string });
+  | (SomeEventBase & { type: 'ERROR'; message: string; stack?: string })
+  | (SomeEventBase & { type: 'LOG'; message: string })
+  | (SomeEventBase & { type: 'MSG_RECEIVED'; from: string; text: string })
+  | (SomeEventBase & { type: 'REPLY_SENT'; to: string; text: string });
 
 export function nowMs() {
   return Date.now();

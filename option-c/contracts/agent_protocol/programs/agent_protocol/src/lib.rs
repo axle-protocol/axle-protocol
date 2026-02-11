@@ -115,9 +115,13 @@ pub mod agent_protocol {
             ErrorCode::TaskExpired
         );
 
-        // Verify agent has the required capability
+        // Verify agent has the required capability (exact match in JSON array)
+        // capabilities format: '["scraping","browser","coding"]'
+        // String::contains is vulnerable to substring attacks (e.g. "decoding" contains "coding")
+        // Instead, iterate comma-separated entries between '[' and ']', strip quotes + whitespace,
+        // and compare each element exactly.
         require!(
-            agent.capabilities.contains(&task.required_capability),
+            has_capability(&agent.capabilities, &task.required_capability),
             ErrorCode::CapabilityMismatch
         );
 
@@ -156,6 +160,10 @@ pub mod agent_protocol {
         let agent = &mut ctx.accounts.agent_account;
 
         require!(task.status == TaskStatus::Delivered, ErrorCode::InvalidTaskStatus);
+        require!(
+            task.provider == ctx.accounts.provider.key(),
+            ErrorCode::NotTaskProvider
+        );
         require!(
             task.requester == ctx.accounts.requester.key(),
             ErrorCode::NotTaskRequester
@@ -276,10 +284,37 @@ pub mod agent_protocol {
         require!(symbol.len() <= 16, ErrorCode::BadgeSymbolTooLong);
         require!(uri.len() <= 200, ErrorCode::BadgeUriTooLong);
 
+        // Pre-fund badge_mint for metadata rent via system_program transfer.
+        // Anchor's init allocated space for Mint + MetadataPointer extension only.
+        // token_metadata_initialize will realloc to append metadata content,
+        // requiring additional lamports for rent-exemption at the expanded size.
+        let metadata_extra: usize = 4          // TLV header: type(u16) + length(u16)
+            + 32                                // update_authority (OptionalNonZeroPubkey)
+            + 32                                // mint (Pubkey)
+            + (4 + name.len())                  // name (borsh String)
+            + (4 + symbol.len())                // symbol
+            + (4 + uri.len())                   // uri
+            + 4                                 // additional_metadata (empty Vec)
+            + 64;                               // safety buffer for alignment/padding
+        let rent = Rent::get()?;
+        let badge_info = ctx.accounts.badge_mint.to_account_info();
+        let needed = rent.minimum_balance(badge_info.data_len() + metadata_extra);
+        let current = badge_info.lamports();
+        if needed > current {
+            let deficit = needed - current;
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.authority.to_account_info(),
+                        to: badge_info.clone(),
+                    },
+                ),
+                deficit,
+            )?;
+        }
+
         // Initialize metadata on the mint (self-referential: metadata lives on mint account)
-        // NOTE: The Reallocate + token_metadata_initialize CPI sequence has a known issue
-        // with same-instruction account creation on some validator versions.
-        // For production, use a 2-instruction flow: create mint, then init metadata.
         token_metadata_initialize(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -290,10 +325,7 @@ pub mod agent_protocol {
                     mint_authority: ctx.accounts.authority.to_account_info(),
                     update_authority: ctx.accounts.authority.to_account_info(),
                 },
-            ).with_remaining_accounts(vec![
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ]),
+            ),
             name.clone(),
             symbol,
             uri,
@@ -327,6 +359,99 @@ pub mod agent_protocol {
 
         msg!("Agent Badge NFT minted: {}", name);
         Ok(())
+    }
+}
+
+// ============ Helpers ============
+
+/// Check if a JSON-array-formatted capabilities string contains an exact match for `target`.
+/// Expected format: `["scraping","browser","coding"]`
+///
+/// Uses a state-machine parser that correctly handles:
+/// - Quoted string elements with escaped characters (e.g. `\"`)
+/// - Whitespace between tokens
+/// - Prevents substring attacks ("decoding" won't match "coding")
+fn has_capability(capabilities: &str, target: &str) -> bool {
+    let bytes = capabilities.as_bytes();
+    let len = bytes.len();
+
+    // Find opening '['
+    let mut i = 0;
+    while i < len && bytes[i] != b'[' {
+        if !bytes[i].is_ascii_whitespace() {
+            return false; // non-whitespace before '[' → invalid
+        }
+        i += 1;
+    }
+    if i >= len {
+        return false;
+    }
+    i += 1; // skip '['
+
+    loop {
+        // Skip whitespace
+        while i < len && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= len {
+            return false; // unexpected end
+        }
+        if bytes[i] == b']' {
+            return false; // empty array or end of array
+        }
+
+        // Expect a quoted string element
+        if bytes[i] != b'"' {
+            return false; // non-string element → unsupported format
+        }
+        i += 1; // skip opening '"'
+
+        // Extract string value between quotes, handling \" escapes
+        let mut value_len: usize = 0;
+        let mut matches = true;
+        let target_bytes = target.as_bytes();
+
+        while i < len && bytes[i] != b'"' {
+            let ch = if bytes[i] == b'\\' && i + 1 < len {
+                i += 1; // skip backslash, take next char literally
+                bytes[i]
+            } else {
+                bytes[i]
+            };
+
+            // Compare character-by-character against target
+            if value_len >= target_bytes.len() || ch != target_bytes[value_len] {
+                matches = false;
+            }
+            value_len += 1;
+            i += 1;
+        }
+        if i >= len {
+            return false; // unterminated string
+        }
+        i += 1; // skip closing '"'
+
+        // Exact match: same length and all characters matched
+        if matches && value_len == target_bytes.len() {
+            return true;
+        }
+
+        // Skip whitespace after value
+        while i < len && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= len {
+            return false;
+        }
+
+        if bytes[i] == b']' {
+            return false; // end of array, not found
+        }
+        if bytes[i] == b',' {
+            i += 1; // skip comma, continue to next element
+        } else {
+            return false; // unexpected character
+        }
     }
 }
 

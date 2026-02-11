@@ -1,4 +1,4 @@
-# SATI 시장 조사 보고서
+# AXLE 시장 조사 보고서
 
 작성일: 2026-02-07
 
@@ -10,7 +10,7 @@
 
 | 이름 | 장점 | 단점 | 추천 |
 |------|------|------|------|
-| **SATI** | 짧음, 기억하기 쉬움, "Solana Agent Trust Infrastructure" | 다른 의미 있을 수 있음 | ⭐⭐⭐⭐⭐ |
+| **AXLE** | 짧음, 기억하기 쉬움, "Solana Agent Trust Infrastructure" | 다른 의미 있을 수 있음 | ⭐⭐⭐⭐⭐ |
 | **AgentTrust** | 직관적, 기능 설명 | 너무 일반적 | ⭐⭐⭐ |
 | **SolTrust** | Solana 명확, 짧음 | 평범함 | ⭐⭐⭐ |
 | **Aegis** | 신화적 (방패), 보안 느낌 | AI 연관 약함 | ⭐⭐⭐⭐ |
@@ -18,7 +18,7 @@
 | **Sentinel** | 감시자, 보안 | 군사적 느낌 | ⭐⭐⭐ |
 | **Veritas** | 진실 (라틴어) | 발음 어려움 | ⭐⭐⭐ |
 
-### 추천: **SATI**
+### 추천: **AXLE**
 
 이유:
 1. 이미 Gemini 보고서에서 브랜딩됨
@@ -30,7 +30,7 @@
 
 ### GitHub Repo 이름 옵션
 
-1. `sati-protocol` — 가장 깔끔
+1. `axle-protocol` — 가장 깔끔
 2. `sati-solana` — 체인 명시
 3. `solana-agent-trust` — 설명적
 4. `agent-passport` — ERC-8004 연관
@@ -58,7 +58,7 @@
   - 가장 인기 있는 Solana AI 프레임워크
   - Twitter, Discord 통합
   - 자체 토큰 ($AI16Z)
-- **약점**: 신뢰/평판 레이어 없음 → SATI와 상호보완적
+- **약점**: 신뢰/평판 레이어 없음 → AXLE와 상호보완적
 - **교훈**: 커뮤니티 빌딩이 핵심
 
 #### Solana Agent Kit (SendAI)
@@ -68,7 +68,7 @@
   - Solana 트랜잭션 간편화
   - DeFi 프로토콜 연동
   - LangChain 호환
-- **관계**: SATI 통합 논의 중 (Gemini 보고서)
+- **관계**: AXLE 통합 논의 중 (Gemini 보고서)
 
 #### Virtual Protocol (Base)
 - **역할**: Agent 런치패드
@@ -89,7 +89,7 @@
 - **약점**:
   - 이더리움 가스비 높음
   - 느린 확정성
-- **SATI 우위**:
+- **AXLE 우위**:
   - Solana 속도 (400ms vs 12초)
   - 비용 1/100
   - 온체인 평판 (ZK Compression)
@@ -150,7 +150,7 @@ Week 9+: 토큰 런칭 (선택)
 
 ---
 
-## 5. SATI 포지셔닝 전략
+## 5. AXLE 포지셔닝 전략
 
 ### 5.1 핵심 메시지
 
@@ -159,11 +159,11 @@ Week 9+: 토큰 런칭 (선택)
 
 **Problem-Solution:**
 > "AI agents can transact, but can't trust each other. 
-> SATI brings on-chain identity and reputation to the 77% of agent payments happening on Solana."
+> AXLE brings on-chain identity and reputation to the 77% of agent payments happening on Solana."
 
 ### 5.2 차별화 포인트
 
-| vs | SATI 우위 |
+| vs | AXLE 우위 |
 |----|-----------|
 | ERC-8004 | 속도 (400ms), 비용 (1/100), 온체인 평판 |
 | ElizaOS | 신뢰 레이어 (상호보완적) |
@@ -181,10 +181,10 @@ Week 9+: 토큰 런칭 (선택)
 
 ### Phase 1: 기반 구축 (2/7-2/10)
 
-- [ ] GitHub 레포 공개 (`sati-protocol`)
+- [ ] GitHub 레포 공개 (`axle-protocol`)
 - [ ] README.md (영어)
 - [ ] 기술 문서 (GitBook/Docusaurus)
-- [ ] X 계정 셋업 (@sati_protocol)
+- [ ] X 계정 셋업 (@axle_protocol)
 
 ### Phase 2: 노출 (2/11-2/14)
 
@@ -232,9 +232,9 @@ Week 9+: 토큰 런칭 (선택)
 
 ### 즉시 실행
 
-1. **프로젝트 이름: SATI** 확정
-2. **GitHub: sati-protocol** 레포 생성
-3. **X: @sati_protocol** 핸들 확보
+1. **프로젝트 이름: AXLE** 확정
+2. **GitHub: axle-protocol** 레포 생성
+3. **X: @axle_protocol** 핸들 확보
 4. **도메인: sati.network** 또는 sati.so
 
 ### 다음 주 목표

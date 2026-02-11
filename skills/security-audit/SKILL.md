@@ -1,5 +1,6 @@
 ---
 name: security-audit
+author: han
 description: Comprehensive security auditing for Clawdbot deployments. Scans for exposed credentials, open ports, weak configs, and vulnerabilities. Auto-fix mode included.
 ---
 

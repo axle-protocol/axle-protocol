@@ -1,0 +1,28 @@
+# BTS 티켓팅 프록시 리스트
+# IPRoyal Residential Proxies (https://iproyal.com)
+#
+# 지원 형식:
+#   - http://username:password@host:port
+#   - host:port:username:password
+#   - username:password@host:port
+#   - host:port (인증 없는 경우)
+#
+# IPRoyal 형식 예시:
+#   geo.iproyal.com:12321:customer-USERNAME-country-kr:PASSWORD
+#   http://customer-USERNAME-country-kr:PASSWORD@geo.iproyal.com:12321
+#
+# 참고: 실제 프록시 정보로 교체하세요!
+
+# === IPRoyal Residential (한국 IP) ===
+# geo.iproyal.com:12321:customer-YOUR_USERNAME-country-kr:YOUR_PASSWORD
+
+# === IPRoyal Datacenter (빠른 속도) ===
+# dc.iproyal.com:12321:customer-YOUR_USERNAME:YOUR_PASSWORD
+
+# === 예시 프록시 (테스트용, 실제로는 작동하지 않음) ===
+# geo.iproyal.com:12321:customer-testuser-country-kr:testpass123
+# geo.iproyal.com:12321:customer-testuser-country-kr-session-abc123:testpass123
+# geo.iproyal.com:12321:customer-testuser-country-kr-session-def456:testpass123
+
+# === 환경변수로도 설정 가능 ===
+# PROXY_LIST="host1:port1:user:pass,host2:port2:user:pass"

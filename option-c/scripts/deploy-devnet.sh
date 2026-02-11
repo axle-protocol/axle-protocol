@@ -1,5 +1,5 @@
 #!/bin/bash
-# PACT Protocol — Devnet Deployment Script
+# AXLE Protocol — Devnet Deployment Script
 set -e
 
 export PATH="/Users/hyunwoo/.local/share/solana/install/active_release/bin:$PATH"
@@ -12,7 +12,7 @@ SO_FILE="$DEPLOY_DIR/agent_protocol.so"
 KEYPAIR_FILE="$DEPLOY_DIR/agent_protocol-keypair.json"
 IDL_FILE="$CONTRACT_DIR/target/idl/agent_protocol.json"
 
-echo "=== PACT Protocol Devnet Deployment ==="
+echo "=== AXLE Protocol Devnet Deployment ==="
 echo ""
 
 # Check binary exists

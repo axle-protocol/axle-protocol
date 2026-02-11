@@ -1,5 +1,4 @@
 # TOOLS.md - Local Configuration
-> Version: 1.1 | Last Updated: 2026-02-07
 
 Skills define _how_ tools work. This file is for _your_ specifics.
 
@@ -43,7 +42,7 @@ Skills define _how_ tools work. This file is for _your_ specifics.
 All sensitive keys stored in:
 - `.env.local` files (per-project)
 - Vercel environment variables
-- Never in git history
+- Never in git history (unless Han explicitly approves)
 
 ## ⚠️ Rate Limits
 

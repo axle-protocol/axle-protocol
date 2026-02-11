@@ -1,16 +1,16 @@
 /**
- * @pact-protocol/sdk — Smoke Test (localnet)
+ * @axle-protocol/sdk — Smoke Test (localnet)
  * Usage: npx tsx test/smoke.ts
  */
 
-import { PactSDK } from '../src/index.js';
+import { AxleSDK } from '../src/index.js';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 async function main() {
-  console.log('=== @pact-protocol/sdk Smoke Test ===\n');
+  console.log('=== @axle-protocol/sdk Smoke Test ===\n');
 
-  const requester = new PactSDK({ cluster: 'localnet' });
-  const provider = new PactSDK({ cluster: 'localnet' });
+  const requester = new AxleSDK({ cluster: 'localnet' });
+  const provider = new AxleSDK({ cluster: 'localnet' });
 
   // Wallets
   const wA = requester.createWallet();

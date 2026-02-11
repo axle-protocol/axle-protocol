@@ -1,0 +1,10 @@
+{
+  "sessionKey": "agent:main:main",
+  "model": "anthropic/claude-opus-4-5",
+  "lastStatusAtKST": "2026-02-11T14:28:00+09:00",
+  "contextUsedPercent": 58,
+  "lastNotifiedUsedPercent": 80,
+  "nextNotifyUsedPercent": 60,
+  "compactions": 2,
+  "note": "컴팩션 2회 발생. 80% → 58%. 다음 알림 60%."
+}

@@ -1,5 +1,6 @@
 ---
 name: deps-analyzer
+author: han
 description: Find unused and outdated dependencies. Use when your package.json is a mess.
 ---
 

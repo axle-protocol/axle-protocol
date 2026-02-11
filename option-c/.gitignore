@@ -7,3 +7,10 @@ test-ledger/
 *.log
 .env
 .DS_Store
+MEMORY.md
+
+# Secrets
+MEMORY.md
+*.env*
+**/node_modules/
+test-ledger/

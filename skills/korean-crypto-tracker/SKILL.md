@@ -1,5 +1,6 @@
 ---
 name: korean-crypto-tracker
+author: han
 description: Track cryptocurrency prices on Korean exchanges (Upbit, Bithumb) with real-time quotes, Kimchi premium calculation (Korea vs global price gap), volume spike detection, and price alerts. Use when checking Korean crypto prices, monitoring Kimchi premium, or tracking Korean exchange market data.
 ---
 

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Han's Command Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0a0a0b 0%, #1a1a2e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 16px;
+      padding-top: env(safe-area-inset-top, 16px);
+      padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(90deg, #0066FF, #8B5CF6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header .time {
+      color: #888;
+      margin-top: 8px;
+      font-size: 0.8rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .card h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .countdown {
+      font-size: 2.5rem;
+      font-weight: bold;
+      text-align: center;
+      padding: 20px;
+      background: rgba(255,68,68,0.2);
+      border-radius: 12px;
+      color: #ff4444;
+    }
+    .countdown small {
+      display: block;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: rgba(255,0,0,0.1);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border-left: 4px solid #ff4444;
+      font-size: 1rem;
+    }
+    .todo-item.done {
+      background: rgba(0,255,0,0.1);
+      border-left-color: #44aa44;
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+    .todo-item input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+    }
+    .project {
+      margin-bottom: 16px;
+      padding: 14px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+    }
+    .project:last-child { margin-bottom: 0; }
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .project-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .project-status {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-bottom: 8px;
+    }
+    .deadline {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .deadline.critical { background: #ff4444; }
+    .deadline.warning { background: #ffaa00; color: #000; }
+    .deadline.safe { background: #44aa44; }
+    .progress-bar {
+      height: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 5px;
+    }
+    .progress-fill.axle { background: linear-gradient(90deg, #0066FF, #8B5CF6); }
+    .progress-fill.bts { background: linear-gradient(90deg, #ff6b6b, #ffa502); }
+    .progress-fill.some { background: linear-gradient(90deg, #2ed573, #1e90ff); }
+    .progress-text {
+      text-align: right;
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .status-item {
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .status-item .label {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      margin-bottom: 4px;
+    }
+    .status-item .value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .status-item .value.working { color: #0066FF; }
+    .status-item .value.waiting { color: #ffaa00; }
+    .status-item .value.done { color: #44aa44; }
+    .cost-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 1rem;
+    }
+    .cost-row:last-of-type { border-bottom: none; }
+    .cost-total {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #0066FF;
+      text-align: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid rgba(0,102,255,0.3);
+    }
+    .links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .links a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 10px;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 12px;
+      background: rgba(0,102,255,0.2);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .links a:active {
+      background: rgba(0,102,255,0.4);
+      transform: scale(0.98);
+    }
+    .refresh-btn {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0066FF, #8B5CF6);
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,102,255,0.4);
+    }
+    .refresh-btn:active {
+      transform: scale(0.95);
+    }
+    .clo-status {
+      text-align: center;
+      padding: 12px;
+      background: rgba(0,102,255,0.1);
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+    .clo-status .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #44aa44;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🖥️ Han's Command Center</h1>
+    <div class="time" id="currentTime"></div>
+  </div>
+
+  <!-- AXLE 카운트다운 -->
+  <div class="card">
+    <h2>⏰ AXLE 마감</h2>
+    <div class="countdown" id="axleCountdown">
+      --
+      <small>D-2 (2/12 17:00 UTC)</small>
+    </div>
+  </div>
+
+  <!-- Han 할일 -->
+  <div class="card">
+    <h2>🔴 Han 할 일</h2>
+    <div class="todo-item" data-id="capsolver">
+      <input type="checkbox" id="todo1">
+      <label for="todo1">CapSolver $5 충전</label>
+    </div>
+    <div class="todo-item" data-id="iproyal">
+      <input type="checkbox" id="todo2">
+      <label for="todo2">IPRoyal $7 충전</label>
+    </div>
+    <div class="todo-item" data-id="apikey">
+      <input type="checkbox" id="todo3">
+      <label for="todo3">API 키 Clo에게 전달</label>
+    </div>
+    <div class="todo-item" data-id="browser">
+      <input type="checkbox" id="todo4">
+      <label for="todo4">브라우저 탭 연결</label>
+    </div>
+  </div>
+
+  <!-- 프로젝트 -->
+  <div class="card">
+    <h2>📊 프로젝트</h2>
+    
+    <div class="project">
+      <div class="project-header">
+        <span class="project-name">🔷 AXLE</span>
+        <span class="deadline critical">D-2</span>
+      </div>
+      <div class="project-status">데모 영상 준비 중</div>
+      <div class="progress-bar">
+        <div class="progress-fill axle" style="width: 85%"></div>
+      </div>
+      <div class="progress-text">85%</div>
+    </div>
+
+    <div class="project">
+      <div class="project-header">
+        <span class="project-name">🎫 BTS 티켓팅</span>
+        <span class="deadline warning">D-13</span>
+      </div>
+      <div class="project-status">API 키 대기 중</div>
+      <div class="progress-bar">
+        <div class="progress-fill bts" style="width: 80%"></div>
+      </div>
+      <div class="progress-text">80%</div>
+    </div>
+
+    <div class="project">
+      <div class="project-header">
+        <span class="project-name">💬 SOME</span>
+        <span class="deadline safe">미정</span>
+      </div>
+      <div class="project-status">일시 중단</div>
+      <div class="progress-bar">
+        <div class="progress-fill some" style="width: 30%"></div>
+      </div>
+      <div class="progress-text">30%</div>
+    </div>
+  </div>
+
+  <!-- Clo 상태 -->
+  <div class="card">
+    <h2>🤖 Clo 상태</h2>
+    <div class="clo-status">
+      <span class="dot"></span>온라인 — X 마케팅 자동화 중
+    </div>
+    <div class="status-grid" style="margin-top: 12px;">
+      <div class="status-item">
+        <div class="label">티켓팅</div>
+        <div class="value done">✅ 완료</div>
+      </div>
+      <div class="status-item">
+        <div class="label">토큰검증</div>
+        <div class="value done">✅ 완료</div>
+      </div>
+      <div class="status-item">
+        <div class="label">테스트</div>
+        <div class="value waiting">⏳ 대기</div>
+      </div>
+      <div class="status-item">
+        <div class="label">데모영상</div>
+        <div class="value waiting">📅 내일</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 비용 -->
+  <div class="card">
+    <h2>💰 필요 비용</h2>
+    <div class="cost-row">
+      <span>CapSolver</span>
+      <span>$5</span>
+    </div>
+    <div class="cost-row">
+      <span>IPRoyal</span>
+      <span>$7</span>
+    </div>
+    <div class="cost-row">
+      <span>Mainnet SOL</span>
+      <span>0.5 SOL</span>
+    </div>
+    <div class="cost-total">≈ ₩100,000</div>
+  </div>
+
+  <!-- 빠른 링크 -->
+  <div class="card">
+    <h2>🔗 빠른 링크</h2>
+    <div class="links">
+      <a href="https://axleprotocol.com" target="_blank">🔷 AXLE</a>
+      <a href="https://dashboard.axleprotocol.com" target="_blank">📊 대시보드</a>
+      <a href="https://capsolver.com" target="_blank">🔐 CapSolver</a>
+      <a href="https://iproyal.com" target="_blank">🌐 IPRoyal</a>
+      <a href="https://agents.colosseum.com" target="_blank">🏛️ Colosseum</a>
+      <a href="https://earn.axleprotocol.com" target="_blank">💎 Earn</a>
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="location.reload()">🔄</button>
+
+  <script>
+    // 현재 시간
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('currentTime').textContent = 
+        now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) + ' KST';
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // AXLE 카운트다운
+    function updateCountdown() {
+      const deadline = new Date('2026-02-12T17:00:00Z');
+      const now = new Date();
+      const diff = deadline - now;
+      
+      if (diff <= 0) {
+        document.getElementById('axleCountdown').innerHTML = '🔴 마감!';
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      document.getElementById('axleCountdown').innerHTML = 
+        `${hours}시간 ${minutes}분<small>D-2 (2/12 17:00 UTC)</small>`;
+    }
+    setInterval(updateCountdown, 60000);
+    updateCountdown();
+
+    // 체크박스 저장
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const saved = localStorage.getItem(cb.id);
+      if (saved === 'true') {
+        cb.checked = true;
+        cb.parentElement.classList.add('done');
+      }
+      cb.addEventListener('change', () => {
+        localStorage.setItem(cb.id, cb.checked);
+        cb.parentElement.classList.toggle('done', cb.checked);
+      });
+    });
+  </script>
+</body>
+</html>

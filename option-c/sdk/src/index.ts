@@ -603,7 +603,8 @@ export class AxleSDK {
   }
 }
 
-// Re-export types
+// Re-export client and types
+export { AxleClient, type AxleClientConfig } from './client.js';
 export * from './types.js';
 
 // Default export
