@@ -692,39 +692,48 @@ class NOLTicketing:
         except:
             pass
         
-        # NOL 티켓 날짜/회차 버튼 셀렉터
+        # NOL 티켓 예매 버튼 셀렉터
         booking_selectors = [
-            # 스케줄/날짜 영역 (우선)
+            # ⭐ 하단 "예매하기" 버튼 (핵심!)
+            'button:has-text("예매하기")',
+            '[class*="buyBtn"] button',
+            '[class*="BuyBtn"] button', 
+            '[class*="bookingBtn"]',
+            '[class*="BookingBtn"]',
+            
+            # 스케줄/날짜 영역
             '[class*="schedule"] a',
             '[class*="Schedule"] a',
             '[class*="ticketOpen"] a',
             '[class*="TicketOpen"] a',
-            '[class*="ProductSide"] a:has-text("예매")',
-            # 예매 버튼 (앵커 "#" 제외)
-            'button:has-text("예매하기")',
-            'button:has-text("예매")',
-            '[class*="booking"] button',
+            '[class*="ProductSide"] button',
         ]
         
-        # 예매 버튼 찾기 (앵커 링크 "#" 제외)
+        # 예매 버튼 찾기
         btn = None
         for selector in booking_selectors:
             try:
                 elements = self.page.locator(selector).all()
                 for el in elements:
                     if el.is_visible(timeout=1000):
-                        text = el.text_content() or ""
+                        text = (el.text_content() or "").strip()
                         href = el.get_attribute('href') or ""
                         
-                        # 앵커 링크 제외 (href="#...")
+                        # 앵커 링크 제외
                         if href.startswith('#'):
                             continue
                         
-                        # "바로가기" 텍스트 제외
+                        # "바로가기" 제외
                         if '바로가기' in text:
                             continue
+                        
+                        # ⭐ "예매하기" 버튼 = 최우선!
+                        if text == '예매하기':
+                            self._log(f'✅ 예매하기 버튼 발견: {selector[:30]}')
+                            btn = el
+                            break
                             
-                        # 날짜 패턴 또는 예매 텍스트
+                        # 날짜 패턴 또는 예매/선예매 텍스트
                         if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
                             self._log(f'버튼 발견: {selector[:30]} (텍스트: {text[:30]})')
                             btn = el
