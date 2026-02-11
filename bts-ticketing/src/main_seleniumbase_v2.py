@@ -672,18 +672,33 @@ class TicketingMacro:
                                 continue
                         
                         if self.stats['seat_clicks'] >= target_clicks:
-                            # 모달 닫기 (선택 완료 전에!)
+                            # 확인 모달 처리 (선택 완료 전에!)
+                            self._log('🔍 모달 확인 중...')
                             try:
-                                self.sb.execute_script("""
-                                    // 모든 모달/오버레이 제거
-                                    document.querySelectorAll('[class*="Modal"], [class*="modal"], [class*="overlay"], [class*="Overlay"]').forEach(function(el) {
-                                        el.style.display = 'none';
-                                        el.style.visibility = 'hidden';
-                                    });
-                                """)
-                                adaptive_sleep(0.2)
-                            except:
-                                pass
+                                # SeleniumBase로 직접 클릭 시도
+                                try:
+                                    self.sb.click('button:contains("확인하고 예매하기")', timeout=2)
+                                    self._log('✅ 확인하고 예매하기 클릭 성공!')
+                                    adaptive_sleep(1)
+                                except Exception as e1:
+                                    self._log(f'⚠️ 직접 클릭 실패: {str(e1)[:50]}')
+                                    # JS 폴백
+                                    confirm_result = self.sb.execute_script("""
+                                        var allBtns = document.querySelectorAll('button');
+                                        for (var btn of allBtns) {
+                                            var text = btn.textContent || '';
+                                            if (text.includes('확인하고 예매하기')) {
+                                                btn.click();
+                                                return 'js clicked: ' + text.trim();
+                                            }
+                                        }
+                                        return 'no button found';
+                                    """)
+                                    self._log(f'🔧 JS 결과: {confirm_result}')
+                                    if 'clicked' in str(confirm_result):
+                                        adaptive_sleep(0.8)
+                            except Exception as e:
+                                self._log(f'⚠️ 모달 처리 에러: {e}')
                             
                             # 선택 완료 버튼 (다중 시도)
                             complete_selectors = [

@@ -429,13 +429,13 @@ class PaymentHandler:
     def switch_to_book_frame(self) -> bool:
         """예매 스텝 프레임으로 전환"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             
             selector = self._multi_select(self.FRAME_SELECTORS['book_step_frame'], '예매 프레임')
             frame = selector.find_element(timeout=Timing.ELEMENT_TIMEOUT)
             
             if frame:
-                self.sb.switch_to.frame(frame)
+                self.sb.switch_to_frame(frame)
                 self._log('✅ 예매 프레임 전환')
                 return True
                 
@@ -448,7 +448,7 @@ class PaymentHandler:
     def click_next_step(self) -> bool:
         """다음 단계 버튼 클릭"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             
             selector = self._multi_select(self.NEXT_STEP_SELECTORS, '다음 단계')
             
@@ -776,7 +776,7 @@ class PaymentHandler:
             return True
         
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             
             pay_selector = self._multi_select(self.PAY_BUTTON_SELECTORS, '결제 버튼')
             
@@ -946,7 +946,7 @@ class PaymentHandler:
     def _verify_payment_page_entry(self) -> bool:
         """결제 페이지 진입 확인"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             current_url = self.sb.get_current_url().lower()
             
             # URL 키워드 확인

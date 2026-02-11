@@ -295,13 +295,13 @@ class SeatSelector:
     def switch_to_seat_frame(self) -> bool:
         """좌석 선택 iframe으로 전환 (재시도 포함)"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             
             selector = self._multi_select(self.FRAME_SELECTORS['seat_frame'], '좌석 프레임')
             frame = selector.find_element(timeout=Timing.ELEMENT_TIMEOUT)
             
             if frame:
-                self.sb.switch_to.frame(frame)
+                self.sb.switch_to_frame(frame)
                 self.in_seat_frame = True
                 self._log('✅ 좌석 프레임 전환 완료')
                 return True
@@ -319,7 +319,7 @@ class SeatSelector:
             frame = selector.find_element(timeout=Timing.ELEMENT_TIMEOUT)
             
             if frame:
-                self.sb.switch_to.frame(frame)
+                self.sb.switch_to_frame(frame)
                 self._log('✅ 좌석 상세 프레임 전환')
                 return True
                 
@@ -1225,7 +1225,7 @@ class SeatSelector:
     def _reset_frame(self):
         """프레임 리셋"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             self.in_seat_frame = False
         except:
             pass
@@ -1235,13 +1235,66 @@ class SeatSelector:
         try:
             self._reset_frame()
             
+            # ★ 확인 모달 처리 (선택 완료 전에!)
+            self._log('🔍 모달 확인 중...')
+            try:
+                modal_result = self.sb.execute_script("""
+                    // "확인하고 예매하기" 버튼 찾아서 클릭
+                    var allBtns = document.querySelectorAll('button');
+                    for (var btn of allBtns) {
+                        var text = btn.textContent || '';
+                        if (text.includes('확인하고 예매하기')) {
+                            btn.click();
+                            return 'clicked: ' + text.trim();
+                        }
+                    }
+                    // 모달 내 확인 버튼 찾기
+                    var modal = document.querySelector('[class*="ModalConfirm"], [role="alertdialog"]');
+                    if (modal) {
+                        var btns = modal.querySelectorAll('button');
+                        for (var btn of btns) {
+                            var text = btn.textContent || '';
+                            if (text.includes('확인') || text.includes('예') || text.includes('동의')) {
+                                btn.click();
+                                return 'clicked modal: ' + text.trim();
+                            }
+                        }
+                    }
+                    return 'no modal';
+                """)
+                if modal_result and 'clicked' in str(modal_result):
+                    self._log(f'✅ 확인 모달 클릭: {modal_result}')
+                    adaptive_sleep(1.0)
+                    
+                    # ★ 두 번째 모달 (ModalConfirm) 처리
+                    modal2_result = self.sb.execute_script("""
+                        // ModalConfirm 찾기
+                        var modal = document.querySelector('[class*="ModalConfirm"], [role="alertdialog"]');
+                        if (modal && modal.offsetParent !== null) {
+                            var btns = modal.querySelectorAll('button');
+                            for (var btn of btns) {
+                                var text = btn.textContent || '';
+                                if (text.includes('확인') || text.includes('예') || text.length > 0) {
+                                    btn.click();
+                                    return 'clicked2: ' + text.trim();
+                                }
+                            }
+                        }
+                        return 'no modal2';
+                    """)
+                    if modal2_result and 'clicked' in str(modal2_result):
+                        self._log(f'✅ 두번째 모달 클릭: {modal2_result}')
+                        adaptive_sleep(0.8)
+            except Exception as me:
+                self._log(f'⚠️ 모달 처리: {str(me)[:30]}')
+            
             if not self.switch_to_seat_frame():
                 pass  # 프레임 없어도 시도
             
             # 클릭 전 URL 저장
             pre_url = ""
             try:
-                self.sb.switch_to.default_content()
+                self.sb.switch_to_default_content()
                 pre_url = self.sb.get_current_url()
             except:
                 pass
@@ -1275,7 +1328,7 @@ class SeatSelector:
     def _verify_moved_to_payment(self, pre_url: str, timeout: float = 5.0) -> bool:
         """결제/배송 페이지로 이동했는지 확인"""
         try:
-            self.sb.switch_to.default_content()
+            self.sb.switch_to_default_content()
             
             payment_indicators = [
                 'delivery', 'payment', 'order', 'checkout',
