@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 08:08 KST
+# DASHBOARD.md — 2026-02-13 08:38 KST
 
 ## 🎯 현재 프로젝트
 
@@ -72,5 +72,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 61% (242k/400k)
-- Usage: session ~99% left (~1h56m)
+- Context: 17% (68k/400k)
+- Usage: session ~98% left (~1h27m)
