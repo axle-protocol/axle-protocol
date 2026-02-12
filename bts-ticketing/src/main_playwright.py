@@ -1205,7 +1205,27 @@ class NOLTicketing:
                         return True
                     continue
 
-                # 예매 버튼 확인
+                # goods 페이지면 "예매" UI가 아직 렌더되지 않아도(오픈 전) 성공으로 본다.
+                if _is_goods(current_url):
+                    # 단, 렌더가 완전히 안 된 blank 상태를 피하려고 짧게 한 번만 기다린다.
+                    try:
+                        self.page.wait_for_timeout(800)
+                    except Exception:
+                        pass
+
+                    # 예매 버튼이 보이면 더 확실하지만, 없어도 goods 진입이면 통과.
+                    try:
+                        booking_any = self.page.locator('a.sideBtn.is-primary, button:has-text("예매"), a:has-text("예매")')
+                        if booking_any.count() > 0:
+                            self._log('공연 페이지 정상 로드 (예매 UI 감지)', LogLevel.SUCCESS)
+                        else:
+                            self._log('공연 페이지 진입 확인 (예매 UI는 미노출일 수 있음)', LogLevel.SUCCESS)
+                    except Exception:
+                        self._log('공연 페이지 진입 확인 (UI 체크 실패)', LogLevel.SUCCESS)
+
+                    return True
+
+                # 예매 버튼 확인 (폴백)
                 booking_btn = self.page.locator('text=예매하기, a:has-text("예매"), button:has-text("예매")')
                 if booking_btn.count() > 0:
                     self._log('공연 페이지 정상 로드', LogLevel.SUCCESS)
@@ -2191,7 +2211,7 @@ class NOLTicketing:
                     self._dump_debug('login_failed')
                     return False
                 if self.config.stop_after == 'login':
-                    self._log('🛑 stop_after=login: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._log('🛑 stop_after=login: 여기서 종료', LogLevel.SUCCESS)
                     self.page.screenshot(path='/tmp/stop_after_login.png')
                     return True
                 
@@ -2202,7 +2222,7 @@ class NOLTicketing:
                     self._dump_debug('navigate_to_concert_failed')
                     return False
                 if self.config.stop_after == 'concert':
-                    self._log('🛑 stop_after=concert: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._log('🛑 stop_after=concert: 여기서 종료', LogLevel.SUCCESS)
                     self.page.screenshot(path='/tmp/stop_after_concert.png')
                     return True
                 
@@ -2217,7 +2237,7 @@ class NOLTicketing:
                     self._dump_debug('click_booking_button_failed')
                     return False
                 if self.config.stop_after == 'booking':
-                    self._log('🛑 stop_after=booking: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._log('🛑 stop_after=booking: 여기서 종료', LogLevel.SUCCESS)
                     self._get_active_page().screenshot(path='/tmp/stop_after_booking.png')
                     return True
                 
@@ -2228,7 +2248,7 @@ class NOLTicketing:
                         self._dump_debug('queue_or_seat_entry_failed', page=self._get_active_page())
                         return False
                 if self.config.stop_after == 'queue':
-                    self._log('🛑 stop_after=queue: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._log('🛑 stop_after=queue: 여기서 종료', LogLevel.SUCCESS)
                     self._get_active_page().screenshot(path='/tmp/stop_after_queue.png')
                     return True
                 
@@ -2239,7 +2259,7 @@ class NOLTicketing:
                     self._dump_debug('select_seats_failed', page=self._get_active_page())
                     return False
                 if self.config.stop_after == 'seats':
-                    self._log('🛑 stop_after=seats: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._log('🛑 stop_after=seats: 여기서 종료', LogLevel.SUCCESS)
                     self._get_active_page().screenshot(path='/tmp/stop_after_seats.png')
                     return True
                 
