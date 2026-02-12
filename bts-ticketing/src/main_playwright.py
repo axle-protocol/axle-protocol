@@ -1372,15 +1372,16 @@ class NOLTicketing:
 
         # Fast path: NOL 고정 버튼
         try:
+            # 렌더 지연 대비
+            try:
+                self.page.wait_for_selector('a.sideBtn.is-primary, button:has-text("예매하기")', timeout=5000)
+            except Exception:
+                pass
+
             fast = self.page.locator('a.sideBtn.is-primary:has-text("예매하기"), button:has-text("예매하기")').first
             if fast.count() > 0:
-                try:
-                    fast.scroll_into_view_if_needed(timeout=1000)
-                except Exception:
-                    pass
-                if fast.is_visible(timeout=1500):
-                    self._log('✅ 예매하기 버튼 발견(fast path)')
-                    btn = fast
+                self._log('✅ 예매하기 버튼 발견(fast path)')
+                btn = fast
         except Exception:
             pass
 
@@ -1445,8 +1446,14 @@ class NOLTicketing:
         else:
             # 예매하기 버튼 클릭
             self._log('🚀 예매하기 버튼 클릭...')
-            btn.click(force=True)
-            adaptive_sleep(2)
+            try:
+                btn.click(force=True, timeout=5000)
+            except Exception:
+                try:
+                    self.page.evaluate('el => el.click()', btn)
+                except Exception:
+                    pass
+            adaptive_sleep(1.2)
         
         # ⭐ 모달 내 예매 버튼 찾기 + 클릭
         self._log('📋 모달 내 예매 버튼 검색...')
