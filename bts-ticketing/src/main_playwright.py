@@ -862,10 +862,19 @@ class NOLTicketing:
             self._log(f'체크박스 클릭 실패: {e}', LogLevel.WARN)
     
     def _handle_turnstile(self):
-        """Turnstile 캡챠 처리 - CapSolver API 우선, 폴백으로 클릭"""
+        """Turnstile 캡챠 처리.
+
+        우선순위:
+          1) CapSolver API (명시적으로 활성화된 경우)
+          2) iframe 클릭 (폴백 / 수동 보조)
+
+        NOTE:
+          - CAPSOLVER_API_KEY가 환경변수에 있어도, 기본값은 수동(=CapSolver 비활성)이다.
+          - CapSolver를 쓰려면 CLI에서 --capsolver를 켜야 한다.
+        """
         
-        # 방법 1: CapSolver API 사용 (권장)
-        if CAPSOLVER_KEY:
+        # 방법 1: CapSolver API 사용 (옵션)
+        if self.config.use_capsolver and CAPSOLVER_KEY:
             self._log('🔐 CapSolver API로 Turnstile 해결 시도...')
             token = solve_turnstile_capsolver(self.page.url, self.TURNSTILE_SITEKEY)
             
@@ -2038,6 +2047,7 @@ def main():
     parser.add_argument('--payment', default='kakao', choices=['kakao', 'naver', 'card', 'transfer', 'toss'])
     parser.add_argument('--birth', help='생년월일 (YYMMDD)')
     parser.add_argument('--auto-pay', action='store_true', help='자동 결제')
+    parser.add_argument('--capsolver', action='store_true', help='Turnstile을 CapSolver로 자동 해결 (기본: 수동)')
     
     args = parser.parse_args()
     
@@ -2056,6 +2066,7 @@ def main():
         headless=args.headless,
         payment_method=args.payment,
         auto_pay=args.auto_pay,
+        use_capsolver=args.capsolver,
     )
     
     if args.test:
