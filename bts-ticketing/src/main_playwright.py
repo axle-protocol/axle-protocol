@@ -19,6 +19,8 @@ import time
 import random
 import argparse
 import re
+import json
+from pathlib import Path
 import requests
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
@@ -293,6 +295,67 @@ class NOLTicketing:
     
     def _log(self, msg: str, level: LogLevel = LogLevel.INFO):
         log(msg, level)
+
+    def _dump_debug(self, tag: str, page: Optional[Page] = None, extra: Optional[Dict[str, Any]] = None):
+        """실패/이상 상태에서 원인 파악용 덤프를 남긴다.
+
+        저장 위치:
+          /tmp/bts-debug/<timestamp>_<tag>/
+
+        포함:
+          - 현재 URL
+          - 열린 탭 URL 목록
+          - 스크린샷
+          - HTML
+
+        주의: 쿠키/스토리지 state는 저장하지 않는다 (민감정보).
+        """
+        try:
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            safe_tag = re.sub(r'[^a-zA-Z0-9_.-]+', '_', tag)[:80]
+            out_dir = Path('/tmp') / 'bts-debug' / f'{ts}_{safe_tag}'
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            p = page or self.page
+            info: Dict[str, Any] = {
+                'tag': tag,
+                'timestamp': datetime.now().isoformat(),
+                'current_url': (p.url if p else None),
+                'pages': [],
+                'extra': extra or {},
+            }
+
+            # 열린 탭 목록
+            try:
+                if self.context:
+                    for pg in self.context.pages:
+                        try:
+                            info['pages'].append({'url': pg.url, 'title': pg.title()})
+                        except Exception:
+                            info['pages'].append({'url': getattr(pg, 'url', None)})
+            except Exception:
+                pass
+
+            # 스크린샷
+            try:
+                if p:
+                    p.screenshot(path=str(out_dir / 'screenshot.png'), full_page=True)
+            except Exception as e:
+                info['screenshot_error'] = str(e)
+
+            # HTML
+            try:
+                if p:
+                    html = p.content()
+                    (out_dir / 'page.html').write_text(html, encoding='utf-8')
+            except Exception as e:
+                info['html_error'] = str(e)
+
+            (out_dir / 'meta.json').write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding='utf-8')
+            self._log(f'🧾 디버그 덤프 저장: {out_dir}', LogLevel.WARN)
+
+        except Exception as e:
+            self._log(f'디버그 덤프 실패: {e}', LogLevel.WARN)
     
     # ============ 브라우저 관리 ============
     def start_browser(self, playwright) -> bool:
@@ -1873,12 +1936,14 @@ class NOLTicketing:
                 # 2. 로그인
                 self._log('\n📍 [1/6] 로그인...')
                 if not self.login():
+                    self._dump_debug('login_failed')
                     return False
                 
                 # 3. 공연 페이지 이동
                 self._log('\n📍 [2/6] 공연 페이지 이동...')
                 if not self.navigate_to_concert():
                     self._log('공연 페이지 접속 실패', LogLevel.WARN)
+                    self._dump_debug('navigate_to_concert_failed')
                 
                 # 4. 예매 시간 대기
                 self._log('\n📍 [3/6] 예매 대기...')
@@ -1897,6 +1962,7 @@ class NOLTicketing:
                 self._log('\n📍 [5/6] 좌석 선택...')
                 if not self.select_seats():
                     self._log('좌석 선택 실패', LogLevel.WARN)
+                    self._dump_debug('select_seats_failed', page=self._get_active_page())
                 
                 # 7. 결제
                 self._log('\n📍 [6/6] 결제...')
@@ -1916,6 +1982,7 @@ class NOLTicketing:
                 
             except Exception as e:
                 self._log(f'치명적 에러: {e}', LogLevel.ERROR)
+                self._dump_debug('fatal_error', extra={'error': str(e)})
                 import traceback
                 traceback.print_exc()
                 return False
