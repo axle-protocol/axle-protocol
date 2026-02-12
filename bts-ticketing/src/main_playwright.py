@@ -49,6 +49,7 @@ load_dotenv('../.env.local')
 USER_ID = os.getenv('INTERPARK_ID', '')
 USER_PW = os.getenv('INTERPARK_PWD', '')
 CONCERT_URL = os.getenv('CONCERT_URL', '')
+CONCERT_QUERY = os.getenv('CONCERT_QUERY', '')  # 공연명 검색어 (nol 티켓 메인에서 사람처럼 진입)
 BIRTH_DATE = os.getenv('BIRTH_DATE', '')
 
 # Storage State 파일 경로 (로그인 상태 저장/복원)
@@ -181,6 +182,7 @@ class TicketingConfig:
     """티켓팅 설정"""
     url: str = ''
     birth_date: str = ''
+    query: str = ''  # 공연명 검색어 (direct goods URL 진입이 막힐 때 사용)
     target_hour: int = 20
     target_minute: int = 0
     num_seats: int = 2
@@ -1037,39 +1039,162 @@ class NOLTicketing:
     
     # ============ 공연 페이지 ============
     def navigate_to_concert(self) -> bool:
-        """공연 페이지 이동"""
+        """공연 페이지 이동.
+
+        NOL/Interpark는 goods URL을 바로 때리면 nol 메인/대기 페이지로 리다이렉트하는 케이스가 있음.
+        그래서:
+          1) goods URL 직접 진입 시도
+          2) nol/ticket로 리다이렉트되면 "사람처럼" nol 메인에서 검색 → 결과 클릭으로 goods 진입
+        """
         if not self.config.url:
             self._log('공연 URL 없음', LogLevel.ERROR)
             return False
-        
+
         self._log(f'🎯 공연 페이지 접속: {self.config.url[:60]}...')
-        
+
+        def _is_goods(u: str) -> bool:
+            uu = (u or '').lower()
+            return ('/goods/' in uu) and ('interpark' in uu)
+
+        def _search_and_open_goods() -> bool:
+            query = (self.config.query or '').strip()
+            if not query:
+                self._log('⚠️ nol 리다이렉트됨 + 공연명(query) 없음 → 검색 진입 불가. --query 또는 CONCERT_QUERY 설정 필요', LogLevel.WARN)
+                return False
+
+            try:
+                self._log(f'🔎 NOL 메인에서 검색 진입: "{query}"')
+                self.page.goto('https://nol.interpark.com/ticket', wait_until='domcontentloaded', timeout=30000)
+
+                # 검색 input 찾기
+                search_selectors = [
+                    'input[type="search"]',
+                    'input[placeholder*="검색"]',
+                    'input[aria-label*="검색"]',
+                    'input[name*="search"]',
+                    'input[class*="search"]',
+                ]
+
+                search_input = None
+                for sel in search_selectors:
+                    try:
+                        loc = self.page.locator(sel).first
+                        if loc.count() > 0 and loc.is_visible(timeout=1500):
+                            search_input = loc
+                            break
+                    except Exception:
+                        continue
+
+                if not search_input:
+                    self._log('검색 input을 못 찾음', LogLevel.WARN)
+                    self._dump_debug('nol_search_input_missing')
+                    return False
+
+                # 검색 실행
+                try:
+                    search_input.click(timeout=2000)
+                except Exception:
+                    pass
+                try:
+                    search_input.fill('')
+                except Exception:
+                    pass
+                try:
+                    search_input.type(query, delay=random.uniform(10, 25))
+                except Exception:
+                    search_input.fill(query)
+
+                try:
+                    search_input.press('Enter')
+                except Exception:
+                    # 버튼이 있는 UI일 수도 있음
+                    try:
+                        self.page.keyboard.press('Enter')
+                    except Exception:
+                        pass
+
+                # 결과에서 goods 링크 찾기
+                self.page.wait_for_timeout(500)
+                goods_link_selectors = [
+                    'a[href*="/goods/"]',
+                    'a[href*="tickets.interpark.com/goods/"]',
+                ]
+
+                link = None
+                for sel in goods_link_selectors:
+                    try:
+                        loc = self.page.locator(sel).first
+                        if loc.count() > 0 and loc.is_visible(timeout=3000):
+                            link = loc
+                            break
+                    except Exception:
+                        continue
+
+                if not link:
+                    self._log('검색 결과에서 goods 링크를 못 찾음', LogLevel.WARN)
+                    self._dump_debug('nol_search_no_goods_results', extra={'query': query})
+                    return False
+
+                href = ''
+                try:
+                    href = link.get_attribute('href') or ''
+                except Exception:
+                    pass
+
+                self._log(f'✅ 검색 결과 클릭 (href: {href[:60]})')
+                try:
+                    link.click(timeout=5000)
+                except Exception:
+                    try:
+                        self.page.evaluate('el => el.click()', link)
+                    except Exception:
+                        pass
+
+                # goods 진입 감지
+                t0 = time.time()
+                while time.time() - t0 < 5.0:
+                    cur = self.page.url
+                    if _is_goods(cur):
+                        self._log(f'✅ goods 페이지 진입 성공: {cur[:70]}', LogLevel.SUCCESS)
+                        return True
+                    time.sleep(0.1)
+
+                self._log(f'goods 진입 확인 실패. 현재: {self.page.url[:70]}', LogLevel.WARN)
+                self._dump_debug('nol_search_goods_not_reached', extra={'query': query, 'href': href})
+                return False
+
+            except Exception as e:
+                self._log(f'검색 진입 실패: {e}', LogLevel.WARN)
+                self._dump_debug('nol_search_exception', extra={'error': str(e), 'query': (self.config.query or '')})
+                return False
+
         for attempt in range(self.config.max_retries):
             try:
                 self.page.goto(self.config.url, wait_until='domcontentloaded', timeout=30000)
-                adaptive_sleep(3)
-                
+
                 current_url = self.page.url
                 title = self.page.title()
-                
+
                 self._log(f'현재 URL: {current_url[:60]}...')
                 self._log(f'페이지 제목: {title[:40]}...' if len(title) > 40 else f'페이지 제목: {title}')
-                
-                # 리다이렉트 확인
-                if 'nol.interpark.com' in current_url and 'goods' not in current_url:
-                    self._log('NOL 메인으로 리다이렉트됨', LogLevel.WARN)
+
+                # 리다이렉트 확인 → nol 메인/대기일 때는 검색으로 우회
+                if ('nol.interpark.com' in (current_url or '').lower()) and ('/goods/' not in (current_url or '').lower()):
+                    self._log('NOL 메인/대기 페이지로 리다이렉트 감지 → 검색 우회 시도', LogLevel.WARN)
+                    if _search_and_open_goods():
+                        return True
                     continue
-                
+
                 # 예매 버튼 확인
                 booking_btn = self.page.locator('text=예매하기, a:has-text("예매"), button:has-text("예매")')
                 if booking_btn.count() > 0:
                     self._log('공연 페이지 정상 로드', LogLevel.SUCCESS)
                     return True
-                
+
             except Exception as e:
                 self._log(f'페이지 접속 에러 (시도 {attempt + 1}): {e}', LogLevel.ERROR)
                 self.stats['errors'] += 1
-        
+
         return False
     
     def click_booking_button(self) -> bool:
@@ -2144,6 +2269,7 @@ def main():
     parser.add_argument('--login-only', action='store_true', help='로그인만 테스트')
     parser.add_argument('--payment', default='kakao', choices=['kakao', 'naver', 'card', 'transfer', 'toss'])
     parser.add_argument('--birth', help='생년월일 (YYMMDD)')
+    parser.add_argument('--query', help='공연명 검색어 (nol 티켓 메인에서 사람처럼 진입할 때 사용)')
     parser.add_argument('--auto-pay', action='store_true', help='자동 결제')
     parser.add_argument('--capsolver', action='store_true', help='Turnstile을 CapSolver로 자동 해결 (기본: 수동)')
     
@@ -2158,6 +2284,7 @@ def main():
     config = TicketingConfig(
         url=url,
         birth_date=args.birth or BIRTH_DATE,
+        query=args.query or CONCERT_QUERY,
         target_hour=args.hour,
         target_minute=args.minute,
         num_seats=args.seats,
