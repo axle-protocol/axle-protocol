@@ -1,6 +1,6 @@
-# HEARTBEAT.md — Colosseum 필드 완료!
+# HEARTBEAT.md — BTS 티켓팅 야놀자 연동 필요
 
-## Status: ✅ AXLE 프로젝트 필수 필드 전부 채움 (2026-02-12 10:58)
+## Status: ⚠️ 야놀자 계정 연동 문제 발견 (2026-02-12 12:07)
 
 ## ✅ Colosseum 필수 필드 완료
 Heartbeat v1.8.0 요구 필드 전부 업데이트됨:

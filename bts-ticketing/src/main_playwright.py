@@ -528,6 +528,48 @@ class NOLTicketing:
         
         return False
     
+    def handle_yanolja_redirect(self) -> bool:
+        """야놀자 로그인 리다이렉트 감지 및 처리"""
+        current_url = self.page.url.lower()
+        
+        if 'accounts.yanolja.com' not in current_url:
+            return True  # 리다이렉트 없음
+        
+        self._log('⚠️ 야놀자 로그인 리다이렉트 감지!')
+        self._log('🔐 야놀자 계정으로 재로그인...')
+        
+        try:
+            # 이미 로그인 폼이 보이는지 확인
+            email_input = self.page.locator('input[name="email"], input[type="email"]')
+            if email_input.is_visible(timeout=5000):
+                # 이메일/비밀번호 입력
+                email_input.fill(USER_ID)
+                adaptive_sleep(0.5)
+                
+                pw_input = self.page.locator('input[name="password"], input[type="password"]')
+                pw_input.fill(USER_PW)
+                adaptive_sleep(0.5)
+                
+                # Turnstile 처리
+                self._handle_turnstile()
+                adaptive_sleep(2)
+                
+                # 로그인 버튼 클릭
+                submit_btn = self.page.locator('button[type="submit"]')
+                submit_btn.click()
+                adaptive_sleep(5)
+                
+                # 리다이렉트 완료 확인
+                new_url = self.page.url.lower()
+                if 'tickets.interpark' in new_url or 'nol.interpark' in new_url:
+                    self._log('✅ 야놀자 로그인 후 복귀 성공!')
+                    return True
+                    
+        except Exception as e:
+            self._log(f'야놀자 로그인 실패: {e}', LogLevel.ERROR)
+        
+        return False
+    
     def _handle_turnstile(self):
         """Turnstile 캡챠 처리 - CapSolver API 우선, 폴백으로 클릭"""
         
@@ -747,14 +789,31 @@ class NOLTicketing:
                 continue
         
         if not btn:
-            self._dump_page_buttons()
-            self._log('예매 버튼 못찾음', LogLevel.WARN)
-            return False
-        
-        # 날짜/회차 버튼 클릭 → 모달 열림
-        self._log('🚀 날짜/회차 버튼 클릭...')
-        btn.click()
-        adaptive_sleep(2)  # 모달 열림 대기
+            # JS로 예매하기 버튼 클릭 시도
+            self._log('📋 JS로 예매하기 버튼 클릭 시도...')
+            try:
+                clicked = self.page.evaluate('''(function() {
+                    var btn = document.querySelector('a.sideBtn.is-primary');
+                    if (btn && btn.textContent.includes('예매하기')) {
+                        btn.click();
+                        return true;
+                    }
+                    return false;
+                })()''')
+                if clicked:
+                    self._log('✅ JS 클릭 성공')
+                    adaptive_sleep(3)
+                else:
+                    self._log('예매 버튼 못찾음', LogLevel.WARN)
+                    return False
+            except Exception as e:
+                self._log(f'JS 클릭 실패: {e}', LogLevel.WARN)
+                return False
+        else:
+            # 예매하기 버튼 클릭
+            self._log('🚀 예매하기 버튼 클릭...')
+            btn.click(force=True)
+            adaptive_sleep(2)
         
         # ⭐ 모달 내 예매 버튼 찾기 + 클릭
         self._log('📋 모달 내 예매 버튼 검색...')
@@ -839,6 +898,16 @@ class NOLTicketing:
         adaptive_sleep(2)
         current_url = self.page.url.lower()
         self._log(f'현재 URL: {current_url[:60]}')
+        
+        # ⭐ 야놀자 리다이렉트 체크
+        if 'accounts.yanolja.com' in current_url:
+            self._log('⚠️ 야놀자 로그인 리다이렉트 감지!')
+            if self.handle_yanolja_redirect():
+                # 리다이렉트 처리 후 다시 예매 시도
+                return self.click_booking_button()
+            else:
+                self._log('야놀자 로그인 실패', LogLevel.ERROR)
+                return False
         
         if 'book' in current_url or 'seat' in current_url or 'onestop' in current_url:
             self.booking_page = self.page
