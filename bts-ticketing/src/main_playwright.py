@@ -681,8 +681,8 @@ class NOLTicketing:
         return False
     
     def click_booking_button(self) -> bool:
-        """예매하기 버튼 클릭 + 팝업 핸들링 (NOL 개편 대응)"""
-        self._log('📍 예매하기 버튼 클릭...')
+        """NOL 티켓 예매 플로우: 모달 닫기 → 날짜 → 회차 → 예매하기"""
+        self._log('📍 예매 플로우 시작...')
         self.stats['booking_attempts'] += 1
         
         # React SPA 로딩 대기
@@ -692,21 +692,24 @@ class NOLTicketing:
         except:
             pass
         
-        # NOL 티켓 예매 버튼 셀렉터
+        # Step 1: "예매 안내" 모달 닫기 (force 클릭)
+        self._log('📋 Step 1: 모달 닫기...')
+        try:
+            close_btn = self.page.locator('button:has-text("닫기")').first
+            if close_btn.is_visible(timeout=3000):
+                close_btn.click(force=True)
+                self._log('✅ 모달 닫기 성공')
+                adaptive_sleep(1)
+        except:
+            self._log('ℹ️ 닫기 버튼 없음 (모달 없을 수 있음)')
+        
+        # Step 2: 하단 "예매하기" 버튼 클릭
+        self._log('📋 Step 2: 예매하기 버튼 클릭...')
         booking_selectors = [
-            # ⭐ 하단 "예매하기" 버튼 (핵심!)
+            'a.sideBtn.is-primary',  # NOL 티켓 예매하기 버튼
+            'a[class*="sideBtn"][class*="primary"]',
             'button:has-text("예매하기")',
-            '[class*="buyBtn"] button',
-            '[class*="BuyBtn"] button', 
             '[class*="bookingBtn"]',
-            '[class*="BookingBtn"]',
-            
-            # 스케줄/날짜 영역
-            '[class*="schedule"] a',
-            '[class*="Schedule"] a',
-            '[class*="ticketOpen"] a',
-            '[class*="TicketOpen"] a',
-            '[class*="ProductSide"] button',
         ]
         
         # 예매 버튼 찾기
