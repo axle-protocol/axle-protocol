@@ -5,7 +5,7 @@ import httpx
 import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from .session import AuthSession
+from session import AuthSession
 
 @dataclass
 class SeatInfo:

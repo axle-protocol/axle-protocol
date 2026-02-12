@@ -6,8 +6,8 @@ import multiprocessing as mp
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from queue import Empty
-from .session import AuthSession
-from .api import InterParkAPI, BookingResult, SeatInfo
+from session import AuthSession
+from api import InterParkAPI, BookingResult, SeatInfo
 
 @dataclass
 class WorkerResult:

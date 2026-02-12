@@ -6,8 +6,8 @@ import time
 import requests
 from typing import Optional, Dict
 from playwright.sync_api import sync_playwright, Page, BrowserContext
-from .session import AuthSession, SessionPool
-from .config import Account
+from session import AuthSession, SessionPool
+from config import Account
 
 # CapSolver API
 CAPSOLVER_KEY = os.getenv('CAPSOLVER_API_KEY', '')
