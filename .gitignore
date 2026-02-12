@@ -3,3 +3,7 @@ node_modules/
 __pycache__/
 .DS_Store
 .x-credentials
+
+# BTS ticketing local auth/session state
+bts-ticketing/src/auth_state.json
+*.har

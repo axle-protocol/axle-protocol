@@ -424,6 +424,126 @@ class NOLTicketing:
             self._log('🔒 브라우저 종료')
     
     # ============ 로그인 ============
+    def login_human_like(self) -> bool:
+        """사람처럼 네비게이션하며 로그인 (봇 탐지 회피)"""
+        self._log('🧑 사람처럼 로그인 시작 (인터파크 홈 → 로그인)...')
+        
+        try:
+            # Step 1: 인터파크 홈으로 직접 이동 (네이버 스킵)
+            self._log('📍 Step 1: 인터파크 홈 접속...')
+            self.page.goto('https://tickets.interpark.com', wait_until='domcontentloaded', timeout=30000)
+            adaptive_sleep(3)
+            
+            # Step 2: 인터파크 홈에서 로그인 버튼 클릭
+            self._log('📍 Step 2: 로그인 버튼 클릭...')
+            # 로그인 버튼 찾기 (여러 셀렉터 시도)
+            login_btn_selectors = [
+                'text=로그인',  # 가장 단순한 텍스트 매칭
+                'a >> text=로그인',
+                'span:has-text("로그인")',
+                'a:has-text("로그인")',
+                'button:has-text("로그인")',
+                '[class*="login"]',
+                'a[href*="login"]',
+            ]
+            
+            clicked = False
+            for selector in login_btn_selectors:
+                try:
+                    btn = self.page.locator(selector).first
+                    if btn.count() > 0 and btn.is_visible(timeout=2000):
+                        # ⭐ 새 탭이 열릴 수 있으므로 팝업 이벤트 대기
+                        with self.context.expect_page(timeout=10000) as new_page_info:
+                            btn.click()
+                        
+                        # 새 탭이 열렸으면 그 탭으로 전환
+                        try:
+                            new_page = new_page_info.value
+                            self._log('✅ 새 탭 감지! 새 탭으로 전환')
+                            self.page = new_page
+                            self.page.wait_for_load_state('domcontentloaded')
+                        except:
+                            self._log('ℹ️ 새 탭 없음 - 같은 페이지에서 진행')
+                        
+                        clicked = True
+                        self._log(f'✅ 로그인 버튼 클릭 성공: {selector}')
+                        break
+                except Exception as e:
+                    # expect_page 타임아웃은 무시하고 계속
+                    if 'Timeout' in str(e):
+                        clicked = True
+                        self._log(f'✅ 로그인 버튼 클릭 (새 탭 없음): {selector}')
+                        break
+                    continue
+            
+            if not clicked:
+                self._log('⚠️ 로그인 버튼 못 찾음 - 직접 URL 이동', LogLevel.WARN)
+                # 최후의 수단: 직접 이동 (하지만 홈에서 클릭한 것처럼 referrer 설정됨)
+                self.page.goto('https://tickets.interpark.com/login', wait_until='domcontentloaded')
+            
+            adaptive_sleep(3)
+            
+            # ⭐ 현재 열린 모든 탭 확인하고 로그인 페이지 찾기
+            all_pages = self.context.pages
+            self._log(f'📍 열린 탭 수: {len(all_pages)}')
+            for pg in all_pages:
+                url = pg.url
+                self._log(f'   - {url[:60]}')
+                if 'yanolja' in url or 'login' in url or 'signin' in url:
+                    self.page = pg
+                    self._log('✅ 로그인 탭으로 전환!')
+                    break
+            
+            # Step 3: "이메일로 시작하기" 버튼 클릭 (NOL 계정 선택 페이지)
+            self._log('📍 Step 3: 이메일로 시작하기 클릭...')
+            adaptive_sleep(2)  # 페이지 로딩 대기
+            email_start_selectors = [
+                'text=이메일로 시작하기',
+                ':has-text("이메일로 시작")',  # 부분 매칭
+                'a:has-text("이메일")',
+                'span:has-text("이메일로 시작")',
+                'div:has-text("이메일로 시작하기")',
+                'button:has-text("이메일")',
+            ]
+            
+            email_clicked = False
+            for selector in email_start_selectors:
+                try:
+                    btn = self.page.locator(selector).first
+                    if btn.count() > 0 and btn.is_visible(timeout=3000):
+                        # ⭐ 새 탭 처리
+                        with self.context.expect_page(timeout=5000) as new_page_info:
+                            btn.click()
+                        try:
+                            new_page = new_page_info.value
+                            self._log('✅ 이메일 로그인 새 탭 감지!')
+                            self.page = new_page
+                            self.page.wait_for_load_state('domcontentloaded')
+                        except:
+                            pass
+                        email_clicked = True
+                        self._log(f'✅ 이메일로 시작하기 클릭 성공: {selector}')
+                        break
+                except Exception as e:
+                    if 'Timeout' in str(e):
+                        email_clicked = True
+                        self._log(f'✅ 이메일로 시작하기 클릭 (새 탭 없음): {selector}')
+                        break
+                    continue
+                except:
+                    continue
+            
+            if not email_clicked:
+                self._log('ℹ️ 이메일로 시작하기 버튼 없음 (이미 로그인 폼일 수 있음)')
+            
+            adaptive_sleep(2)
+            self._log('✅ 로그인 페이지 도달!', LogLevel.SUCCESS)
+            return True
+            
+        except Exception as e:
+            self._log(f'❌ 사람처럼 네비게이션 실패: {e}', LogLevel.ERROR)
+            return False
+    
     def login(self) -> bool:
         """NOL 로그인"""
         self._log('🔐 로그인 시작...')
@@ -431,10 +551,19 @@ class NOLTicketing:
         
         for attempt in range(self.config.max_retries):
             try:
-                # 로그인 페이지 접속
-                login_url = f'{self.LOGIN_BASE}?{self.LOGIN_PARAMS}'
-                self._log(f'로그인 페이지 접속 (시도 {attempt + 1})...')
-                self.page.goto(login_url, wait_until='domcontentloaded', timeout=60000)
+                # ⭐ 사람처럼 네비게이션하여 로그인 페이지 도달
+                if attempt == 0:
+                    # 첫 시도: 사람처럼
+                    if not self.login_human_like():
+                        self._log('사람처럼 네비게이션 실패 - 직접 접속 시도')
+                        login_url = f'{self.LOGIN_BASE}?{self.LOGIN_PARAMS}'
+                        self.page.goto(login_url, wait_until='domcontentloaded', timeout=60000)
+                else:
+                    # 재시도: 직접 접속
+                    login_url = f'{self.LOGIN_BASE}?{self.LOGIN_PARAMS}'
+                    self._log(f'로그인 페이지 접속 (시도 {attempt + 1})...')
+                    self.page.goto(login_url, wait_until='domcontentloaded', timeout=60000)
+                
                 adaptive_sleep(2)
                 
                 # 이메일 입력
@@ -615,6 +744,60 @@ class NOLTicketing:
         
         return False
     
+    def _click_turnstile_checkbox(self):
+        """Cloudflare 체크박스 직접 클릭"""
+        self._log('📍 Cloudflare 체크박스 클릭 시도...')
+        try:
+            # 체크박스 셀렉터들
+            checkbox_selectors = [
+                'input[type="checkbox"]',  # 일반 체크박스
+                'label:has-text("사람인지")',  # 한국어 라벨
+                '.cf-turnstile input',
+                '[data-testid="checkbox"]',
+            ]
+            
+            # 먼저 페이지 내 체크박스 시도
+            for selector in checkbox_selectors:
+                try:
+                    checkbox = self.page.locator(selector).first
+                    if checkbox.count() > 0 and checkbox.is_visible(timeout=2000):
+                        checkbox.click(force=True)
+                        self._log(f'✅ 체크박스 클릭 성공: {selector}')
+                        adaptive_sleep(2)
+                        return
+                except:
+                    continue
+            
+            # iframe 내부 클릭 시도
+            turnstile_selectors = [
+                'iframe[src*="challenges"]',
+                'iframe[src*="turnstile"]',
+                'iframe[title*="Turnstile"]',
+                'iframe[title*="cloudflare"]',
+            ]
+            
+            for selector in turnstile_selectors:
+                try:
+                    iframe = self.page.locator(selector).first
+                    if iframe.is_visible(timeout=2000):
+                        box = iframe.bounding_box()
+                        if box:
+                            # 체크박스는 보통 왼쪽에 있음
+                            click_x = box['x'] + 25
+                            click_y = box['y'] + box['height'] / 2
+                            
+                            self._log(f'📍 Turnstile iframe 클릭: ({click_x:.0f}, {click_y:.0f})')
+                            self.page.mouse.click(click_x, click_y)
+                            self._log('✅ Turnstile 체크박스 클릭 완료')
+                            adaptive_sleep(3)
+                            return
+                except:
+                    continue
+                    
+            self._log('ℹ️ 체크박스 못 찾음 (이미 처리됐을 수 있음)')
+        except Exception as e:
+            self._log(f'체크박스 클릭 실패: {e}', LogLevel.WARN)
+    
     def _handle_turnstile(self):
         """Turnstile 캡챠 처리 - CapSolver API 우선, 폴백으로 클릭"""
         
@@ -683,7 +866,9 @@ class NOLTicketing:
                         }})();
                     ''')
                     self._log('✅ CapSolver 토큰 주입 완료!', LogLevel.SUCCESS)
-                    adaptive_sleep(2)
+                    adaptive_sleep(1)
+                    # ⭐ 토큰 주입 후에도 체크박스 클릭 시도 (UI 동기화)
+                    self._click_turnstile_checkbox()
                     return
                 except Exception as e:
                     self._log(f'토큰 주입 실패: {e}', LogLevel.WARN)

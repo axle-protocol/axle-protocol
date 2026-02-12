@@ -1,7 +1,7 @@
 {
-  "lastCheck": "2026-02-12T16:03:30+09:00",
-  "lastThreshold": 90,
+  "lastCheck": "2026-02-12T21:38:12+09:00",
+  "lastThreshold": 80,
   "model": "anthropic/claude-opus-4-5",
-  "contextUsed": "180k/200k",
-  "percentage": 90
+  "contextUsed": "160k/200k",
+  "percentage": 80
 }
