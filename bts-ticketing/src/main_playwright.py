@@ -1007,8 +1007,9 @@ class NOLTicketing:
                     if iframe.is_visible(timeout=3000):
                         box = iframe.bounding_box()
                         if box:
-                            click_x = box['x'] + 25
-                            click_y = box['y'] + 25
+                            # 좌상단 고정 클릭은 위젯 크기에 따라 실패할 수 있음 → 세로 중앙 클릭
+                            click_x = box['x'] + 35
+                            click_y = box['y'] + box['height'] / 2
                             
                             self._log(f'Turnstile 클릭: ({click_x:.0f}, {click_y:.0f})', LogLevel.DEBUG)
                             self.page.mouse.click(click_x, click_y)
@@ -1023,7 +1024,8 @@ class NOLTicketing:
                 if 'challenges' in frame.url or 'turnstile' in frame.url:
                     self._log('Turnstile 프레임 발견 (폴백)', LogLevel.DEBUG)
                     try:
-                        frame.locator('body').click(position={'x': 25, 'y': 25}, timeout=5000)
+                        # 프레임 내부도 세로 중앙 쪽을 클릭 (체크박스 영역)
+                        frame.locator('body').click(position={'x': 35, 'y': 60}, timeout=5000)
                         self._log('체크박스 클릭 완료')
                         adaptive_sleep(4)
                     except Exception as e:
