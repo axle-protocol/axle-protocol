@@ -1114,18 +1114,43 @@ class NOLTicketing:
                     'input[class*="search"]',
                 ]
 
-                search_input = None
-                for sel in search_selectors:
+                def _find_search_input():
+                    for sel in search_selectors:
+                        try:
+                            loc = self.page.locator(sel).first
+                            if loc.count() > 0 and loc.is_visible(timeout=1500):
+                                return loc
+                        except Exception:
+                            continue
+                    return None
+
+                search_input = _find_search_input()
+
+                # NOL 메인에서는 input이 바로 안 보이고 "검색 아이콘"을 눌러야 나오는 케이스가 있음
+                if not search_input:
                     try:
-                        loc = self.page.locator(sel).first
-                        if loc.count() > 0 and loc.is_visible(timeout=1500):
-                            search_input = loc
-                            break
+                        # 헤더 검색 버튼/아이콘 추정 셀렉터
+                        search_btn_selectors = [
+                            'button[aria-label*="검색"]',
+                            'a[aria-label*="검색"]',
+                            'button:has(svg)',
+                            'header button',
+                            '[class*="search"] button',
+                            '[class*="Search"] button',
+                        ]
+                        for bsel in search_btn_selectors:
+                            btn = self.page.locator(bsel).first
+                            if btn.count() > 0 and btn.is_visible(timeout=800):
+                                btn.click(timeout=1500)
+                                self.page.wait_for_timeout(400)
+                                search_input = _find_search_input()
+                                if search_input:
+                                    break
                     except Exception:
-                        continue
+                        pass
 
                 if not search_input:
-                    self._log('검색 input을 못 찾음', LogLevel.WARN)
+                    self._log('검색 input을 못 찾음(아이콘 클릭 후에도)', LogLevel.WARN)
                     self._dump_debug('nol_search_input_missing')
                     return False
 
