@@ -1367,43 +1367,59 @@ class NOLTicketing:
             '[class*="bookingBtn"]',
         ]
         
-        # 예매 버튼 찾기 (selector를 콤마로 합쳐 탐색 시간 단축)
+        # 예매 버튼 찾기
         btn = None
-        combined = ', '.join(booking_selectors)
+
+        # Fast path: NOL 고정 버튼
         try:
-            elements = self.page.locator(combined).all()
-            for el in elements:
+            fast = self.page.locator('a.sideBtn.is-primary:has-text("예매하기"), button:has-text("예매하기")').first
+            if fast.count() > 0:
                 try:
-                    if not el.is_visible(timeout=500):
-                        continue
-
-                    text = (el.text_content() or "").strip()
-                    href = el.get_attribute('href') or ""
-
-                    # ⭐ "예매하기" 버튼 = 최우선!
-                    # NOL/Interpark UI에서 href가 "#"여도 JS 핸들러로 동작하는 케이스가 있어 제외하면 안 됨.
-                    if text == '예매하기':
-                        self._log('✅ 예매하기 버튼 발견')
-                        btn = el
-                        break
-
-                    # 앵커 링크 제외 (예매하기 제외)
-                    if href.startswith('#'):
-                        continue
-
-                    # "바로가기" 제외
-                    if '바로가기' in text:
-                        continue
-
-                    # 날짜 패턴 또는 예매/선예매 텍스트
-                    if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
-                        self._log(f'버튼 발견 (텍스트: {text[:30]})')
-                        btn = el
-                        break
+                    fast.scroll_into_view_if_needed(timeout=1000)
                 except Exception:
-                    continue
+                    pass
+                if fast.is_visible(timeout=1500):
+                    self._log('✅ 예매하기 버튼 발견(fast path)')
+                    btn = fast
         except Exception:
             pass
+
+        # General scan
+        if not btn:
+            combined = ', '.join(booking_selectors)
+            try:
+                elements = self.page.locator(combined).all()
+                for el in elements:
+                    try:
+                        if not el.is_visible(timeout=1200):
+                            continue
+
+                        text = (el.text_content() or "").strip()
+                        href = el.get_attribute('href') or ""
+
+                        # ⭐ "예매하기" 버튼 = 최우선!
+                        if text == '예매하기':
+                            self._log('✅ 예매하기 버튼 발견')
+                            btn = el
+                            break
+
+                        # 앵커 링크 제외 (예매하기 제외)
+                        if href.startswith('#'):
+                            continue
+
+                        # "바로가기" 제외
+                        if '바로가기' in text:
+                            continue
+
+                        # 날짜 패턴 또는 예매/선예매 텍스트
+                        if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
+                            self._log(f'버튼 발견 (텍스트: {text[:30]})')
+                            btn = el
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
         
         if not btn:
             # JS로 예매하기 버튼 클릭 시도
