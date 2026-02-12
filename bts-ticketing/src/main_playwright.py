@@ -196,6 +196,10 @@ class TicketingConfig:
     use_proxy: bool = False  # 프록시 사용 여부
     max_retries: int = 3
     timeout_ms: int = 30000
+
+    # Safety / workflow
+    dry_run: bool = True  # 기본값: 결제 단계는 자동으로 진행하지 않음
+    stop_after: str = ''  # login|concert|booking|queue|seats|payment (비우면 끝까지 진행)
     
     def __post_init__(self):
         if self.zone_priority is None:
@@ -659,6 +663,22 @@ class NOLTicketing:
         """NOL 로그인"""
         self._log('🔐 로그인 시작...')
         self.stats['login_attempts'] += 1
+
+        # 빠른 경로: 이미 로그인되어 있으면 로그인 플로우를 스킵
+        # (저장된 storage state가 유효한 경우)
+        try:
+            self.page.goto('https://nol.interpark.com/ticket', wait_until='domcontentloaded', timeout=30000)
+            adaptive_sleep(1.2)
+
+            # 사용자 버튼/내 예약 등이 보이면 로그인된 것으로 간주
+            if (
+                self.page.locator('button:has-text("님")').count() > 0
+                or self.page.locator('text=내 예약').count() > 0
+            ):
+                self._log('✅ 이미 로그인 상태 감지 → 로그인 스킵', LogLevel.SUCCESS)
+                return True
+        except Exception:
+            pass
         
         for attempt in range(self.config.max_retries):
             try:
@@ -2170,12 +2190,21 @@ class NOLTicketing:
                 if not self.login():
                     self._dump_debug('login_failed')
                     return False
+                if self.config.stop_after == 'login':
+                    self._log('🛑 stop_after=login: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self.page.screenshot(path='/tmp/stop_after_login.png')
+                    return True
                 
                 # 3. 공연 페이지 이동
                 self._log('\n📍 [2/6] 공연 페이지 이동...')
                 if not self.navigate_to_concert():
-                    self._log('공연 페이지 접속 실패', LogLevel.WARN)
+                    self._log('공연 페이지 접속 실패', LogLevel.ERROR)
                     self._dump_debug('navigate_to_concert_failed')
+                    return False
+                if self.config.stop_after == 'concert':
+                    self._log('🛑 stop_after=concert: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self.page.screenshot(path='/tmp/stop_after_concert.png')
+                    return True
                 
                 # 4. 예매 시간 대기
                 self._log('\n📍 [3/6] 예매 대기...')
@@ -2183,21 +2212,43 @@ class NOLTicketing:
                 
                 # 5. 예매 버튼 클릭 + 대기열
                 self._log('\n📍 [4/6] 예매 시작...')
-                self.click_booking_button()
+                if not self.click_booking_button():
+                    self._log('예매 버튼 클릭 실패', LogLevel.ERROR)
+                    self._dump_debug('click_booking_button_failed')
+                    return False
+                if self.config.stop_after == 'booking':
+                    self._log('🛑 stop_after=booking: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._get_active_page().screenshot(path='/tmp/stop_after_booking.png')
+                    return True
                 
                 # 대기열 처리
                 if not self.handle_waiting_queue():
                     if not self.is_seat_page():
                         self._log('좌석 페이지 진입 실패', LogLevel.ERROR)
+                        self._dump_debug('queue_or_seat_entry_failed', page=self._get_active_page())
+                        return False
+                if self.config.stop_after == 'queue':
+                    self._log('🛑 stop_after=queue: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._get_active_page().screenshot(path='/tmp/stop_after_queue.png')
+                    return True
                 
                 # 6. 좌석 선택
                 self._log('\n📍 [5/6] 좌석 선택...')
                 if not self.select_seats():
-                    self._log('좌석 선택 실패', LogLevel.WARN)
+                    self._log('좌석 선택 실패', LogLevel.ERROR)
                     self._dump_debug('select_seats_failed', page=self._get_active_page())
+                    return False
+                if self.config.stop_after == 'seats':
+                    self._log('🛑 stop_after=seats: 여기서 종료 (브라우저 유지)', LogLevel.SUCCESS)
+                    self._get_active_page().screenshot(path='/tmp/stop_after_seats.png')
+                    return True
                 
                 # 7. 결제
                 self._log('\n📍 [6/6] 결제...')
+                if self.config.dry_run:
+                    self._log('🧪 dry_run=True: 결제 단계는 스킵하고 종료', LogLevel.SUCCESS)
+                    self._get_active_page().screenshot(path='/tmp/dry_run_before_payment.png')
+                    return True
                 self.process_payment()
                 
                 # 완료
@@ -2270,7 +2321,10 @@ def main():
     parser.add_argument('--payment', default='kakao', choices=['kakao', 'naver', 'card', 'transfer', 'toss'])
     parser.add_argument('--birth', help='생년월일 (YYMMDD)')
     parser.add_argument('--query', help='공연명 검색어 (nol 티켓 메인에서 사람처럼 진입할 때 사용)')
-    parser.add_argument('--auto-pay', action='store_true', help='자동 결제')
+    parser.add_argument('--auto-pay', action='store_true', help='자동 결제 (주의: 실제 결제 진행)')
+    parser.add_argument('--dry-run', action='store_true', help='결제 단계 스킵 (기본값: ON)')
+    parser.add_argument('--stop-after', default='', choices=['', 'login', 'concert', 'booking', 'queue', 'seats', 'payment'],
+                        help='특정 단계 후 종료 (브라우저 유지). 예: --stop-after concert')
     parser.add_argument('--capsolver', action='store_true', help='Turnstile을 CapSolver로 자동 해결 (기본: 수동)')
     
     args = parser.parse_args()
@@ -2281,6 +2335,12 @@ def main():
         url = TEST_URLS[0]  # 테스트용 기본 URL
     
     # 설정
+    # 안전장치: 기본은 결제 스킵(dry-run ON)
+    # - --auto-pay를 켜더라도, --dry-run을 별도로 끄지 않는 한 결제는 진행하지 않는다.
+    dry_run = True
+    if args.auto_pay and not args.dry_run:
+        dry_run = False
+
     config = TicketingConfig(
         url=url,
         birth_date=args.birth or BIRTH_DATE,
@@ -2292,6 +2352,8 @@ def main():
         payment_method=args.payment,
         auto_pay=args.auto_pay,
         use_capsolver=args.capsolver,
+        dry_run=dry_run,
+        stop_after=args.stop_after,
     )
     
     if args.test:
