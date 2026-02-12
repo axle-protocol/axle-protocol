@@ -461,19 +461,28 @@ class NOLTicketing:
             # - .svg 차단 금지 (좌석맵/아이콘이 SVG일 수 있음)
             # - Turnstile/Cloudflare 등 외부 도메인 리소스는 건드리면 렌더 실패 가능
             def _route_block(route):
+                """가벼운 리소스 차단.
+
+                NOTE: first-party(interpark/nol) 리소스를 막으면 SPA가 깨져
+                goods→nol 허브 리다이렉트가 발생할 수 있음.
+                → first-party는 허용, 3rd-party만 차단.
+                """
                 try:
                     url = route.request.url
-                    if ('tickets.interpark.com' in url) or ('nol.interpark.com' in url):
-                        return route.abort()
+                    if ('tickets.interpark.com' in url) or ('nol.interpark.com' in url) or ('interparkcdn.net' in url) or ('ticketimage.interpark.com' in url):
+                        return route.continue_()
+                    return route.abort()
                 except Exception:
-                    pass
-                return route.continue_()
+                    try:
+                        return route.continue_()
+                    except Exception:
+                        return
 
             self.page.route(
                 "**/*.{png,jpg,jpeg,gif,webp,woff,woff2,ttf}",
                 _route_block,
             )
-            self._log('🚀 리소스 차단: interpark/nol 도메인만 (svg 제외)')
+            self._log('🚀 리소스 차단: 3rd-party 이미지/폰트만 (first-party 허용, svg 제외)')
             
             # Stealth 모드 적용
             if STEALTH_AVAILABLE:
