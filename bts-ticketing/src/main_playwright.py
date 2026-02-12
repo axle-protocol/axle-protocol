@@ -1111,7 +1111,13 @@ class NOLTicketing:
                     'input[placeholder*="검색"]',
                     'input[aria-label*="검색"]',
                     'input[name*="search"]',
+                    'input[name*="keyword"]',
                     'input[class*="search"]',
+                    # /contents/search 페이지에서 확인된 클래스
+                    'input[class*="input-field"]',
+                    'input._input-field_n9y8c_1',
+                    # 마지막 폴백: 첫 input
+                    'input',
                 ]
 
                 def _find_search_input():
@@ -1140,7 +1146,31 @@ class NOLTicketing:
                         for bsel in search_btn_selectors:
                             btn = self.page.locator(bsel).first
                             if btn.count() > 0 and btn.is_visible(timeout=800):
-                                btn.click(timeout=1500)
+                                try:
+                                    btn.click(timeout=1500)
+                                except Exception:
+                                    try:
+                                        self.page.evaluate('el => el.click()', btn)
+                                    except Exception:
+                                        pass
+
+                                # 검색 페이지로 이동했는지 확인
+                                try:
+                                    self.page.wait_for_timeout(200)
+                                    self.page.wait_for_load_state('domcontentloaded', timeout=3000)
+                                except Exception:
+                                    pass
+
+                                # URL이 바뀌는 타입이면 조금 기다린다
+                                try:
+                                    turl0 = time.time()
+                                    while time.time() - turl0 < 2.0:
+                                        if '/contents/search' in (self.page.url or ''):
+                                            break
+                                        time.sleep(0.05)
+                                except Exception:
+                                    pass
+
                                 self.page.wait_for_timeout(400)
                                 search_input = _find_search_input()
                                 if search_input:
