@@ -305,8 +305,10 @@ class NOLTicketing:
         포함:
           - 현재 URL
           - 열린 탭 URL 목록
+          - frame URL 목록
           - 스크린샷
           - HTML
+          - (가능하면) 콘솔 로그 버퍼
 
         주의: 쿠키/스토리지 state는 저장하지 않는다 (민감정보).
         """
@@ -322,6 +324,8 @@ class NOLTicketing:
                 'timestamp': datetime.now().isoformat(),
                 'current_url': (p.url if p else None),
                 'pages': [],
+                'frames': [],
+                'console': [],
                 'extra': extra or {},
             }
 
@@ -333,6 +337,23 @@ class NOLTicketing:
                             info['pages'].append({'url': pg.url, 'title': pg.title()})
                         except Exception:
                             info['pages'].append({'url': getattr(pg, 'url', None)})
+            except Exception:
+                pass
+
+            # frame URL 목록 (iframe-heavy 플로우 디버깅용)
+            try:
+                if p:
+                    for fr in p.frames:
+                        try:
+                            info['frames'].append({'name': fr.name, 'url': fr.url})
+                        except Exception:
+                            info['frames'].append({'url': getattr(fr, 'url', None)})
+            except Exception:
+                pass
+
+            # 콘솔 로그 버퍼
+            try:
+                info['console'] = list(getattr(self, '_console_buffer', []) or [])[-200:]
             except Exception:
                 pass
 
@@ -391,10 +412,9 @@ class NOLTicketing:
             
             context_options = {
                 'locale': 'ko-KR',
-                'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                # UA 고정은 userAgentData 등과 불일치로 탐지 시그널이 될 수 있어 기본값을 사용한다.
                 'viewport': {'width': 1280, 'height': 900},
                 'java_script_enabled': True,
-                'bypass_csp': True,
                 'ignore_https_errors': True,
             }
             
@@ -412,11 +432,42 @@ class NOLTicketing:
             # 타임아웃 설정
             self.context.set_default_timeout(self.config.timeout_ms)
             
+            # 콘솔 로그 버퍼링 (관측)
+            self._console_buffer: List[Dict[str, Any]] = []
+
+            def _on_console(msg):
+                try:
+                    self._console_buffer.append({
+                        'type': msg.type,
+                        'text': msg.text,
+                        'location': getattr(msg, 'location', lambda: None)() if callable(getattr(msg, 'location', None)) else None,
+                    })
+                except Exception:
+                    pass
+
             self.page = self.context.new_page()
-            
+            try:
+                self.page.on('console', _on_console)
+            except Exception:
+                pass
+
             # ⭐ 속도 최적화: 불필요한 리소스 차단
-            self.page.route("**/*.{png,jpg,jpeg,gif,svg,webp,woff,woff2,ttf}", lambda route: route.abort())
-            self._log('🚀 이미지/폰트 차단 (속도 최적화)')
+            # - .svg 차단 금지 (좌석맵/아이콘이 SVG일 수 있음)
+            # - Turnstile/Cloudflare 등 외부 도메인 리소스는 건드리면 렌더 실패 가능
+            def _route_block(route):
+                try:
+                    url = route.request.url
+                    if ('tickets.interpark.com' in url) or ('nol.interpark.com' in url):
+                        return route.abort()
+                except Exception:
+                    pass
+                return route.continue_()
+
+            self.page.route(
+                "**/*.{png,jpg,jpeg,gif,webp,woff,woff2,ttf}",
+                _route_block,
+            )
+            self._log('🚀 리소스 차단: interpark/nol 도메인만 (svg 제외)')
             
             # Stealth 모드 적용
             if STEALTH_AVAILABLE:
@@ -428,11 +479,6 @@ class NOLTicketing:
                 // webdriver 숨김
                 Object.defineProperty(navigator, 'webdriver', {
                     get: () => undefined
-                });
-                
-                // plugins 배열 추가
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [1, 2, 3, 4, 5]
                 });
                 
                 // languages 설정
@@ -1029,11 +1075,10 @@ class NOLTicketing:
         self._log('📍 예매 플로우 시작...')
         self.stats['booking_attempts'] += 1
         
-        # React SPA 로딩 대기
+        # React SPA: networkidle은 느리고(analytics 등) 불안정. 최소 상태만 기다린다.
         try:
-            self.page.wait_for_load_state('networkidle', timeout=10000)
-            adaptive_sleep(2)
-        except:
+            self.page.wait_for_load_state('domcontentloaded', timeout=5000)
+        except Exception:
             pass
         
         # Step 1: "예매 안내" 모달 닫기 (force 클릭)
@@ -1056,39 +1101,42 @@ class NOLTicketing:
             '[class*="bookingBtn"]',
         ]
         
-        # 예매 버튼 찾기
+        # 예매 버튼 찾기 (selector를 콤마로 합쳐 탐색 시간 단축)
         btn = None
-        for selector in booking_selectors:
-            try:
-                elements = self.page.locator(selector).all()
-                for el in elements:
-                    if el.is_visible(timeout=1000):
-                        text = (el.text_content() or "").strip()
-                        href = el.get_attribute('href') or ""
-                        
-                        # 앵커 링크 제외
-                        if href.startswith('#'):
-                            continue
-                        
-                        # "바로가기" 제외
-                        if '바로가기' in text:
-                            continue
-                        
-                        # ⭐ "예매하기" 버튼 = 최우선!
-                        if text == '예매하기':
-                            self._log(f'✅ 예매하기 버튼 발견: {selector[:30]}')
-                            btn = el
-                            break
-                            
-                        # 날짜 패턴 또는 예매/선예매 텍스트
-                        if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
-                            self._log(f'버튼 발견: {selector[:30]} (텍스트: {text[:30]})')
-                            btn = el
-                            break
-                if btn:
-                    break
-            except:
-                continue
+        combined = ', '.join(booking_selectors)
+        try:
+            elements = self.page.locator(combined).all()
+            for el in elements:
+                try:
+                    if not el.is_visible(timeout=500):
+                        continue
+
+                    text = (el.text_content() or "").strip()
+                    href = el.get_attribute('href') or ""
+
+                    # 앵커 링크 제외
+                    if href.startswith('#'):
+                        continue
+
+                    # "바로가기" 제외
+                    if '바로가기' in text:
+                        continue
+
+                    # ⭐ "예매하기" 버튼 = 최우선!
+                    if text == '예매하기':
+                        self._log('✅ 예매하기 버튼 발견')
+                        btn = el
+                        break
+
+                    # 날짜 패턴 또는 예매/선예매 텍스트
+                    if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
+                        self._log(f'버튼 발견 (텍스트: {text[:30]})')
+                        btn = el
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            pass
         
         if not btn:
             # JS로 예매하기 버튼 클릭 시도
@@ -1161,35 +1209,83 @@ class NOLTicketing:
                         # 방법 1: force=True로 강제 클릭
                         self._log('강제 클릭 시도 (force=True)...')
                         
+                        # ⭐ 팝업/탭/동일탭 전환 레이스 처리 (expect_popup 고정대기 제거)
+                        new_pages: List[Page] = []
+
+                        def _on_page(pg):
+                            try:
+                                new_pages.append(pg)
+                            except Exception:
+                                pass
+
                         try:
-                            with self.page.expect_popup(timeout=10000) as popup_info:
-                                modal_btn.click(force=True, timeout=5000)
-                            
-                            self.booking_page = popup_info.value
-                            self.booking_page.wait_for_load_state('domcontentloaded', timeout=30000)
-                            self._log(f'✅ 예매 팝업 열림: {self.booking_page.url[:50]}...', LogLevel.SUCCESS)
-                            return True
-                        except:
+                            if self.context:
+                                self.context.on('page', _on_page)
+                        except Exception:
                             pass
-                        
-                        # 방법 2: JavaScript로 직접 클릭
-                        self._log('JS 클릭 시도...')
-                        self.page.evaluate('''
-                            var links = document.querySelectorAll('a, button');
-                            for (var link of links) {
-                                if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
-                                    link.click();
-                                    break;
+
+                        before_url = (self.page.url or '').lower()
+
+                        # 클릭 (force)
+                        try:
+                            modal_btn.click(force=True, timeout=5000)
+                        except Exception:
+                            pass
+
+                        # 짧은 레이스: 새 페이지 이벤트 vs 동일탭 URL 변경
+                        t0 = time.time()
+                        while time.time() - t0 < 2.0:
+                            try:
+                                if new_pages:
+                                    pg = new_pages[-1]
+                                    self.booking_page = pg
+                                    try:
+                                        pg.wait_for_load_state('domcontentloaded', timeout=5000)
+                                    except Exception:
+                                        pass
+                                    self._log(f'✅ 예매 페이지(새 탭) 진입: {pg.url[:60]}', LogLevel.SUCCESS)
+                                    return True
+                            except Exception:
+                                pass
+
+                            try:
+                                cur = (self.page.url or '').lower()
+                                if cur != before_url and any(k in cur for k in ['book', 'seat', 'onestop']):
+                                    self.booking_page = self.page
+                                    self._log(f'✅ 예매 페이지(동일 탭) 진입: {self.page.url[:60]}', LogLevel.SUCCESS)
+                                    return True
+                            except Exception:
+                                pass
+
+                            time.sleep(0.05)
+
+                        # 폴백: JavaScript 클릭 (최후)
+                        self._log('JS 클릭 폴백 시도...')
+                        try:
+                            self.page.evaluate('''
+                                var links = document.querySelectorAll('a, button');
+                                for (var link of links) {
+                                    if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
+                                        link.click();
+                                        break;
+                                    }
                                 }
-                            }
-                        ''')
-                        
-                        adaptive_sleep(3)
-                        current_url = self.page.url.lower()
-                        if 'book' in current_url or 'seat' in current_url or 'onestop' in current_url:
-                            self.booking_page = self.page
-                            self._log(f'✅ JS 클릭 후 예매 진행: {self.page.url[:50]}...', LogLevel.SUCCESS)
-                            return True
+                            ''')
+                        except Exception:
+                            pass
+
+                        # JS 클릭 후도 짧게만 확인
+                        t1 = time.time()
+                        while time.time() - t1 < 2.0:
+                            try:
+                                cur = (self.page.url or '').lower()
+                                if any(k in cur for k in ['book', 'seat', 'onestop']):
+                                    self.booking_page = self.page
+                                    self._log(f'✅ 예매 진행 감지(JS): {self.page.url[:60]}', LogLevel.SUCCESS)
+                                    return True
+                            except Exception:
+                                pass
+                            time.sleep(0.05)
                             
                     except Exception as click_err:
                         self._log(f'클릭 실패: {click_err}', LogLevel.DEBUG)
