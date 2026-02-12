@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 01:33 KST
+# DASHBOARD.md — 2026-02-13 02:04 KST
 
 ## 🎯 현재 프로젝트
 
@@ -18,29 +18,33 @@
 
 **코드 상태 (최근 반영)**
 - CapSolver: `--capsolver` **옵션일 때만** 사용 (기본 수동)
-- 성능/안정화 리팩터링:
-  - booking path `networkidle` 제거
-  - selector 순차 탐색 → 콤마 selector로 단축
-  - `expect_popup` 고정 대기 제거 → 새 탭 이벤트 vs URL change 레이스
-  - 리소스 차단: interpark/nol 도메인만 + `.svg` 제외 (Turnstile/seatmap 안정)
-  - 디버그 덤프 강화: frames + console buffer 저장
-- 추가 우회(옵션): goods 리다이렉트 시 **NOL 메인에서 공연명 검색 → 결과 클릭**으로 goods 진입 (`--query` / `CONCERT_QUERY`)
+- 안전장치:
+  - `--stop-after (login|concert|booking|queue|seats)` 단계별 리허설
+  - dry-run(결제 스킵) 기본값 ON
+- 오픈타임 안정화 패치(핵심):
+  - 팝업/새탭 예매 진입 시 `self.page`도 같이 교체 (downstream가 원탭을 보던 P0 수정)
+  - seat/book iframe을 FrameLocator가 아닌 **실제 Frame**으로 탐색/반환
+  - 좌표 클릭은 `page.mouse.click()`로 absolute 좌표 사용(미스클릭 감소)
+  - Next 버튼을 `ifrmBookStep` → page 순으로 탐색
+- 리소스 차단 수정:
+  - first-party(interpark/nol/interparkcdn/ticketimage) 허용
+  - 3rd-party 이미지/폰트만 차단 (svg 제외)
+- goods 진입 불안정 대응:
+  - goods → nol 허브 후속 리다이렉트 감지 시 **검색 우회**
+  - query 없으면 goodsCode로 검색어 폴백
+  - 검색 아이콘(실제 링크: `/contents/search`) 클릭 → input 찾기/입력
+- 디버그 덤프: `/tmp/bts-debug/<timestamp>_<reason>/`
 
 **현재 블로커 / 리스크**
-- (완화됨) goods 페이지는 오픈 전엔 예매 UI가 숨겨질 수 있음 → `navigate_to_concert()`에서 goods URL이면 UI 없어도 성공 처리 반영
-- `browser.act`(OpenClaw 브라우저 컨트롤) 기반 자동화는 **act 타임아웃/불안정** → 오픈타임 핵심에는 비권장, Playwright 런 기반으로 고정
-- 오픈타임 플로우에 P0 버그 3개 발견(리뷰 완료) → 지금부터 패치 적용 중
-  1) 팝업/새탭에서 예매가 열려도 downstream이 원탭(`self.page`) 계속 참조
-  2) seat iframe을 FrameLocator로 반환해 `.evaluate()` 등에서 터짐(SVG 폴백 무력화)
-  3) 좌표 클릭(absolute bbox) vs `element.click(position=...)`(element-local) 불일치로 미스클릭 가능
-  - 리뷰 노트: `bts-ticketing/review/main_playwright_review_2026-02-13.md`
+- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인
+- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state가 만료/세션 끊김 케이스. (해결: 오픈 전 수동 로그인/Turnstile 통과 후 유지)
+- ⚠️ 자동 Turnstile 클릭만으로는 불안정 → 기본 전략은 수동, CapSolver는 opt-in
+- `browser.act`(OpenClaw 브라우저 컨트롤) 기반 자동화는 act 타임아웃/불안정 → Playwright 런 기반 유지
 
 ### AXLE Protocol (Colosseum)
 - ✅ Colosseum 필수 필드 완료 (상금 수령 자격 OK)
-- 🔄 포럼 모니터링 중 (10분)
-  - 최신 5개 포스트 중 AXLE 직접 언급은 없음
-  - 신뢰/투명성/온체인 추적 관련 글(#6062 SlotScribe 등)은 시너지 후보
-  - 우리 포스트(ID:2212) 새 댓글 없음(최신 2026-02-10)
+- ⏸️ 포럼 모니터링: **BTS 티켓팅 집중 요청으로 일시 중지**
+  - (필요 시) 다시 10분 주기로 재개
 
 ---
 
@@ -48,21 +52,20 @@
 - [ ] BTS 티켓팅 운영 방식 확정: **오픈 전 수동 진입 + 오픈 후 자동화**로 진행
 - [ ] (Colosseum) Human Claim 완료 확인 (클레임 안 하면 상금 대상 제외 리스크)
 - [ ] X OAuth 1.0a 설정 (자동 트윗용)
+- [ ] (BTS) 오픈 전 수동 준비: 로그인/Turnstile 통과 + 예매하기 버튼 화면에서 대기(세션 유지)
 
 ## 🐾 Clo 작업현황
 - [x] 메모리 검색: local 고정( OpenAI billing 이슈 회피 )
 - [x] BTS 코드: CapSolver opt-in + 성능/안티봇/관측 리팩터링 커밋 완료
 - [x] BTS 런북: `bts-ticketing/RUNBOOK_OPEN_TIME.md`
 - [x] BTS 안전장치: `--stop-after` + dry-run(결제 스킵 기본) 추가
-- [ ] BTS P0 패치 적용 중 (팝업/iframe/좌표 클릭) → 적용 후 `--stop-after seats` 리허설 반복
-- [ ] Colosseum: 시너지 포스트 댓글 초안 준비(한 승인 후 게시)
-  - #6093 Farnsworth Assimilation Protocol: “capability badge + escrow로 federation task settlement” 방향
-  - #6091 Vex Embeddings: memory_search/local embeddings와 연결 (agent infra 관점)
-  - #6090 SIDEX: agent task + escrow 결제 레이어 제안
+- [x] BTS P0 패치 적용 완료 (팝업 tab/page 일관성 + real Frame + absolute 좌표 클릭 + Next in book frame)
+- [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
+- [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 35% (142k/400k)
-- Usage: session ~94% left (~3h29m)
+- Context: 49% (196k/400k)
+- Usage: session ~93% left (~2h57m)
