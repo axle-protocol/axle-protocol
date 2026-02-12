@@ -1131,12 +1131,11 @@ class NOLTicketing:
                     try:
                         # 헤더 검색 버튼/아이콘 추정 셀렉터
                         search_btn_selectors = [
+                            # 실제 DOM에서 발견된 패턴: <a class="...search..." href="https://tickets.interpark.com/contents/search">
+                            'a[href*="/contents/search"]',
+                            'a[class*="search"]',
                             'button[aria-label*="검색"]',
                             'a[aria-label*="검색"]',
-                            'button:has(svg)',
-                            'header button',
-                            '[class*="search"] button',
-                            '[class*="Search"] button',
                         ]
                         for bsel in search_btn_selectors:
                             btn = self.page.locator(bsel).first
