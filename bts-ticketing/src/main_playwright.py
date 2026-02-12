@@ -1206,12 +1206,29 @@ class NOLTicketing:
                     continue
 
                 # goods 페이지면 "예매" UI가 아직 렌더되지 않아도(오픈 전) 성공으로 본다.
+                # 단, interpark가 몇 초 뒤 nol 메인으로 다시 리다이렉트하는 케이스가 있어 안정화 체크를 한다.
                 if _is_goods(current_url):
-                    # 단, 렌더가 완전히 안 된 blank 상태를 피하려고 짧게 한 번만 기다린다.
+                    stable = True
                     try:
-                        self.page.wait_for_timeout(800)
+                        t0 = time.time()
+                        last = (self.page.url or '').lower()
+                        while time.time() - t0 < 2.5:
+                            self.page.wait_for_timeout(250)
+                            cur = (self.page.url or '').lower()
+                            if cur != last:
+                                last = cur
+                            # redirect to nol hub
+                            if ('nol.interpark.com/ticket' in cur) and ('/goods/' not in cur):
+                                stable = False
+                                break
                     except Exception:
                         pass
+
+                    if not stable:
+                        self._log('⚠️ goods → nol 허브로 후속 리다이렉트 감지 → 검색 우회 시도', LogLevel.WARN)
+                        if _search_and_open_goods():
+                            return True
+                        return False
 
                     # 예매 버튼이 보이면 더 확실하지만, 없어도 goods 진입이면 통과.
                     try:
@@ -1248,6 +1265,15 @@ class NOLTicketing:
         except Exception:
             pass
         
+        # 사전 조건: goods 페이지가 아니면 (nol hub) 예매 버튼이 없으므로 실패
+        try:
+            cur = (self.page.url or '').lower()
+            if ('nol.interpark.com/ticket' in cur) and ('/goods/' not in cur):
+                self._log('⚠️ 현재 NOL 허브 페이지라 예매 버튼 없음 → navigate_to_concert 재시도 필요', LogLevel.ERROR)
+                return False
+        except Exception:
+            pass
+
         # Step 1: "예매 안내" 모달 닫기 (force 클릭)
         self._log('📋 Step 1: 모달 닫기...')
         try:
