@@ -1406,6 +1406,7 @@ class NOLTicketing:
                                 if new_pages:
                                     pg = new_pages[-1]
                                     self.booking_page = pg
+                                    self.page = pg  # IMPORTANT: downstream uses self.page
                                     try:
                                         pg.wait_for_load_state('domcontentloaded', timeout=5000)
                                     except Exception:
@@ -1565,27 +1566,82 @@ class NOLTicketing:
         url = self.page.url.lower()
         return any(kw in url for kw in ['seat', 'onestop', 'booking', 'reserve', 'step'])
     
-    def _get_seat_frame(self) -> Optional[Frame]:
-        """좌석 iframe 찾기"""
-        for selector in self.SEAT_FRAME_SELECTORS:
+    def _get_seat_frame(self, page: Optional[Page] = None) -> Optional[Frame]:
+        """좌석 iframe(Frame) 찾기.
+
+        NOTE: 기존 구현은 FrameLocator를 리턴해서 `.evaluate()` 등에서 터짐.
+        여기서는 실제 Frame을 리턴한다.
+        """
+        p = page or self._get_active_page()
+
+        # Fast path by name
+        try:
+            fr = p.frame(name="ifrmSeat")
+            if fr:
+                return fr
+        except Exception:
+            pass
+
+        # Fallback: scan frames
+        for f in getattr(p, "frames", []):
             try:
-                frame_elem = self.page.locator(selector).first
-                if frame_elem.is_visible(timeout=2000):
-                    frame = self.page.frame_locator(selector)
-                    return frame
-            except:
+                if (getattr(f, "name", "") == "ifrmSeat") or ("seat" in (getattr(f, "url", "") or "").lower()):
+                    return f
+            except Exception:
                 continue
+
+        # Last resort: via iframe element -> content_frame
+        for sel in self.SEAT_FRAME_SELECTORS:
+            try:
+                loc = p.locator(sel).first
+                if loc.count() == 0:
+                    continue
+                handle = loc.element_handle()
+                if not handle:
+                    continue
+                cf = handle.content_frame()
+                if cf:
+                    return cf
+            except Exception:
+                continue
+
         return None
-    
-    def _get_book_frame(self) -> Optional[Frame]:
-        """예매 스텝 iframe 찾기"""
-        for selector in self.BOOK_FRAME_SELECTORS:
+
+    def _get_book_frame(self, page: Optional[Page] = None) -> Optional[Frame]:
+        """예매 스텝 iframe(Frame) 찾기."""
+        p = page or self._get_active_page()
+
+        # Fast path by name
+        try:
+            fr = p.frame(name="ifrmBookStep")
+            if fr:
+                return fr
+        except Exception:
+            pass
+
+        # Fallback: scan frames
+        for f in getattr(p, "frames", []):
             try:
-                frame_elem = self.page.locator(selector).first
-                if frame_elem.is_visible(timeout=2000):
-                    return self.page.frame_locator(selector)
-            except:
+                if (getattr(f, "name", "") == "ifrmBookStep") or ("bookstep" in (getattr(f, "url", "") or "").lower()):
+                    return f
+            except Exception:
                 continue
+
+        # Last resort: via iframe element -> content_frame
+        for sel in self.BOOK_FRAME_SELECTORS:
+            try:
+                loc = p.locator(sel).first
+                if loc.count() == 0:
+                    continue
+                handle = loc.element_handle()
+                if not handle:
+                    continue
+                cf = handle.content_frame()
+                if cf:
+                    return cf
+            except Exception:
+                continue
+
         return None
     
     def select_zone(self) -> bool:
@@ -1879,12 +1935,14 @@ class NOLTicketing:
                 except:
                     pass
             
-            # 좌표로 클릭 (폴백)
+            # 좌표로 클릭 (폴백: absolute page coords)
+            # NOTE: Locator.click(position=..)는 element-local coords라서 bounding_box absolute와 안 맞을 수 있음.
             if seat.x > 0 and seat.y > 0:
                 try:
-                    target.locator('svg, canvas, #Seats').first.click(position={'x': seat.x, 'y': seat.y})
+                    p = self._get_active_page()
+                    p.mouse.click(seat.x + 3, seat.y + 3)
                     self.stats['seat_clicks'] += 1
-                    self._log(f'🪑 좌표 클릭: ({seat.x}, {seat.y})')
+                    self._log(f'🪑 좌표 클릭(ABS): ({seat.x}, {seat.y})')
                     human_delay(80, 150)
                     return True
                 except:
@@ -1902,6 +1960,9 @@ class NOLTicketing:
         
         for attempt in range(self.config.max_retries):
             try:
+                # attempt마다 누적 상태 리셋 (재시도 시 꼬임 방지)
+                self.selected_seats = []
+
                 # 구역 선택
                 self.select_zone()
                 adaptive_sleep(1)
@@ -1959,18 +2020,27 @@ class NOLTicketing:
             pass
     
     def _click_next_step(self) -> bool:
-        """다음 단계 버튼 클릭"""
-        for selector in self.NEXT_STEP_SELECTORS:
-            try:
-                btn = self.page.locator(selector).first
-                if btn.is_visible(timeout=2000):
-                    btn.click()
-                    self._log('다음 단계 클릭', LogLevel.SUCCESS)
-                    adaptive_sleep(2)
-                    return True
-            except:
-                continue
-        
+        """다음 단계 버튼 클릭.
+
+        NOTE: Interpark 플로우에서 Next 버튼이 ifrmBookStep 안에 있는 경우가 많아서
+        book frame → page 순으로 탐색한다.
+        """
+        p = self._get_active_page()
+        book_fr = self._get_book_frame(p)
+        targets = [book_fr, p] if book_fr else [p]
+
+        for t in targets:
+            for selector in self.NEXT_STEP_SELECTORS:
+                try:
+                    btn = t.locator(selector).first
+                    if btn.is_visible(timeout=2000):
+                        btn.click()
+                        self._log('다음 단계 클릭', LogLevel.SUCCESS)
+                        adaptive_sleep(1.2)
+                        return True
+                except:
+                    continue
+
         return False
     
     # ============ 결제 처리 ============
@@ -2145,7 +2215,8 @@ class NOLTicketing:
         self._log(f'📍 대기열 확인 페이지: {page.url[:50]}...')
         
         # 대기열 URL 패턴
-        queue_patterns = ['waiting', 'queue', 'onestop', 'book.interpark', 'poticket']
+        # NOTE: 'onestop'은 일반 예매 플로우에도 섞여 false-positive가 잦아서 제외
+        queue_patterns = ['waiting', 'queue', 'book.interpark', 'poticket']
         seat_patterns = ['seat', 'schedule', 'area', 'zone']
         
         while time.time() - start_time < max_wait:
