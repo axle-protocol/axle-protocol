@@ -1088,6 +1088,16 @@ class NOLTicketing:
         def _search_and_open_goods() -> bool:
             query = (self.config.query or '').strip()
             if not query:
+                # query가 없으면 goodsCode(숫자)를 검색어로 사용해본다 (NOL 검색이 코드도 걸리는 경우가 있음)
+                try:
+                    m = re.search(r'/goods/(\d+)', self.config.url or '')
+                    if m:
+                        query = m.group(1)
+                        self._log(f'ℹ️ query 미설정 → goodsCode로 검색 시도: {query}', LogLevel.WARN)
+                except Exception:
+                    pass
+
+            if not query:
                 self._log('⚠️ nol 리다이렉트됨 + 공연명(query) 없음 → 검색 진입 불가. --query 또는 CONCERT_QUERY 설정 필요', LogLevel.WARN)
                 return False
 
