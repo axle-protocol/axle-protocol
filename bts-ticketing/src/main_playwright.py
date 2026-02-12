@@ -1380,19 +1380,20 @@ class NOLTicketing:
                     text = (el.text_content() or "").strip()
                     href = el.get_attribute('href') or ""
 
-                    # 앵커 링크 제외
+                    # ⭐ "예매하기" 버튼 = 최우선!
+                    # NOL/Interpark UI에서 href가 "#"여도 JS 핸들러로 동작하는 케이스가 있어 제외하면 안 됨.
+                    if text == '예매하기':
+                        self._log('✅ 예매하기 버튼 발견')
+                        btn = el
+                        break
+
+                    # 앵커 링크 제외 (예매하기 제외)
                     if href.startswith('#'):
                         continue
 
                     # "바로가기" 제외
                     if '바로가기' in text:
                         continue
-
-                    # ⭐ "예매하기" 버튼 = 최우선!
-                    if text == '예매하기':
-                        self._log('✅ 예매하기 버튼 발견')
-                        btn = el
-                        break
 
                     # 날짜 패턴 또는 예매/선예매 텍스트
                     if '예매' in text or '선예매' in text or ('.' in text and '(' in text):
