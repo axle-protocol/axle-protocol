@@ -48,6 +48,9 @@ USER_ID = os.getenv('INTERPARK_ID', '')
 USER_PW = os.getenv('INTERPARK_PWD', '')
 CONCERT_URL = os.getenv('CONCERT_URL', '')
 BIRTH_DATE = os.getenv('BIRTH_DATE', '')
+
+# Storage State 파일 경로 (로그인 상태 저장/복원)
+STORAGE_STATE_PATH = os.path.join(os.path.dirname(__file__), 'auth_state.json')
 CAPSOLVER_KEY = os.getenv('CAPSOLVER_API_KEY', '')
 
 # IPRoyal 프록시 설정
@@ -336,12 +339,21 @@ class NOLTicketing:
             if proxy_config:
                 context_options['proxy'] = proxy_config
             
+            # ⭐ Storage State 복원 (로그인 상태)
+            if os.path.exists(STORAGE_STATE_PATH):
+                context_options['storage_state'] = STORAGE_STATE_PATH
+                self._log('📦 저장된 로그인 상태 복원!')
+            
             self.context = self.browser.new_context(**context_options)
             
             # 타임아웃 설정
             self.context.set_default_timeout(self.config.timeout_ms)
             
             self.page = self.context.new_page()
+            
+            # ⭐ 속도 최적화: 불필요한 리소스 차단
+            self.page.route("**/*.{png,jpg,jpeg,gif,svg,webp,woff,woff2,ttf}", lambda route: route.abort())
+            self._log('🚀 이미지/폰트 차단 (속도 최적화)')
             
             # Stealth 모드 적용
             if STEALTH_AVAILABLE:
@@ -496,6 +508,14 @@ class NOLTicketing:
                 if self._verify_login():
                     self._log('로그인 성공!', LogLevel.SUCCESS)
                     self.logged_in = True
+                    
+                    # ⭐ Storage State 저장 (다음 실행 시 로그인 스킵)
+                    try:
+                        self.context.storage_state(path=STORAGE_STATE_PATH)
+                        self._log('📦 로그인 상태 저장 완료!')
+                    except Exception as save_err:
+                        self._log(f'⚠️ 상태 저장 실패: {save_err}')
+                    
                     return True
                 
                 self._log(f'로그인 확인 실패 (시도 {attempt + 1})', LogLevel.WARN)
@@ -539,16 +559,34 @@ class NOLTicketing:
         self._log('🔐 야놀자 계정으로 재로그인...')
         
         try:
+            adaptive_sleep(3)  # 페이지 로딩 대기
+            
             # Step 1: "이메일로 시작하기" 버튼 클릭
+            self._log('📧 이메일로 시작하기 버튼 찾는 중...')
             email_start_btn = self.page.locator('text=이메일로 시작하기')
-            if email_start_btn.is_visible(timeout=5000):
-                self._log('📧 이메일로 시작하기 클릭...')
-                email_start_btn.click()
-                adaptive_sleep(2)
+            
+            try:
+                if email_start_btn.is_visible(timeout=5000):
+                    self._log('✅ 이메일로 시작하기 버튼 발견!')
+                    email_start_btn.click()
+                    adaptive_sleep(2)
+                else:
+                    self._log('⚠️ 이메일로 시작하기 버튼 안 보임')
+            except Exception as btn_err:
+                self._log(f'⚠️ 버튼 찾기 실패: {btn_err}')
             
             # Step 2: 이메일/비밀번호 입력 폼 확인
+            self._log('📝 이메일 입력 필드 찾는 중...')
             email_input = self.page.locator('input[name="email"], input[type="email"], input[placeholder*="이메일"]')
-            if email_input.is_visible(timeout=5000):
+            
+            try:
+                is_visible = email_input.is_visible(timeout=5000)
+                self._log(f'이메일 필드 visible: {is_visible}')
+            except Exception as vis_err:
+                self._log(f'⚠️ 이메일 필드 확인 실패: {vis_err}')
+                is_visible = False
+            
+            if is_visible:
                 # 이메일/비밀번호 입력
                 email_input.fill(USER_ID)
                 adaptive_sleep(0.5)
