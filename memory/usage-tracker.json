@@ -1,10 +1,7 @@
 {
-  "lastCheck": "2026-02-12T09:41:00+09:00",
-  "contextPercent": 70,
-  "contextUsed": "139k",
-  "contextMax": "200k",
+  "lastCheck": "2026-02-12T16:03:30+09:00",
+  "lastThreshold": 90,
   "model": "anthropic/claude-opus-4-5",
-  "compactions": 0,
-  "nextThreshold": 80,
-  "notes": "AXLE 필수 필드 업데이트 완료. BTS 티켓팅 Han 응답 대기."
+  "contextUsed": "180k/200k",
+  "percentage": 90
 }
