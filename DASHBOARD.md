@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 02:04 KST
+# DASHBOARD.md — 2026-02-13 02:34 KST
 
 ## 🎯 현재 프로젝트
 
@@ -36,10 +36,12 @@
 - 디버그 덤프: `/tmp/bts-debug/<timestamp>_<reason>/`
 
 **현재 블로커 / 리스크**
-- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인
-- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state가 만료/세션 끊김 케이스. (해결: 오픈 전 수동 로그인/Turnstile 통과 후 유지)
+- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인 (search가 실제로 `/contents/search`로 이동 후 input 입력)
+- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state가 만료/세션 끊김 케이스.
+  - 해결 전략(실전): **오픈 전 사람이 로그인/Turnstile 통과** + 예매하기 버튼 화면에서 대기(세션 유지)
+  - 코드 측면: 야놀자 리다이렉트 감지/재로그인 핸들러는 있음(하지만 Turnstile이 변수)
 - ⚠️ 자동 Turnstile 클릭만으로는 불안정 → 기본 전략은 수동, CapSolver는 opt-in
-- `browser.act`(OpenClaw 브라우저 컨트롤) 기반 자동화는 act 타임아웃/불안정 → Playwright 런 기반 유지
+- `browser.act` 기반 자동화는 act 타임아웃/불안정 → Playwright 런 기반 유지
 
 ### AXLE Protocol (Colosseum)
 - ✅ Colosseum 필수 필드 완료 (상금 수령 자격 OK)
@@ -61,11 +63,12 @@
 - [x] BTS 안전장치: `--stop-after` + dry-run(결제 스킵 기본) 추가
 - [x] BTS P0 패치 적용 완료 (팝업 tab/page 일관성 + real Frame + absolute 좌표 클릭 + Next in book frame)
 - [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
+  - 현재 상태: 예매하기 버튼 탐지는 성공(렌더 대기 + fast selector). 다만 클릭 후 야놀자 리다이렉트가 자주 떠서(세션 만료) 오픈 전 수동 준비가 핵심.
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 49% (196k/400k)
-- Usage: session ~93% left (~2h57m)
+- Context: 50% (202k/400k)
+- Usage: session ~93% left (~2h27m)
