@@ -1,7 +1,8 @@
 {
-  "lastCheck": "2026-02-12T21:38:12+09:00",
-  "lastThreshold": 80,
-  "model": "anthropic/claude-opus-4-5",
-  "contextUsed": "160k/200k",
-  "percentage": 80
+  "lastCheck": "2026-02-13T01:32:30+09:00",
+  "lastThreshold": 30,
+  "model": "openai-codex/gpt-5.2",
+  "contextUsed": "142k/400k",
+  "percentage": 35,
+  "remainingEstimate": "~94% left (~3h29m session time left)"
 }
