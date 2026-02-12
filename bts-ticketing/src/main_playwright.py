@@ -539,8 +539,15 @@ class NOLTicketing:
         self._log('🔐 야놀자 계정으로 재로그인...')
         
         try:
-            # 이미 로그인 폼이 보이는지 확인
-            email_input = self.page.locator('input[name="email"], input[type="email"]')
+            # Step 1: "이메일로 시작하기" 버튼 클릭
+            email_start_btn = self.page.locator('text=이메일로 시작하기')
+            if email_start_btn.is_visible(timeout=5000):
+                self._log('📧 이메일로 시작하기 클릭...')
+                email_start_btn.click()
+                adaptive_sleep(2)
+            
+            # Step 2: 이메일/비밀번호 입력 폼 확인
+            email_input = self.page.locator('input[name="email"], input[type="email"], input[placeholder*="이메일"]')
             if email_input.is_visible(timeout=5000):
                 # 이메일/비밀번호 입력
                 email_input.fill(USER_ID)
