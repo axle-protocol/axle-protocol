@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 14:08 KST
+# DASHBOARD.md — 2026-02-13 14:38 KST
 
 ## 🎯 현재 프로젝트
 
@@ -65,14 +65,15 @@
 - [x] BTS: NOL 검색 fallback이 엉뚱한 goods 클릭하던 문제 개선(검색 결과 goodsCode 매칭)
 - [x] BTS: 대기열 중 active page 갱신 + 야놀자 리다이렉트 감지/처리
 - [x] BTS: booking 팝업 레이스에서 context.on('page') 리스너 누적 방지(P0-4)
+- [x] BTS: 야놀자 리다이렉트 수동-resume + storage_state 저장 강화(P0-5)
 - [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
-  - 현재 상태: 예매하기 버튼 탐지/클릭 안정화는 진행됨.
-  - 남은 문제: 클릭 후 **야놀자 로그인 리다이렉트 빈번**(세션 만료/Turnstile). → P0-5로 수동-resume UX 개선 예정.
+  - 현재 상태: 예매하기 버튼 탐지/클릭 안정화 + 야놀자 리다이렉트 발생 시 수동 처리 후 resume 가능.
+  - 남은 문제: 실제 공연/오픈타임 조건에서 좌석 프레임/큐 변수가 많음 → 리허설 반복 필요.
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 39% (156k/400k)
-- Usage: session ~98% left (~59m)
+- Context: 42% (167k/400k)
+- Usage: session ~98% left (~29m)
