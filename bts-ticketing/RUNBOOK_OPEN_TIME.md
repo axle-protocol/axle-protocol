@@ -30,6 +30,7 @@ cd bts-ticketing/src
 python main_playwright.py --test --stop-after concert
 ```
 - 성공하면 `/tmp/stop_after_concert.png`
+- ⚠️ `--test`는 **목표 시간을 현재 시각으로 강제**해서 즉시 booking을 시도함(오픈 전이면 실패할 수 있음).
 
 ## 2) 오픈타임 당일 운영 플로우 (권장 — A 전략)
 

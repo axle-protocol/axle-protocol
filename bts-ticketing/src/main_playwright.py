@@ -1384,6 +1384,12 @@ class NOLTicketing:
 
                 # 리다이렉트 확인 → nol 메인/대기일 때는 검색으로 우회
                 if ('nol.interpark.com' in (current_url or '').lower()) and ('/goods/' not in (current_url or '').lower()):
+                    # A 전략: query가 없으면 자동 검색이 엉뚱한 goods로 새기 쉬움 → fail-fast 후 수동 준비 유도
+                    if not (self.config.query or '').strip():
+                        self._log('⚠️ NOL 허브로 리다이렉트됨 + query 미설정 → 자동 탐색 중단(A 전략).', LogLevel.WARN)
+                        self._log('👉 해결: 오픈 전에 사람이 NOL에서 목표 goods 페이지까지 수동 진입 후, goods 화면에서 대기한 뒤 실행하세요.', LogLevel.WARN)
+                        return False
+
                     self._log('NOL 메인/대기 페이지로 리다이렉트 감지 → 검색 우회 시도', LogLevel.WARN)
                     if _search_and_open_goods():
                         return True
