@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 16:08 KST
+# DASHBOARD.md — 2026-02-13 16:38 KST
 
 ## 🎯 현재 프로젝트
 
@@ -67,14 +67,14 @@
 - [x] BTS: booking 팝업 레이스에서 context.on('page') 리스너 누적 방지(P0-4)
 - [x] BTS: 야놀자 리다이렉트 수동-resume + storage_state 저장 강화(P0-5)
 - [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
-  - 현재 상태: P0-5까지 반영 후 **리허설 3회 실행**.
-  - 관측: (1) 목표 goods(26004867)는 허브 리다이렉트 후 검색에서도 정확 매칭이 안 떠서 concert 단계 실패(잘못된 공연 클릭 방지 로직 동작). (2) 테스트로 진입한 goods(26001600)에서는 예매하기→다음 단계 진입이 안 되어 booking 단계 실패.
-  - 다음 액션: A) 오픈 전 수동으로 목표 goods 페이지까지 진입 후 `--stop-after booking/seats` 실행(실전형) 또는 B) NOL 검색 결과에서 정확 goodsCode 찾을 때까지 스크롤/더보기/페이지네이션 구현.
+  - 현재 상태: A 전략 고정(수동 pre-nav) + step1 booking direct URL 지원.
+  - 관측: motickets `/step1?z=...` 링크로 **direct booking 진입 테스트 성공(stop_after=queue)**.
+  - 다음 액션: 같은 링크로 `--stop-after seats`까지 E2E 루프 반복 + SCORECARD 점수 업데이트.
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 52% (208k/400k)
-- Usage: session ~99% left (~3h59m)
+- Context: 54% (217k/400k)
+- Usage: session ~98% left (~3h29m)
