@@ -818,71 +818,131 @@ class NOLTicketing:
         return False
     
     def handle_yanolja_redirect(self) -> bool:
-        """야놀자 로그인 리다이렉트 감지 및 처리"""
-        current_url = self.page.url.lower()
-        
+        """야놀자 로그인 리다이렉트 감지 및 처리.
+
+        핵심 목표: 완전 자동화가 아니라, **수동 개입(턴스타일/인증) 후 resume**가 가능하도록 만든다.
+
+        전략:
+        - accounts.yanolja.com으로 떨어지면, 가능한 한 자동으로 email/pw까지 채우고 submit.
+        - Turnstile/추가 인증이 뜨면 사용자에게 안내 로그 + 일정 시간 대기하며 URL 복귀를 감지.
+        - 복귀 성공 시 storage_state 저장(다음 실행에서 세션 유지).
+        """
+        # 항상 active page에서 판단(새탭/팝업 전환 대응)
+        p = self._get_active_page()
+        current_url = (p.url or '').lower()
+
         if 'accounts.yanolja.com' not in current_url:
             return True  # 리다이렉트 없음
-        
-        self._log('⚠️ 야놀자 로그인 리다이렉트 감지!')
-        self._log('🔐 야놀자 계정으로 재로그인...')
-        
+
+        self._log('⚠️ 야놀자 로그인 리다이렉트 감지!', LogLevel.WARN)
+        self._log('🔐 야놀자 로그인 화면. 필요하면 Turnstile/추가 인증을 수동으로 완료한 뒤 자동으로 resume됩니다.', LogLevel.WARN)
+
+        def _wait_for_return(timeout_s: int = 120) -> bool:
+            """사용자 수동 처리 후 원래 도메인으로 복귀를 기다린다."""
+            t0 = time.time()
+            last = ''
+            while time.time() - t0 < timeout_s:
+                try:
+                    pp = self._get_active_page()
+                    u = (pp.url or '').lower()
+                    if u != last:
+                        last = u
+                        self._log(f'🔎 yanolja flow url: {u[:70]}', LogLevel.DEBUG)
+
+                    if ('tickets.interpark' in u) or ('nol.interpark' in u):
+                        # 복귀 성공: 상태 저장
+                        try:
+                            if self.context:
+                                self.context.storage_state(path=STORAGE_STATE_PATH)
+                                self._log('📦 yanolja 로그인 복귀 후 상태 저장 완료', LogLevel.SUCCESS)
+                        except Exception as save_err:
+                            self._log(f'⚠️ 상태 저장 실패: {save_err}', LogLevel.WARN)
+                        return True
+                except Exception:
+                    pass
+                time.sleep(0.25)
+
+            return False
+
         try:
-            adaptive_sleep(3)  # 페이지 로딩 대기
-            
-            # Step 1: "이메일로 시작하기" 버튼 클릭
-            self._log('📧 이메일로 시작하기 버튼 찾는 중...')
-            email_start_btn = self.page.locator('text=이메일로 시작하기')
-            
+            adaptive_sleep(1.2)  # 로딩 약간
+
+            # Step 1: "이메일로 시작하기" 버튼(있으면) 클릭
             try:
-                if email_start_btn.is_visible(timeout=5000):
-                    self._log('✅ 이메일로 시작하기 버튼 발견!')
-                    email_start_btn.click()
-                    adaptive_sleep(2)
-                else:
-                    self._log('⚠️ 이메일로 시작하기 버튼 안 보임')
-            except Exception as btn_err:
-                self._log(f'⚠️ 버튼 찾기 실패: {btn_err}')
-            
-            # Step 2: 이메일/비밀번호 입력 폼 확인
-            self._log('📝 이메일 입력 필드 찾는 중...')
-            email_input = self.page.locator('input[name="email"], input[type="email"], input[placeholder*="이메일"]')
-            
-            try:
-                is_visible = email_input.is_visible(timeout=5000)
-                self._log(f'이메일 필드 visible: {is_visible}')
-            except Exception as vis_err:
-                self._log(f'⚠️ 이메일 필드 확인 실패: {vis_err}')
-                is_visible = False
-            
-            if is_visible:
-                # 이메일/비밀번호 입력
-                email_input.fill(USER_ID)
-                adaptive_sleep(0.5)
-                
-                pw_input = self.page.locator('input[name="password"], input[type="password"]')
-                pw_input.fill(USER_PW)
-                adaptive_sleep(0.5)
-                
-                # Turnstile 처리
-                self._handle_turnstile()
-                adaptive_sleep(2)
-                
-                # 로그인 버튼 클릭
-                submit_btn = self.page.locator('button[type="submit"]')
-                submit_btn.click()
-                adaptive_sleep(5)
-                
-                # 리다이렉트 완료 확인
-                new_url = self.page.url.lower()
-                if 'tickets.interpark' in new_url or 'nol.interpark' in new_url:
-                    self._log('✅ 야놀자 로그인 후 복귀 성공!')
-                    return True
-                    
+                start_btn = p.locator('text=이메일로 시작하기').first
+                if start_btn.count() > 0 and start_btn.is_visible(timeout=2500):
+                    self._log('✅ 이메일로 시작하기 버튼 클릭', LogLevel.INFO)
+                    try:
+                        start_btn.click(timeout=3000)
+                    except Exception:
+                        try:
+                            p.evaluate('el => el.click()', start_btn)
+                        except Exception:
+                            pass
+                    adaptive_sleep(0.8)
+            except Exception:
+                pass
+
+            # Step 2: 이메일/비밀번호 입력 시도
+            email_input = p.locator('input[name="email"], input[type="email"], input[placeholder*="이메일"], input[autocomplete="username"]').first
+            pw_input = p.locator('input[name="password"], input[type="password"], input[autocomplete="current-password"]').first
+
+            if (email_input.count() > 0) and (pw_input.count() > 0):
+                try:
+                    if email_input.is_visible(timeout=3500):
+                        email_input.fill(USER_ID)
+                        adaptive_sleep(0.2)
+                except Exception:
+                    pass
+
+                try:
+                    if pw_input.is_visible(timeout=3500):
+                        pw_input.fill(USER_PW)
+                        adaptive_sleep(0.2)
+                except Exception:
+                    pass
+
+                # Turnstile은 자동/수동 혼합. 실패해도 다음 단계에서 수동으로 처리 가능.
+                try:
+                    self._handle_turnstile()
+                except Exception:
+                    pass
+
+                # submit
+                try:
+                    submit_btn = p.locator('button[type="submit"], button:has-text("로그인"), button:has-text("확인")').first
+                    if submit_btn.count() > 0 and submit_btn.is_visible(timeout=3500):
+                        self._log('🚀 야놀자 로그인 submit 클릭', LogLevel.INFO)
+                        try:
+                            submit_btn.click(timeout=4000)
+                        except Exception:
+                            try:
+                                p.evaluate('el => el.click()', submit_btn)
+                            except Exception:
+                                pass
+                        adaptive_sleep(1.0)
+                except Exception:
+                    pass
+
+            else:
+                # 폼이 안 보이면 사용자 수동 진행을 기다린다
+                try:
+                    p.screenshot(path='/tmp/yanolja_redirect.png')
+                    self._log('📸 /tmp/yanolja_redirect.png 저장(수동 처리용)', LogLevel.WARN)
+                except Exception:
+                    pass
+
+            # Step 3: 수동 개입 포함 복귀 대기
+            if _wait_for_return(timeout_s=180):
+                self._log('✅ 야놀자 로그인 후 복귀 성공!', LogLevel.SUCCESS)
+                return True
+
+            self._log('❌ 야놀자 로그인 복귀 대기 타임아웃. 수동 처리 후 다시 시도 필요.', LogLevel.ERROR)
+            return False
+
         except Exception as e:
-            self._log(f'야놀자 로그인 실패: {e}', LogLevel.ERROR)
-        
-        return False
+            self._log(f'야놀자 리다이렉트 처리 실패: {e}', LogLevel.ERROR)
+            return False
     
     def _click_turnstile_checkbox(self):
         """Cloudflare 체크박스 직접 클릭"""
