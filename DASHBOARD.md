@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 21:38 KST
+# DASHBOARD.md — 2026-02-13 22:08 KST
 
 ## 🎯 현재 프로젝트
 
@@ -72,11 +72,13 @@
   - 신규 기능: `--allow-partial` (2석 목표라도 1석 확보 시 다음 단계로 진행)
   - 상태: Han이 말한대로 step1 링크가 없으면 E2E(확정 구간) 검증 불가 → 링크 대기 중.
   - 다음 액션: step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고.
+- [ ] (대기) step1 링크 들어오면 확정구간 E2E 검증
+- [ ] (초안 준비) X 댓글/메인 트윗 — Han OK 필요
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 19% (77k/400k)  # compaction 후 리셋됨
+- Context: 20% (79k/400k)  # compaction 후 리셋됨
 - Usage: (see usage-tracker)
