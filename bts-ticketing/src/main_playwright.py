@@ -2234,54 +2234,82 @@ class NOLTicketing:
             return False
     
     def select_seats(self) -> bool:
-        """좌석 선택 메인 로직"""
-        self._log(f'🎯 좌석 선택 시작 (목표: {self.config.num_seats}석)')
-        
+        """좌석 선택 메인 로직
+
+        전략:
+        - 목표 좌석 수가 2석 이상이어도, **1석 먼저 확보** 후 나머지를 추가로 채우는 방식 지원.
+          (BTS급: speed > quality)
+        """
+        target_count = self.config.num_seats
+        self._log(f'🎯 좌석 선택 시작 (목표: {target_count}석)')
+
         for attempt in range(self.config.max_retries):
             try:
-                # attempt마다 누적 상태 리셋 (재시도 시 꼬임 방지)
+                # attempt 시작 시에만 리셋
                 self.selected_seats = []
 
                 # 구역 선택
                 self.select_zone()
-                adaptive_sleep(1)
-                
-                # 좌석 찾기
-                seats = self.find_available_seats()
-                
-                if not seats:
-                    self._log(f'좌석 없음, 새로고침 (시도 {attempt + 1})', LogLevel.WARN)
+                adaptive_sleep(0.6)
+
+                # 여러 라운드로 "추가 좌석" 채우기
+                rounds = 0
+                max_rounds = 4
+                while len(self.selected_seats) < target_count and rounds < max_rounds:
+                    rounds += 1
+
+                    seats = self.find_available_seats()
+                    if not seats:
+                        self._log(f'좌석 없음, 새로고침 (attempt {attempt + 1}/{self.config.max_retries}, round {rounds}/{max_rounds})', LogLevel.WARN)
+                        self._refresh_seats()
+                        continue
+
+                    need = target_count - len(self.selected_seats)
+
+                    # 1) 연석 우선 시도
+                    target_seats = self.select_consecutive_seats(seats, need)
+                    if not target_seats:
+                        target_seats = []
+
+                    # 2) 연석 실패면 상위 후보부터 need개
+                    if len(target_seats) < need:
+                        # 이미 선택한 좌석과 중복될 수 있으니 간단히 앞에서부터 채움
+                        target_seats = seats[:need]
+
+                    clicked_this_round = 0
+                    for seat in target_seats:
+                        if len(self.selected_seats) >= target_count:
+                            break
+
+                        if self.click_seat(seat):
+                            self.selected_seats.append(seat)
+                            clicked_this_round += 1
+
+                    if len(self.selected_seats) >= target_count:
+                        break
+
+                    # ⭐ 1석이라도 잡았으면 "추가 1석"을 노린다.
+                    if clicked_this_round > 0:
+                        self._log(f'✅ 부분 확보: {len(self.selected_seats)}/{target_count}석. 추가 좌석 탐색 계속', LogLevel.SUCCESS)
+                        adaptive_sleep(0.4)
+                        continue
+
+                    # 아무것도 못 잡았으면 새로고침
+                    self._log(f'좌석 클릭 실패(0개). 새로고침 후 재시도 (round {rounds}/{max_rounds})', LogLevel.WARN)
                     self._refresh_seats()
-                    continue
-                
-                # 연석 선택
-                target_seats = self.select_consecutive_seats(seats, self.config.num_seats)
-                
-                if len(target_seats) < self.config.num_seats:
-                    self._log(f'좌석 부족 ({len(target_seats)}/{self.config.num_seats})', LogLevel.WARN)
-                    self._refresh_seats()
-                    continue
-                
-                # 좌석 클릭
-                success_count = 0
-                for seat in target_seats:
-                    if self.click_seat(seat):
-                        self.selected_seats.append(seat)
-                        success_count += 1
-                
-                if success_count >= self.config.num_seats:
-                    self._log(f'좌석 선택 완료: {success_count}석', LogLevel.SUCCESS)
-                    
-                    # 선택 완료 버튼
+                    adaptive_sleep(0.4)
+
+                if len(self.selected_seats) >= target_count:
+                    self._log(f'좌석 선택 완료: {len(self.selected_seats)}석', LogLevel.SUCCESS)
                     self._click_next_step()
                     return True
-                
-                self._log(f'좌석 클릭 부족 ({success_count}/{self.config.num_seats})', LogLevel.WARN)
-                
+
+                self._log(f'좌석 부족 ({len(self.selected_seats)}/{target_count})', LogLevel.WARN)
+
             except Exception as e:
                 self._log(f'좌석 선택 에러: {e}', LogLevel.ERROR)
                 self.stats['errors'] += 1
-        
+
         self._log('좌석 선택 최종 실패', LogLevel.ERROR)
         return False
     
