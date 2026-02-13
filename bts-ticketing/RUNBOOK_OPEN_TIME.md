@@ -59,6 +59,13 @@ python main_playwright.py \
   --stop-after seats
 ```
 
+#### 판매용 전략: 1석 먼저 확정 후 추가 1석 재도전
+- 2석이 필요하지만 경쟁이 심하면:
+```bash
+python main_playwright.py --hour 20 --minute 0 --seats 2 --allow-partial
+```
+- `--allow-partial`은 1석만 잡혀도 다음 단계로 진행(확정)하고 종료할 수 있게 해준다.
+
 - 기본값 `dry_run=True`라서 **결제는 스킵**한다.
 - 좌석까지 잡힌 시점에서 사람이 결제 진행.
 

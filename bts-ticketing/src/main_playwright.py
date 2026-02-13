@@ -200,6 +200,7 @@ class TicketingConfig:
     # Safety / workflow
     dry_run: bool = True  # 기본값: 결제 단계는 자동으로 진행하지 않음
     stop_after: str = ''  # login|concert|booking|queue|seats|payment (비우면 끝까지 진행)
+    allow_partial: bool = False  # 목표 좌석 수 미달이어도 1석 이상 확보 시 다음 단계로 진행
     
     def __post_init__(self):
         if self.zone_priority is None:
@@ -2335,6 +2336,12 @@ class NOLTicketing:
                     self._click_next_step()
                     return True
 
+                # 판매/확보 전략: 1석 이상이면 다음 단계로 넘어가서 확정 후, 남은 1석은 새 세션/새 링크로 재시도
+                if self.config.allow_partial and len(self.selected_seats) > 0:
+                    self._log(f'⚠️ allow_partial=True: {len(self.selected_seats)}/{target_count}석만 확보했지만 다음 단계로 진행', LogLevel.WARN)
+                    self._click_next_step()
+                    return True
+
                 self._log(f'좌석 부족 ({len(self.selected_seats)}/{target_count})', LogLevel.WARN)
 
             except Exception as e:
@@ -2805,6 +2812,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='결제 단계 스킵 (기본값: ON)')
     parser.add_argument('--stop-after', default='', choices=['', 'login', 'concert', 'booking', 'queue', 'seats', 'payment'],
                         help='특정 단계 후 종료 (브라우저 유지). 예: --stop-after concert')
+    parser.add_argument('--allow-partial', action='store_true', help='목표 좌석 수 미달이어도 1석 이상 확보 시 다음 단계로 진행 (판매용 전략)')
     parser.add_argument('--capsolver', action='store_true', help='Turnstile을 CapSolver로 자동 해결 (기본: 수동)')
     
     args = parser.parse_args()
@@ -2834,6 +2842,7 @@ def main():
         use_capsolver=args.capsolver,
         dry_run=dry_run,
         stop_after=args.stop_after,
+        allow_partial=args.allow_partial,
     )
     
     if args.test:
