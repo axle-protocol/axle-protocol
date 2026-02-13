@@ -1839,7 +1839,10 @@ class NOLTicketing:
     # ============ 좌석 선택 ============
     def is_seat_page(self) -> bool:
         """좌석 선택 페이지인지 확인"""
-        url = self.page.url.lower()
+        url = (self._get_active_page().url or '').lower()
+        # one-stop-error 같은 비정상 페이지는 좌석으로 취급하면 안 됨
+        if 'one-stop-error' in url:
+            return False
         return any(kw in url for kw in ['seat', 'onestop', 'booking', 'reserve', 'step'])
     
     def _get_seat_frame(self, page: Optional[Page] = None) -> Optional[Frame]:
@@ -2494,6 +2497,7 @@ class NOLTicketing:
         # NOTE: 'onestop'은 일반 예매 플로우에도 섞여 false-positive가 잦아서 제외
         queue_patterns = ['waiting', 'queue', 'book.interpark', 'poticket']
         seat_patterns = ['seat', 'schedule', 'area', 'zone']
+        error_patterns = ['one-stop-error']
         
         last_page_id = None
         while time.time() - start_time < max_wait:
@@ -2511,6 +2515,16 @@ class NOLTicketing:
                     pass
 
                 current_url = (page.url or '').lower()
+
+                # ⭐ one-stop-error 같은 비정상 페이지는 즉시 실패 처리
+                if any(pat in current_url for pat in error_patterns):
+                    self._log(f'❌ 비정상 페이지 감지: {current_url[:70]}', LogLevel.ERROR)
+                    try:
+                        page.screenshot(path='/tmp/one_stop_error.png')
+                        self._log('📸 /tmp/one_stop_error.png', LogLevel.WARN)
+                    except Exception:
+                        pass
+                    return False
 
                 # ⭐ 야놀자 로그인 리다이렉트는 큐 처리로 착각하면 안 됨
                 if 'accounts.yanolja.com' in current_url:

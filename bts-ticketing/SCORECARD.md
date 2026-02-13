@@ -34,9 +34,9 @@
 - Date: 2026-02-13
 - Strategy: A (manual pre-nav + keepalive)
 - M1: 2/5 (자동 pre-nav는 불안정. A전략으로 수동 pre-nav 전제)
-- M2: 2/5 (오픈 전 `--test`로는 전환 실패 관측. 오픈타임 조건에서 재평가 필요)
-- M3: 3/5 (루프 구조는 OK, 실전 검증 부족)
-- M4: 3/5 (프레임/좌석 로직은 구현됨, 실전 검증 부족)
+- M2: 4/5 (direct booking(step1) 경로로 booking 단계 스킵 가능 → open-time 핵심 구간 집중)
+- M3: 4/5 (direct booking에서 queue 통과까지 재현 성공. one-stop-error는 에러로 분기 추가)
+- M4: 2/5 (좌석 프레임 없음 + 1석만 탐지 + one-stop-error로 종료 관측 → seat 진입/프레임 탐지 개선 필요)
 - M5: 4/5 (manual-resume + storage_state save 구현)
 
 ## Evidence (latest)
