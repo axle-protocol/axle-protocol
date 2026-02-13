@@ -36,7 +36,7 @@
 - M1: 2/5 (자동 pre-nav는 불안정. A전략으로 수동 pre-nav 전제)
 - M2: 4/5 (direct booking(step1) 경로로 booking 단계 스킵 가능 → open-time 핵심 구간 집중)
 - M3: 4/5 (direct booking에서 queue 통과까지 재현 성공. one-stop-error는 에러로 분기 추가)
-- M4: 2/5 (좌석 프레임 없음 + 1석만 탐지 + one-stop-error로 종료 관측 → seat 진입/프레임 탐지 개선 필요)
+- M4: 4/5 (direct booking(step1)에서 1석 선택 + ABS 클릭 + stop_after=seats 성공)
 - M5: 4/5 (manual-resume + storage_state save 구현)
 
 ## Evidence (latest)
@@ -44,6 +44,7 @@
 - /tmp/bts-debug/20260213_150511_click_booking_button_failed/
 - /tmp/bts-debug/20260213_150720_nol_search_wrong_goods/
 - /tmp/bts-debug/20260213_150721_navigate_to_concert_failed/
+- (success) stop_after=seats with --seats 1 at 2026-02-13 16:46 KST
 
 ## Next actions (this loop)
 - [ ] Make navigate_to_concert() default to Strategy A: if hub redirect or wrong-goods, fail fast with actionable message ("수동으로 goods 페이지에서 대기 후 실행")
