@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 16:38 KST
+# DASHBOARD.md — 2026-02-13 17:08 KST
 
 ## 🎯 현재 프로젝트
 
@@ -68,13 +68,14 @@
 - [x] BTS: 야놀자 리다이렉트 수동-resume + storage_state 저장 강화(P0-5)
 - [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
   - 현재 상태: A 전략 고정(수동 pre-nav) + step1 booking direct URL 지원.
-  - 관측: motickets `/step1?z=...` 링크로 **direct booking 진입 테스트 성공(stop_after=queue)**.
-  - 다음 액션: 같은 링크로 `--stop-after seats`까지 E2E 루프 반복 + SCORECARD 점수 업데이트.
+  - 관측: motickets `/step1?z=...` 링크로 **direct booking→queue→seats(1석) 성공**, 2석은 가용좌석 1개면 실패.
+  - 신규 기능: `--allow-partial` (2석 목표라도 1석 확보 시 다음 단계로 진행)
+  - 다음 액션: `--allow-partial`로 “다음 단계(확정 구간)” 진입까지 E2E 검증 + SCORECARD 업데이트.
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 54% (217k/400k)
-- Usage: session ~98% left (~3h29m)
+- Context: 61% (246k/400k)
+- Usage: (see usage-tracker)
