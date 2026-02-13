@@ -1147,12 +1147,14 @@ class NOLTicketing:
 
         def _search_and_open_goods() -> bool:
             query = (self.config.query or '').strip()
+            query_from_goods_code = False
             if not query:
                 # query가 없으면 goodsCode(숫자)를 검색어로 사용해본다 (NOL 검색이 코드도 걸리는 경우가 있음)
                 try:
                     m = re.search(r'/goods/(\d+)', self.config.url or '')
                     if m:
                         query = m.group(1)
+                        query_from_goods_code = True
                         self._log(f'ℹ️ query 미설정 → goodsCode로 검색 시도: {query}', LogLevel.WARN)
                 except Exception:
                     pass
@@ -1336,6 +1338,12 @@ class NOLTicketing:
                     href = best.get_attribute('href') or ''
                 except Exception:
                     pass
+
+                # goodsCode(숫자)로 검색한 경우엔 "정확히" 그 goodsCode가 포함된 결과가 없으면 잘못된 공연으로 새므로 실패 처리.
+                if query_from_goods_code and goods_code and (goods_code not in (href or '')):
+                    self._log(f'⚠️ goodsCode 검색({goods_code})인데 결과 href에 goodsCode가 없음 → 잘못된 공연 클릭 방지', LogLevel.WARN)
+                    self._dump_debug('nol_search_wrong_goods', extra={'query': query, 'goods_code': goods_code, 'best_href': href, 'best_score': best_score})
+                    return False
 
                 self._log(f'✅ 검색 결과 클릭 (score={best_score:.1f}, href: {href[:60]})')
                 try:
@@ -1661,13 +1669,15 @@ class NOLTicketing:
                             self._log('JS 클릭 폴백 시도...')
                             try:
                                 self.page.evaluate('''
-                                    var links = document.querySelectorAll('a, button');
-                                    for (var link of links) {
-                                        if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
-                                            link.click();
-                                            break;
+                                    (function(){
+                                        var links = document.querySelectorAll('a, button');
+                                        for (var link of links) {
+                                            if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
+                                                link.click();
+                                                break;
+                                            }
                                         }
-                                    }
+                                    })();
                                 ''')
                             except Exception:
                                 pass
@@ -1732,18 +1742,20 @@ class NOLTicketing:
         """디버깅: 페이지 내 모든 버튼/링크 출력"""
         try:
             buttons = self.page.evaluate('''
-                var result = [];
-                var elements = document.querySelectorAll('a, button, [role="button"]');
-                elements.forEach(function(el, i) {
-                    if (i < 20) {  // 최대 20개
-                        result.push({
-                            tag: el.tagName,
-                            text: (el.textContent || "").slice(0, 50).trim(),
-                            class: (el.className || "").slice(0, 50)
-                        });
-                    }
-                });
-                return result;
+                (function(){
+                    var result = [];
+                    var elements = document.querySelectorAll('a, button, [role="button"]');
+                    elements.forEach(function(el, i) {
+                        if (i < 20) {  // 최대 20개
+                            result.push({
+                                tag: el.tagName,
+                                text: (el.textContent || "").slice(0, 50).trim(),
+                                class: (el.className || "").slice(0, 50)
+                            });
+                        }
+                    });
+                    return result;
+                })();
             ''')
             
             self._log('📋 페이지 버튼/링크 목록:', LogLevel.DEBUG)
