@@ -2273,8 +2273,23 @@ class NOLTicketing:
 
                     # 2) 연석 실패면 상위 후보부터 need개
                     if len(target_seats) < need:
-                        # 이미 선택한 좌석과 중복될 수 있으니 간단히 앞에서부터 채움
-                        target_seats = seats[:need]
+                        # 이미 선택한 좌석과 중복 방지 (같은 좌석을 2번 클릭하면 토글될 수 있음)
+                        picked: List[SeatInfo] = []
+                        for s in seats:
+                            dup = False
+                            for sel in self.selected_seats:
+                                if sel.raw_id and s.raw_id and sel.raw_id == s.raw_id:
+                                    dup = True
+                                    break
+                                if (sel.x, sel.y) == (s.x, s.y) and s.x > 0 and s.y > 0:
+                                    dup = True
+                                    break
+                            if dup:
+                                continue
+                            picked.append(s)
+                            if len(picked) >= need:
+                                break
+                        target_seats = picked
 
                     clicked_this_round = 0
                     for seat in target_seats:
