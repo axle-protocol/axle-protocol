@@ -1213,33 +1213,76 @@ class NOLTicketing:
                     'a[href*="tickets.interpark.com/goods/"]',
                 ]
 
-                link = None
+                # 검색 결과에서 "정확한" goods를 고르기
+                goods_code = None
+                try:
+                    m = re.search(r'/goods/(\d+)', self.config.url or '')
+                    if m:
+                        goods_code = m.group(1)
+                except Exception:
+                    goods_code = None
+
+                candidates: List[Locator] = []
                 for sel in goods_link_selectors:
                     try:
-                        loc = self.page.locator(sel).first
-                        if loc.count() > 0 and loc.is_visible(timeout=3000):
-                            link = loc
-                            break
+                        # 모든 링크를 모아두고, 이후 점수로 선택한다
+                        candidates.extend(self.page.locator(sel).all())
                     except Exception:
                         continue
 
-                if not link:
+                if not candidates:
                     self._log('검색 결과에서 goods 링크를 못 찾음', LogLevel.WARN)
                     self._dump_debug('nol_search_no_goods_results', extra={'query': query})
                     return False
 
+                def _score(loc: Locator) -> float:
+                    try:
+                        href0 = (loc.get_attribute('href') or '')
+                        txt0 = (loc.text_content() or '').strip()
+                        s = 0.0
+                        if goods_code and goods_code in href0:
+                            s += 1000
+                        if 'tickets.interpark.com/goods/' in href0:
+                            s += 50
+                        if query and query.lower() in txt0.lower():
+                            s += 20
+                        # 너무 짧은/의미없는 텍스트는 감점
+                        if len(txt0) < 2:
+                            s -= 1
+                        return s
+                    except Exception:
+                        return -999
+
+                best: Optional[Locator] = None
+                best_score = -1e9
+                for c in candidates:
+                    try:
+                        if not c.is_visible(timeout=1200):
+                            continue
+                        sc = _score(c)
+                        if sc > best_score:
+                            best_score = sc
+                            best = c
+                    except Exception:
+                        continue
+
+                if not best:
+                    self._log('검색 결과 goods 후보가 있으나 visible 후보를 못 찾음', LogLevel.WARN)
+                    self._dump_debug('nol_search_no_visible_goods', extra={'query': query, 'goods_code': goods_code or ''})
+                    return False
+
                 href = ''
                 try:
-                    href = link.get_attribute('href') or ''
+                    href = best.get_attribute('href') or ''
                 except Exception:
                     pass
 
-                self._log(f'✅ 검색 결과 클릭 (href: {href[:60]})')
+                self._log(f'✅ 검색 결과 클릭 (score={best_score:.1f}, href: {href[:60]})')
                 try:
-                    link.click(timeout=5000)
+                    best.click(timeout=5000)
                 except Exception:
                     try:
-                        self.page.evaluate('el => el.click()', link)
+                        self.page.evaluate('el => el.click()', best)
                     except Exception:
                         pass
 
@@ -2342,38 +2385,67 @@ class NOLTicketing:
         queue_patterns = ['waiting', 'queue', 'book.interpark', 'poticket']
         seat_patterns = ['seat', 'schedule', 'area', 'zone']
         
+        last_page_id = None
         while time.time() - start_time < max_wait:
             try:
-                current_url = page.url.lower()
-                
-                # 대기열 페이지 확인
+                # 팝업/탭 전환이 생길 수 있으니 매 루프마다 active page를 갱신
+                page = self._get_active_page()
+                try:
+                    pid = id(page)
+                    if last_page_id is None:
+                        last_page_id = pid
+                    elif pid != last_page_id:
+                        last_page_id = pid
+                        self._log(f'ℹ️ active page 변경 감지 → {page.url[:60]}', LogLevel.WARN)
+                except Exception:
+                    pass
+
+                current_url = (page.url or '').lower()
+
+                # ⭐ 야놀자 로그인 리다이렉트는 큐 처리로 착각하면 안 됨
+                if 'accounts.yanolja.com' in current_url:
+                    self._log('⚠️ 대기열 중 야놀자 로그인 리다이렉트 감지', LogLevel.WARN)
+                    if self.handle_yanolja_redirect():
+                        adaptive_sleep(0.8)
+                        continue
+                    return False
+
+                # 대기열 페이지 확인 (URL + 가벼운 텍스트 휴리스틱)
                 is_queue = any(p in current_url for p in queue_patterns)
+                if not is_queue:
+                    try:
+                        body_txt = (page.locator('body').inner_text(timeout=800) or '')
+                        if ('대기' in body_txt and '접속' in body_txt) or ('대기열' in body_txt):
+                            is_queue = True
+                    except Exception:
+                        pass
+
                 if is_queue:
                     elapsed = int(time.time() - start_time)
                     if elapsed % 10 == 0:
                         self._log(f'⏳ 대기열 대기중... ({elapsed}초)')
                     adaptive_sleep(1)
                     continue
-                
+
                 # 좌석 선택 페이지 도달
                 is_seat = any(p in current_url for p in seat_patterns)
                 if is_seat or self.is_seat_page():
                     self._log(f'✅ 대기열 통과! URL: {current_url[:50]}', LogLevel.SUCCESS)
                     return True
-                
+
                 # 에러 페이지
                 if 'error' in current_url:
                     self._log('에러 페이지 감지', LogLevel.ERROR)
                     return False
-                
+
                 # 알 수 없는 페이지 - 스크린샷
                 elapsed = int(time.time() - start_time)
                 if elapsed % 30 == 0 and elapsed > 0:
                     page.screenshot(path=f'/tmp/queue_debug_{elapsed}.png')
                     self._log(f'📸 스크린샷: /tmp/queue_debug_{elapsed}.png')
-                
+
                 adaptive_sleep(0.5)
-                
+
             except Exception as e:
                 self._log(f'대기열 확인 에러: {e}', LogLevel.WARN)
                 adaptive_sleep(1)
