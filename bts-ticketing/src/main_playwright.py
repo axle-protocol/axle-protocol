@@ -1543,83 +1543,96 @@ class NOLTicketing:
                         self._log('강제 클릭 시도 (force=True)...')
                         
                         # ⭐ 팝업/탭/동일탭 전환 레이스 처리 (expect_popup 고정대기 제거)
+                        # NOTE: context.on('page') 리스너는 누적되면 오탐/메모리 누수 → 반드시 제거한다.
                         new_pages: List[Page] = []
 
-                        def _on_page(pg):
+                        def _on_page(pg: Page):
                             try:
                                 new_pages.append(pg)
                             except Exception:
                                 pass
 
+                        listener_added = False
                         try:
-                            if self.context:
-                                self.context.on('page', _on_page)
-                        except Exception:
-                            pass
-
-                        before_url = (self.page.url or '').lower()
-
-                        # 클릭 (force)
-                        try:
-                            modal_btn.click(force=True, timeout=5000)
-                        except Exception:
-                            pass
-
-                        # 짧은 레이스: 새 페이지 이벤트 vs 동일탭 URL 변경
-                        t0 = time.time()
-                        while time.time() - t0 < 2.0:
                             try:
-                                if new_pages:
-                                    pg = new_pages[-1]
-                                    self.booking_page = pg
-                                    self.page = pg  # IMPORTANT: downstream uses self.page
+                                if self.context:
+                                    self.context.on('page', _on_page)
+                                    listener_added = True
+                            except Exception:
+                                pass
+
+                            before_url = (self.page.url or '').lower()
+
+                            # 클릭 (force)
+                            try:
+                                modal_btn.click(force=True, timeout=5000)
+                            except Exception:
+                                pass
+
+                            # 짧은 레이스: 새 페이지 이벤트 vs 동일탭 URL 변경
+                            t0 = time.time()
+                            while time.time() - t0 < 2.0:
+                                try:
+                                    if new_pages:
+                                        pg = new_pages[-1]
+                                        self.booking_page = pg
+                                        self.page = pg  # IMPORTANT: downstream uses self.page
+                                        try:
+                                            pg.wait_for_load_state('domcontentloaded', timeout=5000)
+                                        except Exception:
+                                            pass
+                                        self._log(f'✅ 예매 페이지(새 탭) 진입: {pg.url[:60]}', LogLevel.SUCCESS)
+                                        return True
+                                except Exception:
+                                    pass
+
+                                try:
+                                    cur = (self.page.url or '').lower()
+                                    if cur != before_url and any(k in cur for k in ['book', 'seat', 'onestop']):
+                                        self.booking_page = self.page
+                                        self._log(f'✅ 예매 페이지(동일 탭) 진입: {self.page.url[:60]}', LogLevel.SUCCESS)
+                                        return True
+                                except Exception:
+                                    pass
+
+                                time.sleep(0.05)
+
+                            # 폴백: JavaScript 클릭 (최후)
+                            self._log('JS 클릭 폴백 시도...')
+                            try:
+                                self.page.evaluate('''
+                                    var links = document.querySelectorAll('a, button');
+                                    for (var link of links) {
+                                        if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
+                                            link.click();
+                                            break;
+                                        }
+                                    }
+                                ''')
+                            except Exception:
+                                pass
+
+                            # JS 클릭 후도 짧게만 확인
+                            t1 = time.time()
+                            while time.time() - t1 < 2.0:
+                                try:
+                                    cur = (self.page.url or '').lower()
+                                    if any(k in cur for k in ['book', 'seat', 'onestop']):
+                                        self.booking_page = self.page
+                                        self._log(f'✅ 예매 진행 감지(JS): {self.page.url[:60]}', LogLevel.SUCCESS)
+                                        return True
+                                except Exception:
+                                    pass
+                                time.sleep(0.05)
+                        finally:
+                            if listener_added and self.context:
+                                try:
+                                    self.context.off('page', _on_page)
+                                except Exception:
                                     try:
-                                        pg.wait_for_load_state('domcontentloaded', timeout=5000)
+                                        self.context.remove_listener('page', _on_page)  # type: ignore[attr-defined]
                                     except Exception:
                                         pass
-                                    self._log(f'✅ 예매 페이지(새 탭) 진입: {pg.url[:60]}', LogLevel.SUCCESS)
-                                    return True
-                            except Exception:
-                                pass
-
-                            try:
-                                cur = (self.page.url or '').lower()
-                                if cur != before_url and any(k in cur for k in ['book', 'seat', 'onestop']):
-                                    self.booking_page = self.page
-                                    self._log(f'✅ 예매 페이지(동일 탭) 진입: {self.page.url[:60]}', LogLevel.SUCCESS)
-                                    return True
-                            except Exception:
-                                pass
-
-                            time.sleep(0.05)
-
-                        # 폴백: JavaScript 클릭 (최후)
-                        self._log('JS 클릭 폴백 시도...')
-                        try:
-                            self.page.evaluate('''
-                                var links = document.querySelectorAll('a, button');
-                                for (var link of links) {
-                                    if (link.textContent && (link.textContent.includes('예매') || link.textContent.includes('선예매'))) {
-                                        link.click();
-                                        break;
-                                    }
-                                }
-                            ''')
-                        except Exception:
-                            pass
-
-                        # JS 클릭 후도 짧게만 확인
-                        t1 = time.time()
-                        while time.time() - t1 < 2.0:
-                            try:
-                                cur = (self.page.url or '').lower()
-                                if any(k in cur for k in ['book', 'seat', 'onestop']):
-                                    self.booking_page = self.page
-                                    self._log(f'✅ 예매 진행 감지(JS): {self.page.url[:60]}', LogLevel.SUCCESS)
-                                    return True
-                            except Exception:
-                                pass
-                            time.sleep(0.05)
                             
                     except Exception as click_err:
                         self._log(f'클릭 실패: {click_err}', LogLevel.DEBUG)
