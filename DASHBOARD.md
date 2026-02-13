@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-13 20:08 KST
+# DASHBOARD.md — 2026-02-13 20:38 KST
 
 ## 🎯 현재 프로젝트
 
@@ -70,12 +70,13 @@
   - 현재 상태: A 전략 고정(수동 pre-nav) + step1 booking direct URL 지원.
   - 관측: motickets `/step1?z=...` 링크로 **direct booking→queue→seats(1석) 성공**, 2석은 가용좌석 1개면 실패.
   - 신규 기능: `--allow-partial` (2석 목표라도 1석 확보 시 다음 단계로 진행)
-  - 다음 액션: `--allow-partial`로 “다음 단계(확정 구간)” 진입까지 E2E 검증 + SCORECARD 업데이트.
+  - 상태: Han이 말한대로 step1 링크가 없으면 E2E(확정 구간) 검증 불가 → 링크 대기 중.
+  - 다음 액션: step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고.
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 16% (63k/400k)  # compaction 후 리셋됨
+- Context: 16% (66k/400k)  # compaction 후 리셋됨
 - Usage: (see usage-tracker)
