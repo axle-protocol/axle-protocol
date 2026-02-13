@@ -1131,9 +1131,15 @@ class NOLTicketing:
         """공연 페이지 이동.
 
         NOL/Interpark는 goods URL을 바로 때리면 nol 메인/대기 페이지로 리다이렉트하는 케이스가 있음.
-        그래서:
-          1) goods URL 직접 진입 시도
-          2) nol/ticket로 리다이렉트되면 "사람처럼" nol 메인에서 검색 → 결과 클릭으로 goods 진입
+
+        지원하는 시작 URL:
+        - goods URL: https://tickets.interpark.com/goods/...
+        - booking direct URL(리허설용): /step1?z=... 등 (이미 예매 단계로 들어간 링크)
+
+        전략:
+          1) booking direct URL이면 그대로 진입하고 booking_page로 설정
+          2) goods URL 직접 진입 시도
+          3) nol/ticket로 리다이렉트되면 "사람처럼" nol 메인에서 검색 → 결과 클릭으로 goods 진입
         """
         if not self.config.url:
             self._log('공연 URL 없음', LogLevel.ERROR)
@@ -1144,6 +1150,11 @@ class NOLTicketing:
         def _is_goods(u: str) -> bool:
             uu = (u or '').lower()
             return ('/goods/' in uu) and ('interpark' in uu)
+
+        def _is_booking_direct(u: str) -> bool:
+            uu = (u or '').lower()
+            # mobile booking step links often look like motickets.interpark.com/step1?z=...
+            return ('/step1' in uu) or ('/step2' in uu) or ('/seat' in uu) or ('book' in uu and 'interpark' in uu)
 
         def _search_and_open_goods() -> bool:
             query = (self.config.query or '').strip()
@@ -1374,6 +1385,14 @@ class NOLTicketing:
 
         for attempt in range(self.config.max_retries):
             try:
+                # If user provided a direct booking link (rehearsal), go there and treat as success.
+                if _is_booking_direct(self.config.url):
+                    self._log('ℹ️ booking direct URL 감지 → 해당 페이지로 바로 진입 (goods 탐색 스킵)', LogLevel.WARN)
+                    self.page.goto(self.config.url, wait_until='domcontentloaded', timeout=30000)
+                    # downstream should use this as booking page
+                    self.booking_page = self.page
+                    return True
+
                 self.page.goto(self.config.url, wait_until='domcontentloaded', timeout=30000)
 
                 current_url = self.page.url
@@ -2585,14 +2604,25 @@ class NOLTicketing:
                 
                 # 4. 예매 시간 대기
                 self._log('\n📍 [3/6] 예매 대기...')
-                self.wait_for_booking_time()
-                
+                # booking direct URL로 시작한 경우(리허설)는 이미 예매 플로우 진입 상태일 수 있으니 대기/클릭을 스킵한다.
+                cur0 = (self._get_active_page().url or '').lower()
+                direct_booking = ('/step1' in cur0) or ('/step2' in cur0) or ('motickets.interpark.com' in cur0)
+                if not direct_booking:
+                    self.wait_for_booking_time()
+                else:
+                    self._log('ℹ️ booking direct start 감지 → 예매 대기 스킵', LogLevel.WARN)
+
                 # 5. 예매 버튼 클릭 + 대기열
                 self._log('\n📍 [4/6] 예매 시작...')
-                if not self.click_booking_button():
-                    self._log('예매 버튼 클릭 실패', LogLevel.ERROR)
-                    self._dump_debug('click_booking_button_failed')
-                    return False
+                if not direct_booking:
+                    if not self.click_booking_button():
+                        self._log('예매 버튼 클릭 실패', LogLevel.ERROR)
+                        self._dump_debug('click_booking_button_failed')
+                        return False
+                else:
+                    # 이미 예매 단계면 booking_page를 active로 확정
+                    self.booking_page = self._get_active_page()
+                    self._log('✅ direct booking: click_booking_button 스킵', LogLevel.SUCCESS)
                 if self.config.stop_after == 'booking':
                     self._log('🛑 stop_after=booking: 여기서 종료', LogLevel.SUCCESS)
                     self._get_active_page().screenshot(path='/tmp/stop_after_booking.png')
