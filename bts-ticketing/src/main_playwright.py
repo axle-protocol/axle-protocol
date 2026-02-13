@@ -2271,6 +2271,22 @@ class NOLTicketing:
                     if not target_seats:
                         target_seats = []
 
+                    # 이미 선택한 좌석과 중복 제거
+                    if target_seats and self.selected_seats:
+                        filtered: List[SeatInfo] = []
+                        for s in target_seats:
+                            dup = False
+                            for sel in self.selected_seats:
+                                if sel.raw_id and s.raw_id and sel.raw_id == s.raw_id:
+                                    dup = True
+                                    break
+                                if (sel.x, sel.y) == (s.x, s.y) and s.x > 0 and s.y > 0:
+                                    dup = True
+                                    break
+                            if not dup:
+                                filtered.append(s)
+                        target_seats = filtered
+
                     # 2) 연석 실패면 상위 후보부터 need개
                     if len(target_seats) < need:
                         # 이미 선택한 좌석과 중복 방지 (같은 좌석을 2번 클릭하면 토글될 수 있음)
