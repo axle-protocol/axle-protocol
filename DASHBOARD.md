@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 00:08 KST
+# DASHBOARD.md — 2026-02-14 00:38 KST
 
 ## 🎯 현재 프로젝트
 
@@ -74,11 +74,12 @@
   - 다음 액션: step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고.
 - [ ] (대기) step1 링크 들어오면 확정구간 E2E 검증
 - [ ] (초안 준비) X 댓글/메인 트윗 — Han OK 필요
+- [ ] (요청) Han: "모든 프로젝트 싹다 닫아" (앱/프로세스 종료 범위 확인 필요)
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 22% (89k/400k)  # compaction 후 리셋됨
+- Context: 23% (91k/400k)  # compaction 후 리셋됨
 - Usage: (see usage-tracker)
