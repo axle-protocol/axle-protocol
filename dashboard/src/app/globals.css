@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-dark: #0a0e17;
+  --card-bg: #111827;
+  --border: #1f2937;
+}
+
+body {
+  background: var(--bg-dark);
+  color: #e5e7eb;
+}
+
+/* Animated gradient border */
+.glow-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #06b6d4, #8b5cf6, #06b6d4);
+  background-size: 200% 200%;
+  animation: glow 3s ease infinite;
+  z-index: -1;
+  opacity: 0.5;
+}
+
+@keyframes glow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Status badge pulse */
+.pulse-green {
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+}
+
+/* Task flow arrow animation */
+.flow-arrow {
+  animation: flow 1.5s ease-in-out infinite;
+}
+
+@keyframes flow {
+  0%, 100% { opacity: 0.3; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(4px); }
+}
+
+/* Form utilities */
+.axle-input {
+  @apply w-full rounded-lg border border-axle-border bg-axle-dark px-4 py-2.5 text-white placeholder-gray-500 focus:border-axle-accent focus:outline-none focus:ring-1 focus:ring-axle-accent;
+}
+
+.axle-btn {
+  @apply rounded-lg bg-axle-accent px-6 py-2.5 font-semibold text-black hover:bg-axle-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition;
+}
+
+.axle-select {
+  @apply w-full rounded-lg border border-axle-border bg-axle-dark px-4 py-2.5 text-white focus:border-axle-accent focus:outline-none focus:ring-1 focus:ring-axle-accent appearance-none;
+}
+
+/* Wallet adapter overrides */
+.wallet-adapter-button {
+  background: #111827 !important;
+  border: 1px solid #1f2937 !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+  height: 2.5rem !important;
+}
+
+.wallet-adapter-button:hover {
+  background: #1f2937 !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background: #0a0e17 !important;
+  border: 1px solid #1f2937 !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background: #1f2937 !important;
+}
+
+.wallet-adapter-modal-list li {
+  background: #111827 !important;
+  border: 1px solid #1f2937 !important;
+  border-radius: 0.5rem !important;
+}
+
+.wallet-adapter-modal-list li:hover {
+  background: #1f2937 !important;
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 400px;
+      height: 400px;
+      background: #0A0A0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo {
+      width: 300px;
+      height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <svg class="logo" viewBox="0 0 120 120">
+    <defs>
+      <linearGradient id="axleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#0066FF"/>
+        <stop offset="50%" stop-color="#8B5CF6"/>
+        <stop offset="100%" stop-color="#00D9FF"/>
+      </linearGradient>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+    <circle cx="60" cy="60" r="54" fill="none" stroke="url(#axleGrad)" stroke-width="3" opacity="0.3"/>
+    <circle cx="60" cy="60" r="42" fill="none" stroke="url(#axleGrad)" stroke-width="2" stroke-dasharray="12 6" opacity="0.5"/>
+    <circle cx="60" cy="60" r="28" fill="none" stroke="url(#axleGrad)" stroke-width="3"/>
+    <circle cx="60" cy="60" r="16" fill="url(#axleGrad)" opacity="0.8" filter="url(#glow)"/>
+    <g stroke="url(#axleGrad)" stroke-width="3" stroke-linecap="round">
+      <line x1="60" y1="6" x2="60" y2="20"/>
+      <line x1="60" y1="100" x2="60" y2="114"/>
+      <line x1="6" y1="60" x2="20" y2="60"/>
+      <line x1="100" y1="60" x2="114" y2="60"/>
+    </g>
+    <g stroke="url(#axleGrad)" stroke-width="2" stroke-linecap="round" opacity="0.6">
+      <line x1="21" y1="21" x2="32" y2="32"/>
+      <line x1="99" y1="21" x2="88" y2="32"/>
+      <line x1="21" y1="99" x2="32" y2="88"/>
+      <line x1="99" y1="99" x2="88" y2="88"/>
+    </g>
+    <g fill="url(#axleGrad)">
+      <circle cx="60" cy="6" r="4"/>
+      <circle cx="60" cy="114" r="4"/>
+      <circle cx="6" cy="60" r="4"/>
+      <circle cx="114" cy="60" r="4"/>
+    </g>
+  </svg>
+</body>
+</html>

@@ -1,0 +1,969 @@
+{
+  "address": "4zr1KP5Rp4xrofrUWFjPqBjJKciNL2s8qXt4eFtc7M82",
+  "metadata": {
+    "name": "agent_protocol",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "accept_task",
+      "docs": [
+        "Accept a task as provider"
+      ],
+      "discriminator": [
+        222,
+        196,
+        79,
+        165,
+        120,
+        30,
+        38,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true
+        },
+        {
+          "name": "agent_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_task",
+      "docs": [
+        "Cancel task (only if not accepted)"
+      ],
+      "discriminator": [
+        69,
+        228,
+        134,
+        187,
+        134,
+        105,
+        238,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "task_account.id",
+                "account": "TaskAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "complete_task",
+      "docs": [
+        "Complete task and release payment"
+      ],
+      "discriminator": [
+        109,
+        167,
+        192,
+        41,
+        129,
+        108,
+        220,
+        196
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true
+        },
+        {
+          "name": "agent_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "provider"
+              }
+            ]
+          }
+        },
+        {
+          "name": "provider",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "task_account.id",
+                "account": "TaskAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "requester",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_task",
+      "docs": [
+        "Create a new task with escrow"
+      ],
+      "discriminator": [
+        194,
+        80,
+        6,
+        180,
+        232,
+        127,
+        48,
+        171
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  97,
+                  115,
+                  107
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "task_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "task_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "task_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "description_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "required_capability",
+          "type": "string"
+        },
+        {
+          "name": "reward",
+          "type": "u64"
+        },
+        {
+          "name": "deadline",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "deliver_task",
+      "docs": [
+        "Deliver task result"
+      ],
+      "discriminator": [
+        234,
+        212,
+        134,
+        51,
+        26,
+        238,
+        6,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true
+        },
+        {
+          "name": "provider",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "result_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "mint_agent_badge",
+      "docs": [
+        "Mint a Token-2022 NFT Badge for a registered agent",
+        "The badge serves as on-chain proof of agent identity, viewable in Phantom wallet"
+      ],
+      "discriminator": [
+        250,
+        214,
+        82,
+        37,
+        89,
+        216,
+        65,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "agent_account",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "badge_mint",
+          "docs": [
+            "Token-2022 mint with MetadataPointer extension — PDA per agent"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  100,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_account",
+          "docs": [
+            "Associated token account for the badge NFT"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "badge_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "agent_account"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "register_agent",
+      "docs": [
+        "Register a new agent in the network"
+      ],
+      "discriminator": [
+        135,
+        157,
+        66,
+        195,
+        2,
+        113,
+        175,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "agent_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "node_id",
+          "type": "string"
+        },
+        {
+          "name": "capabilities",
+          "type": "string"
+        },
+        {
+          "name": "fee_per_task",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "timeout_task",
+      "docs": [
+        "Timeout task — reclaim escrow after deadline if provider hasn't delivered"
+      ],
+      "discriminator": [
+        89,
+        75,
+        167,
+        3,
+        58,
+        42,
+        159,
+        137
+      ],
+      "accounts": [
+        {
+          "name": "task_account",
+          "writable": true
+        },
+        {
+          "name": "agent_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "task_account.provider",
+                "account": "TaskAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "task_account.id",
+                "account": "TaskAccount"
+              }
+            ]
+          }
+        },
+        {
+          "name": "requester",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_agent",
+      "docs": [
+        "Update agent information"
+      ],
+      "discriminator": [
+        85,
+        2,
+        178,
+        9,
+        119,
+        139,
+        102,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "agent_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  103,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "agent_account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "capabilities",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "fee_per_task",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "is_active",
+          "type": {
+            "option": "bool"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AgentState",
+      "discriminator": [
+        254,
+        187,
+        98,
+        119,
+        228,
+        48,
+        47,
+        49
+      ]
+    },
+    {
+      "name": "TaskAccount",
+      "discriminator": [
+        235,
+        32,
+        10,
+        23,
+        81,
+        60,
+        170,
+        203
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NodeIdTooLong",
+      "msg": "Node ID too long (max 64 chars)"
+    },
+    {
+      "code": 6001,
+      "name": "CapabilitiesTooLong",
+      "msg": "Capabilities string too long (max 256 chars)"
+    },
+    {
+      "code": 6002,
+      "name": "CapabilityTooLong",
+      "msg": "Capability string too long (max 64 chars)"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidReward",
+      "msg": "Invalid reward amount"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidDeadline",
+      "msg": "Invalid deadline"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidTaskStatus",
+      "msg": "Invalid task status for this operation"
+    },
+    {
+      "code": 6006,
+      "name": "AgentNotActive",
+      "msg": "Agent is not active"
+    },
+    {
+      "code": 6007,
+      "name": "TaskExpired",
+      "msg": "Task has expired"
+    },
+    {
+      "code": 6008,
+      "name": "NotTaskProvider",
+      "msg": "Not the task provider"
+    },
+    {
+      "code": 6009,
+      "name": "NotTaskRequester",
+      "msg": "Not the task requester"
+    },
+    {
+      "code": 6010,
+      "name": "DeadlineNotReached",
+      "msg": "Deadline has not been reached yet"
+    },
+    {
+      "code": 6011,
+      "name": "CapabilityMismatch",
+      "msg": "Agent does not have required capability"
+    },
+    {
+      "code": 6012,
+      "name": "BadgeNameTooLong",
+      "msg": "Badge name too long (max 64 chars)"
+    },
+    {
+      "code": 6013,
+      "name": "BadgeSymbolTooLong",
+      "msg": "Badge symbol too long (max 16 chars)"
+    },
+    {
+      "code": 6014,
+      "name": "BadgeUriTooLong",
+      "msg": "Badge URI too long (max 200 chars)"
+    }
+  ],
+  "types": [
+    {
+      "name": "AgentState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "node_id",
+            "type": "string"
+          },
+          {
+            "name": "capabilities",
+            "type": "string"
+          },
+          {
+            "name": "fee_per_task",
+            "type": "u64"
+          },
+          {
+            "name": "reputation",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "tasks_completed",
+            "type": "u64"
+          },
+          {
+            "name": "tasks_failed",
+            "type": "u64"
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "requester",
+            "type": "pubkey"
+          },
+          {
+            "name": "provider",
+            "type": "pubkey"
+          },
+          {
+            "name": "description_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "required_capability",
+            "type": "string"
+          },
+          {
+            "name": "reward",
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "TaskStatus"
+              }
+            }
+          },
+          {
+            "name": "result_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "accepted_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "delivered_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "completed_at",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaskStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Created"
+          },
+          {
+            "name": "Accepted"
+          },
+          {
+            "name": "Delivered"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Disputed"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "TimedOut"
+          }
+        ]
+      }
+    }
+  ]
+}

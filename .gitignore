@@ -1,7 +1,17 @@
 node_modules/
+**/node_modules/
+dist/
+.next/
+target/
+test-ledger/
+.shared/
+*.log
+.env
+*.env*
+.DS_Store
+MEMORY.md
 *.pyc
 __pycache__/
-.DS_Store
 .x-credentials
 
 # BTS ticketing local auth/session state

@@ -1,3 +1,19 @@
+node_modules/
+dist/
+.next/
+target/
+test-ledger/
+.shared/
+*.log
+.env
+.DS_Store
+MEMORY.md
+
+# Secrets
+*.env*
+**/node_modules/
+test-ledger/
+
 # Local runtime data
 /data/vendor_sessions.json
 /data/orders.json

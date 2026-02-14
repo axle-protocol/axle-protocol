@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1500px;
+      height: 500px;
+      background: #0A0A0B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    /* Gradient orbs */
+    .orb1 {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0,102,255,0.3) 0%, transparent 70%);
+      top: -200px;
+      left: 100px;
+      filter: blur(60px);
+    }
+    .orb2 {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 70%);
+      bottom: -150px;
+      right: 200px;
+      filter: blur(60px);
+    }
+    .orb3 {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0,217,255,0.15) 0%, transparent 70%);
+      top: 50px;
+      right: 400px;
+      filter: blur(50px);
+    }
+    
+    /* Grid pattern */
+    .grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: linear-gradient(to bottom, transparent, white 20%, white 80%, transparent);
+    }
+    
+    .content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 40px;
+    }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+    }
+    
+    .text {
+      color: white;
+    }
+    
+    .title {
+      font-size: 72px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #0066FF 0%, #8B5CF6 50%, #00D9FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    
+    .tagline {
+      font-size: 28px;
+      color: #888;
+      margin-bottom: 20px;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 16px;
+      color: #00D9FF;
+    }
+    
+    .badge::before {
+      content: '◎';
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="orb1"></div>
+  <div class="orb2"></div>
+  <div class="orb3"></div>
+  <div class="grid"></div>
+  
+  <div class="content">
+    <svg class="logo" viewBox="0 0 120 120">
+      <defs>
+        <linearGradient id="axleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#0066FF"/>
+          <stop offset="50%" stop-color="#8B5CF6"/>
+          <stop offset="100%" stop-color="#00D9FF"/>
+        </linearGradient>
+      </defs>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="url(#axleGrad)" stroke-width="3" opacity="0.3"/>
+      <circle cx="60" cy="60" r="42" fill="none" stroke="url(#axleGrad)" stroke-width="2" stroke-dasharray="12 6" opacity="0.5"/>
+      <circle cx="60" cy="60" r="28" fill="none" stroke="url(#axleGrad)" stroke-width="3"/>
+      <circle cx="60" cy="60" r="16" fill="url(#axleGrad)" opacity="0.8"/>
+      <g stroke="url(#axleGrad)" stroke-width="3" stroke-linecap="round">
+        <line x1="60" y1="6" x2="60" y2="20"/>
+        <line x1="60" y1="100" x2="60" y2="114"/>
+        <line x1="6" y1="60" x2="20" y2="60"/>
+        <line x1="100" y1="60" x2="114" y2="60"/>
+      </g>
+      <g stroke="url(#axleGrad)" stroke-width="2" stroke-linecap="round" opacity="0.6">
+        <line x1="21" y1="21" x2="32" y2="32"/>
+        <line x1="99" y1="21" x2="88" y2="32"/>
+        <line x1="21" y1="99" x2="32" y2="88"/>
+        <line x1="99" y1="99" x2="88" y2="88"/>
+      </g>
+      <g fill="url(#axleGrad)">
+        <circle cx="60" cy="6" r="4"/>
+        <circle cx="60" cy="114" r="4"/>
+        <circle cx="6" cy="60" r="4"/>
+        <circle cx="114" cy="60" r="4"/>
+      </g>
+    </svg>
+    
+    <div class="text">
+      <div class="title">AXLE</div>
+      <div class="tagline">On-chain Coordination for Autonomous Agents</div>
+      <div class="badge">Built on Solana</div>
+    </div>
+  </div>
+</body>
+</html>
