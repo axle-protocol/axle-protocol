@@ -24,6 +24,38 @@
 
 ---
 
+## v2 요구사항 (전환 최적화/판매형 템플릿)
+템플릿 앱/플랫폼(Canva/Adobe Express/Unfold/미리캔버스/망고보드 등)의 공통 성공 요인을 반영한다.
+
+### v2-1) Template Set(세트) + Slide Picker
+- 7장짜리 “공구 판매용 세트” 기본 제공 (7장 구성 예)
+  1) Offer cover(HOOK + 제품컷 + 가격 앵커)
+  2) 핵심 혜택 3-bullet
+  3) 가격/구성/옵션 표
+  4) 신뢰(리뷰/인증/누적/원산지 등 슬롯)
+  5) 배송/교환/환불 micro-FAQ
+  6) 주문 방법 3-step
+  7) CTA end card (링크 메인 + 댓글 서브)
+- 생성 시 3~7장 중 선택/제거/재정렬 가능
+
+### v2-2) 제품컷 슬롯(1페이지 고정) — A 방식
+- 운영자가 “상품 이미지 1장” 업로드하면 1페이지(HOOK)에 자동 삽입
+- safe-zone + crop preset 지원 (정사각/세로/가로)
+- shadow/outline 스타일 2~3개 제공 (서로 다른 셀러 사진도 일관성 있게)
+- AI로 이미지를 새로 생성하는 방식(B)보다 안정적인 방식(A)을 우선한다.
+
+### v2-3) Price Stack + CTA 블록 강제
+- 가격/혜택/마감/배송을 “한 덩어리” 컴포넌트로 고정 (가독성/일관성)
+- CTA는 듀얼 허용:
+  - 메인 CTA(크게 1개): 프로필 링크 클릭
+  - 서브 CTA(작게): 댓글 유도(‘링크’/‘공구’)
+
+### v2-4) Brand mini-kit
+- 최소: primary/accent color, 1~2 fonts, logo(optional)
+- 브랜드 프로필 여러 개 저장/선택 가능
+
+---
+
 ## 현재 코드 베이스(읽고 시작)
 - IG API들은 `server.mjs`의 `// Instagram APIs` 섹션 참고
   - `GET/POST /api/admin/ig/guide`
