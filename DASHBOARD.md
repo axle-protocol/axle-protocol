@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 01:25 KST
+# DASHBOARD.md — 2026-02-15 01:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -44,7 +44,7 @@
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
-  - PID: 38852 (latest)
+  - PID: 40690 (latest)
   - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
@@ -56,9 +56,9 @@
   - undefined 노출 방지(구형/누락 필드 fallback)
   - 커밋: `3791715` + `5cb17b3` + `8304ed4` + `65f8741` + `6027709` + `1dbe27c` + `de9e61c`
 - [x] (Admin Setup MVP) 관리자 셋업 화면 추가
-  - `/admin`: 사장님 생성, 상품 CSV 업로드(상품번호/상품명), 사장님↔상품 매핑(체크박스+검색)
-  - 주문 엑셀 업로드 + 발송처리 엑셀 다운로드 버튼 + 미분류 주문 빠른 매핑 포함
-  - 커밋: `c730c30` + `8825f5a`
+  - `/admin`: 사장님 생성, 상품 CSV 업로드(상품번호/상품명), 상품→사장님 배정(자동분류), 주문 엑셀 업로드, 미분류 주문 배정, 발송처리 엑셀 다운로드
+  - 상단 상태 배지 + 권장 운영 순서 추가 (초보 운영자 UX 개선)
+  - 커밋: `c730c30` + `8825f5a` + `21019d0`
 - [x] (Safety MVP) JSON 무결성/감사로그 최소 구현
   - atomic JSON write(tmp→rename) + backups/ (7일 정리)
   - audit JSONL(data/audit.jsonl) + vendor 주요 액션 로깅
@@ -98,5 +98,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 25% (101k/400k) — compaction 6회 (리셋됨)
+- Context: 37% (149k/400k) — compaction 6회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
