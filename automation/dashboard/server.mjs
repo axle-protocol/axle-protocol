@@ -1055,8 +1055,8 @@ const server = http.createServer(async (req, res) => {
 
     const orders = loadOrders();
     const all = (orders.orders || []).filter((o) => {
-      const tn = String(o.trackingNumber || '').trim();
-      const carrier = String(o.carrier || '').trim();
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      const carrier = String(o.carrier || o.tracking?.carrier || '').trim();
       return tn.length > 0 && carrier.length > 0;
     });
 
@@ -1066,9 +1066,10 @@ const server = http.createServer(async (req, res) => {
     const sheetRows = [
       ['상품주문번호', '배송방법', '택배사', '송장번호'],
       ...rows.map((o) => {
-        const carrierKey = String(o.carrier || '').trim();
+        const carrierKey = String(o.carrier || o.tracking?.carrier || '').trim();
         const carrierLabel = CARRIER_LABEL[carrierKey] || carrierKey; // fallback
-        return [String(o.productOrderNo || o.id || ''), deliveryMethod, carrierLabel, String(o.trackingNumber || '')];
+        const tn = String(o.trackingNumber || o.tracking?.number || '');
+        return [String(o.productOrderNo || o.id || ''), deliveryMethod, carrierLabel, tn];
       }),
     ];
 
@@ -1155,7 +1156,14 @@ const server = http.createServer(async (req, res) => {
     if (!vendor) return;
 
     const data = loadOrders();
-    const orders = (data.orders || []).filter((o) => o.vendorId === vendor.id);
+    let orders = (data.orders || []).filter((o) => o.vendorId === vendor.id);
+
+    // normalize for vendor UI compatibility (legacy fields)
+    orders = orders.map((o) => {
+      const carrier = o.carrier || o.tracking?.carrier || null;
+      const trackingNumber = o.trackingNumber || o.tracking?.number || '';
+      return { ...o, carrier, trackingNumber };
+    });
 
     // newest first (by createdAt if present)
     orders.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
@@ -1219,6 +1227,10 @@ const server = http.createServer(async (req, res) => {
       number: v.number,
       updatedAt: now,
     };
+    // legacy top-level fields (used by vendor UI + shipping export)
+    db.orders[idx].carrier = carrier;
+    db.orders[idx].trackingNumber = v.number;
+
     db.orders[idx].status = 'shipped';
     db.orders[idx].updatedAt = now;
 
