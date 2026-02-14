@@ -184,6 +184,7 @@ const vendorsPath = path.join(dataDir, 'vendors.json');
 const vendorSessionsPath = path.join(dataDir, 'vendor_sessions.json');
 const ordersPath = path.join(dataDir, 'orders.json');
 const productsPath = path.join(dataDir, 'products.json');
+const scriptsDir = path.join(__dirname, 'scripts');
 const mappingPath = path.join(dataDir, 'mapping.json');
 const auditLogPath = path.join(dataDir, 'audit.jsonl');
 const igGuidePath = path.join(dataDir, 'ig_brand_guide.json');
