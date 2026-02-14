@@ -38,15 +38,30 @@ function orderCard(o) {
   const tracking = o.trackingNumber || '';
   const pending = !String(tracking || '').trim();
 
+  const recipientName = o.recipientName || '-';
+  const recipientPhone = o.recipientPhone || '-';
+  const recipientAddress = o.recipientAddress || '-';
+
   return `
   <div class="rounded-lg border ${pending ? 'border-amber-400/60 bg-amber-400/5' : 'border-zinc-800'} p-3" data-id="${escapeHtml(o.id)}">
-    <div class="text-sm font-medium">${escapeHtml(o.productName || '-')}</div>
-    <div class="text-xs text-zinc-400 mt-1">옵션: ${escapeHtml(o.optionInfo || '-') } · 수량: ${escapeHtml(o.qty || 0)}</div>
+    <div class="text-base font-semibold">${escapeHtml(o.productName || '-')}</div>
+    <div class="text-sm text-zinc-300 mt-1">수량 <span class="font-semibold">${escapeHtml(o.qty || 0)}</span></div>
+    <div class="text-xs text-zinc-500 mt-1">옵션: ${escapeHtml(o.optionInfo || '-') }</div>
 
-    <div class="mt-2 text-xs text-zinc-200">
-      <div><span class="text-zinc-500">수취인</span> ${escapeHtml(o.recipientName || '-') } · ${escapeHtml(o.recipientPhone || '-') }</div>
-      <div class="mt-1"><span class="text-zinc-500">주소</span> ${escapeHtml(o.recipientAddress || '-') }</div>
-      <div class="mt-1"><span class="text-zinc-500">상품주문번호</span> ${escapeHtml(o.productOrderNo)}</div>
+    <div class="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/30 p-3">
+      <div class="text-xs text-zinc-500">배송정보 (마스킹 없음)</div>
+      <div class="mt-1 text-lg font-semibold tracking-tight" data-recipient>${escapeHtml(recipientName)}</div>
+      <div class="mt-1 text-base font-semibold" data-phone>${escapeHtml(recipientPhone)}</div>
+      <div class="mt-2 text-sm text-zinc-100 break-words whitespace-pre-wrap" data-address>${escapeHtml(recipientAddress)}</div>
+
+      <div class="mt-2 text-xs text-zinc-500">상품주문번호</div>
+      <div class="text-sm font-mono text-zinc-200" data-pon>${escapeHtml(o.productOrderNo)}</div>
+
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="phone">전화 복사</button>
+        <button class="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="address">주소 복사</button>
+      </div>
+      <div class="mt-2 text-xs text-zinc-400" data-copy-msg></div>
     </div>
 
     <div class="mt-3 grid grid-cols-2 gap-2">
@@ -87,6 +102,38 @@ async function render() {
   });
 
   wrap.innerHTML = orders.map(orderCard).join('');
+
+  async function copyText(text){
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+
+  wrap.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-id]');
+      const kind = btn.getAttribute('data-copy');
+      const msg = card.querySelector('[data-copy-msg]');
+      const val = kind === 'phone'
+        ? card.querySelector('[data-phone]')?.textContent
+        : card.querySelector('[data-address]')?.textContent;
+      try {
+        await copyText(String(val || ''));
+        msg.textContent = '복사됨';
+        msg.className = 'mt-2 text-xs text-emerald-300';
+      } catch (e) {
+        msg.textContent = '복사 실패';
+        msg.className = 'mt-2 text-xs text-red-300';
+      }
+    });
+  });
 
   wrap.querySelectorAll('[data-save]').forEach((btn) => {
     btn.addEventListener('click', async () => {
