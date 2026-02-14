@@ -187,6 +187,14 @@ const productsPath = path.join(dataDir, 'products.json');
 const mappingPath = path.join(dataDir, 'mapping.json');
 const auditLogPath = path.join(dataDir, 'audit.jsonl');
 
+const CARRIER_LABEL = {
+  cj: 'CJ대한통운',
+  hanjin: '한진택배',
+};
+
+// SmartStore bulk shipping upload usually expects these exact strings.
+const DEFAULT_DELIVERY_METHOD = '택배,등기,소포';
+
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
   if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
@@ -728,13 +736,62 @@ const server = http.createServer(async (req, res) => {
       recipientAddress: '서울시 강남구 ...',
       vendorId,
       carrier: 'hanjin',
-      trackingNumber: '',
+      trackingNumber: '123456789012',
       createdAt: now,
       updatedAt: now,
     });
     saveOrders(orders);
 
     return sendJson(res, 200, { ok: true, orderId: id });
+  }
+
+  // -------------------------
+  // Admin: SmartStore bulk shipping upload Excel (4 columns)
+  // -------------------------
+  if (url.pathname === '/api/admin/shipping_export.xlsx' && req.method === 'GET') {
+    const qs = url.searchParams;
+    const chunk = Math.max(0, Number(qs.get('chunk') || 0) || 0);
+    const size = Math.min(5000, Math.max(1, Number(qs.get('size') || 2000) || 2000));
+    const deliveryMethod = String(qs.get('method') || DEFAULT_DELIVERY_METHOD);
+
+    const orders = loadOrders();
+    const all = (orders.orders || []).filter((o) => {
+      const tn = String(o.trackingNumber || '').trim();
+      const carrier = String(o.carrier || '').trim();
+      return tn.length > 0 && carrier.length > 0;
+    });
+
+    const start = chunk * size;
+    const rows = all.slice(start, start + size);
+
+    const sheetRows = [
+      ['상품주문번호', '배송방법', '택배사', '송장번호'],
+      ...rows.map((o) => {
+        const carrierKey = String(o.carrier || '').trim();
+        const carrierLabel = CARRIER_LABEL[carrierKey] || carrierKey; // fallback
+        return [String(o.productOrderNo || o.id || ''), deliveryMethod, carrierLabel, String(o.trackingNumber || '')];
+      }),
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+    XLSX.utils.book_append_sheet(wb, ws, '발송처리');
+
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    auditLog({
+      actorType: 'owner',
+      actorId: OWNER_USERNAME,
+      action: 'ADMIN_SHIPPING_EXPORT',
+      ip: getClientIp(req),
+      meta: { totalEligible: all.length, chunk, size, exported: rows.length },
+    });
+
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="shipping_export.chunk${chunk}.xlsx"`,
+    });
+    return res.end(out);
   }
 
   // -------------------------
