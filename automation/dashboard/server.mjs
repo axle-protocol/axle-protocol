@@ -1014,10 +1014,14 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/admin/seed_order' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const vendorId = String(body?.vendorId || '');
+    if (!vendorId) return sendJson(res, 400, { error: 'need_vendorId' });
+
+    // products.csv 미업로드 상태에서도 UI 확인/테스트 가능하게 기본 더미 제공
     const products = loadProducts();
     const list = products.products || [];
-    if (!vendorId || list.length === 0) return sendJson(res, 400, { error: 'need_vendor_and_products' });
-    const pick = list[Math.floor(Math.random() * list.length)];
+    const pick = list.length
+      ? list[Math.floor(Math.random() * list.length)]
+      : { productNo: 'MOCK-001', productName: '테스트상품(더미)' };
 
     const orders = loadOrders();
     const now = new Date().toISOString();
@@ -1028,11 +1032,11 @@ const server = http.createServer(async (req, res) => {
       orderNo: String(Date.now()),
       productNo: pick.productNo,
       productName: pick.productName,
-      optionInfo: '',
+      optionInfo: '옵션: 기본',
       qty: 1,
       recipientName: '홍길동',
       recipientPhone: '01012341234',
-      recipientAddress: '서울시 강남구 ...',
+      recipientAddress: '서울시 강남구 테헤란로 123, 101동 1004호',
       vendorId,
       carrier: 'hanjin',
       trackingNumber: '123456789012',

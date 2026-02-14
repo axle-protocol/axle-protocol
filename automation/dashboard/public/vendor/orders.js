@@ -62,9 +62,11 @@ function orderCard(o) {
       <div class="mt-2 text-xs text-zinc-500">상품주문번호</div>
       <div class="text-sm font-mono text-zinc-200" data-pon>${escapeHtml(productOrderNo || '-')}</div>
 
-      <div class="mt-3 flex gap-2">
-        <button class="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="phone">전화 복사</button>
-        <button class="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="address">주소 복사</button>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button class="rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="name">이름 복사</button>
+        <button class="rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="phone">전화 복사</button>
+        <button class="rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="address">주소 복사</button>
+        <button class="rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="pon">주문번호 복사</button>
       </div>
       <div class="mt-2 text-xs text-zinc-400" data-copy-msg></div>
     </div>
@@ -128,7 +130,11 @@ async function render() {
       const msg = card.querySelector('[data-copy-msg]');
       const val = kind === 'phone'
         ? card.querySelector('[data-phone]')?.textContent
-        : card.querySelector('[data-address]')?.textContent;
+        : kind === 'address'
+          ? card.querySelector('[data-address]')?.textContent
+          : kind === 'name'
+            ? card.querySelector('[data-recipient]')?.textContent
+            : card.querySelector('[data-pon]')?.textContent;
       try {
         await copyText(String(val || ''));
         msg.textContent = '복사됨';
