@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 17:55 KST
+# DASHBOARD.md — 2026-02-14 18:25 KST
 
 ## 🎯 현재 프로젝트
 
@@ -41,6 +41,9 @@
 - [ ] (결정) 매핑 운영 초기: **상품번호 기반 자동 매핑(권장)** + 미매핑은 ‘미분류’로 처리
 
 ## 🐾 Clo 작업현황
+- [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
+  - PID: 32286
+  - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
 - [x] (SmartStore) 주문조회 엑셀/발송처리 템플릿 구조 파악 + 키 확정
@@ -66,5 +69,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 17% (69k/400k) — compaction 4회 (리셋됨)
+- Context: 18% (74k/400k) — compaction 4회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
