@@ -7,6 +7,11 @@ import {
   createReadStream,
   writeFileSync,
   mkdirSync,
+  copyFileSync,
+  renameSync,
+  appendFileSync,
+  readdirSync,
+  unlinkSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,9 +52,56 @@ function loadJson(filePath, fallback) {
   return safeJsonParse(readFileSync(filePath, 'utf8'), fallback);
 }
 
-function saveJson(filePath, data) {
+function ensureDir(p) {
+  mkdirSync(p, { recursive: true });
+}
+
+function cleanupOldBackups(dirPath, maxDays) {
+  if (!existsSync(dirPath)) return;
+  const now = Date.now();
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+  let names = [];
+  try {
+    names = readdirSync(dirPath);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const p = path.join(dirPath, name);
+    try {
+      const st = statSync(p);
+      if (now - st.mtimeMs > maxAgeMs) unlinkSync(p);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function safeWriteJson(filePath, data, { backupDays = 7 } = {}) {
   ensureDataDir();
-  writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+  const dir = path.dirname(filePath);
+  const backupsDir = path.join(dir, 'backups');
+  ensureDir(backupsDir);
+
+  if (existsSync(filePath)) {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(backupsDir, `${path.basename(filePath)}.${ts}.bak`);
+    try {
+      copyFileSync(filePath, backupPath);
+      cleanupOldBackups(backupsDir, backupDays);
+    } catch {
+      // ignore backup failure (but continue to write)
+    }
+  }
+
+  const tmpPath = `${filePath}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+  renameSync(tmpPath, filePath);
+}
+
+function saveJson(filePath, data) {
+  safeWriteJson(filePath, data);
 }
 
 function readJsonBody(req) {
@@ -132,6 +184,27 @@ const vendorSessionsPath = path.join(dataDir, 'vendor_sessions.json');
 const ordersPath = path.join(dataDir, 'orders.json');
 const productsPath = path.join(dataDir, 'products.json');
 const mappingPath = path.join(dataDir, 'mapping.json');
+const auditLogPath = path.join(dataDir, 'audit.jsonl');
+
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  return req.socket?.remoteAddress || null;
+}
+
+function auditLog(entry) {
+  ensureDataDir();
+  const record = {
+    id: crypto.randomUUID(),
+    ts: new Date().toISOString(),
+    ...entry,
+  };
+  try {
+    appendFileSync(auditLogPath, `${JSON.stringify(record)}\n`, 'utf8');
+  } catch {
+    // best-effort; ignore
+  }
+}
 
 function pbkdf2Hash(password, saltHex) {
   const salt = Buffer.from(saltHex, 'hex');
@@ -523,6 +596,7 @@ const server = http.createServer(async (req, res) => {
 
     const vendor = getVendorByUsername(username);
     if (!vendor || !verifyPassword(password, vendor.password)) {
+      auditLog({ actorType: 'vendor', actorId: username || null, action: 'VENDOR_LOGIN_FAILED', ip: getClientIp(req) });
       return sendJson(res, 401, { error: 'bad_credentials' });
     }
 
@@ -544,10 +618,13 @@ const server = http.createServer(async (req, res) => {
       maxAge: 60 * 60 * 24 * 14,
     });
 
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'VENDOR_LOGIN', ip: getClientIp(req) });
+
     return sendJson(res, 200, { ok: true, vendor: { id: vendor.id, name: vendor.name, username: vendor.username } });
   }
 
   if (url.pathname === '/api/vendor/logout' && req.method === 'POST') {
+    const vendor = getVendorFromSession(req);
     const cookies = parseCookies(req);
     const token = cookies.vendor_session;
     if (token) {
@@ -555,6 +632,7 @@ const server = http.createServer(async (req, res) => {
       sessions.sessions = (sessions.sessions || []).filter((s) => s.token !== token);
       saveVendorSessions(sessions);
     }
+    auditLog({ actorType: 'vendor', actorId: vendor?.id || null, action: 'VENDOR_LOGOUT', ip: getClientIp(req) });
     setCookie(res, 'vendor_session', '', { path: '/', httpOnly: true, sameSite: 'Lax', maxAge: 0 });
     return sendJson(res, 200, { ok: true });
   }
@@ -568,6 +646,8 @@ const server = http.createServer(async (req, res) => {
 
     // newest first (by createdAt if present)
     orders.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'VIEW_ORDERS', count: orders.length, ip: getClientIp(req) });
 
     return sendJson(res, 200, { vendor, orders });
   }
@@ -589,6 +669,8 @@ const server = http.createServer(async (req, res) => {
     if (out.status !== 0) {
       return sendJson(res, 500, { error: 'export_failed', stderr: String(out.stderr || '') });
     }
+
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'DOWNLOAD_VENDOR_ORDERS_XLSX', ip: getClientIp(req) });
 
     res.writeHead(200, {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -628,6 +710,7 @@ const server = http.createServer(async (req, res) => {
     db.orders[idx].updatedAt = now;
 
     saveOrders(db);
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'INPUT_TRACKING', orderId, carrier, ip: getClientIp(req) });
     return sendJson(res, 200, { ok: true, order: db.orders[idx] });
   }
 
@@ -658,6 +741,8 @@ const server = http.createServer(async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws, 'orders');
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'DOWNLOAD_VENDOR_ORDERS_XLSX_ALT', ip: getClientIp(req) });
 
     res.writeHead(200, {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
