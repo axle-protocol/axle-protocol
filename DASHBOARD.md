@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 18:55 KST
+# DASHBOARD.md — 2026-02-14 19:25 KST
 
 ## 🎯 현재 프로젝트
 
@@ -69,12 +69,16 @@
 - [x] (IG) 인스타 세미 자동화: 브랜드가이드 + 생성기 + 검증기 + 큐/스케줄러
   - UI: `/admin/instagram`
   - 커밋: `bb1cb6c`
+- [x] (IG) 카드뉴스 이미지 생성(3~5장) 확장 작업용 Claude Code(Opus) 프롬프트 작성
+  - 문서: `automation/dashboard/docs/claude-code-opus-ig-cardnews-imagegen-prompt.md`
+  - 커밋: `e1a3992`
 - [ ] (Next) 관리자 승인(락) + 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
+- [ ] (Next) IG 레퍼런스 딥리서치(한국 공구 90%/정보 10%, 로로뷰티 톤) → 템플릿/블록 200~300 조합 확장
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 22% (87k/400k) — compaction 4회 (리셋됨)
+- Context: 34% (137k/400k) — compaction 4회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
