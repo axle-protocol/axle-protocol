@@ -1269,13 +1269,26 @@ const server = http.createServer(async (req, res) => {
 
       const origName = String(filePart.filename || '').toLowerCase();
       const ext = (origName.match(/\.(webp|png|jpe?g)$/)?.[0]) || '.jpg';
-      const outName = `product${ext}`;
+      let outName = `product${ext}`;
       // cleanup old variants
       for (const fn of ['product.webp','product.png','product.jpg','product.jpeg']) {
         try { if (existsSync(path.join(outDir, fn))) unlinkSync(path.join(outDir, fn)); } catch {}
       }
       const outPath = path.join(outDir, outName);
       writeFileSync(outPath, filePart.data);
+
+      // webp sometimes fails to render as file:// background-image in headless screenshot; convert to png for stability
+      if (ext === '.webp') {
+        try {
+          const pngPath = path.join(outDir, 'product.png');
+          const py = `from PIL import Image\nimg=Image.open(r'''${outPath}''')\nimg.save(r'''${pngPath}''', format='PNG')\nprint('ok')`;
+          const conv = spawnSync('python3', ['-c', py], { encoding: 'utf8' });
+          if (conv.status === 0 && existsSync(pngPath)) {
+            try { unlinkSync(outPath); } catch {}
+            outName = 'product.png';
+          }
+        } catch {}
+      }
 
       posts.posts[idx].assets = posts.posts[idx].assets || {};
       posts.posts[idx].assets.productImage = { filename: outName, uploadedAt: new Date().toISOString() };
