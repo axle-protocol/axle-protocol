@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 17:25 KST
+# DASHBOARD.md — 2026-02-14 17:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -54,8 +54,11 @@
   - atomic JSON write(tmp→rename) + backups/ (7일 정리)
   - audit JSONL(data/audit.jsonl) + vendor 주요 액션 로깅
   - 커밋: `b0b4e4c`
-- [ ] (Next) 주문 엑셀 업로드(+비번 입력) → 복호화/파싱 → orders 저장(실데이터)
-- [ ] (Next) 주문 업로드 시 상품번호 기반 자동 할당 + 미매핑 목록(관리자에서 즉시 매핑)
+- [x] (Admin) 주문 엑셀 업로드(+비번 입력) → 복호화/파싱 → orders.json 저장
+  - 업로드: /admin (multipart 업로드)
+  - API: `POST /api/admin/orders_xlsx_import`
+  - 커밋: `7eafa3c`
+- [x] (Import) 주문 업로드 시 상품번호 기반 vendor 자동 할당 + 미분류 카운트 제공
 - [ ] (Next) 관리자 승인 + 발송처리 업로드 엑셀(4열) 생성(+분할)
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
@@ -63,5 +66,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 63% (252k/400k) — compaction 2회
+- Context: 17% (69k/400k) — compaction 4회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
