@@ -1,0 +1,73 @@
+{
+  "items": [
+    {
+      "id": "demo-ig-1",
+      "type": "instagram_post_draft",
+      "state": "approved",
+      "priority": 1,
+      "created_at": "2026-02-14T12:45:00+09:00",
+      "updated_at": "2026-02-14T04:04:28.430Z",
+      "approved_at": "2026-02-14T04:04:28.430Z",
+      "approved_by": "owner",
+      "executed_at": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "error_message": null,
+      "error_code": null,
+      "screenshot_path": null,
+      "execution_log": [
+        {
+          "ts": "2026-02-14T04:04:28.430Z",
+          "step": "state_change",
+          "status": "ok",
+          "message": "owner: approved",
+          "action": "approve"
+        }
+      ],
+      "tags": [
+        "demo"
+      ],
+      "source_account": "instagram:@myshop_official",
+      "payload": {
+        "account_username": "myshop_official",
+        "media_type": "carousel",
+        "media_urls": [],
+        "caption": "[데모] 오늘의 신상 입고!\n봄 시즌 컬렉션 확인해보세요.\n#뷰티 #신상 #데일리\n",
+        "ai_generated": true,
+        "scheduled_time": null
+      }
+    },
+    {
+      "id": "demo-ss-1",
+      "type": "smartstore_orders_export",
+      "state": "pending",
+      "priority": 1,
+      "created_at": "2026-02-14T12:46:00+09:00",
+      "updated_at": "2026-02-14T12:46:00+09:00",
+      "approved_at": null,
+      "approved_by": null,
+      "executed_at": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "error_message": null,
+      "error_code": null,
+      "screenshot_path": null,
+      "execution_log": [],
+      "tags": [
+        "demo"
+      ],
+      "source_account": "smartstore:store-1",
+      "payload": {
+        "store_id": "store-1",
+        "store_name": "내스토어",
+        "order_status_filter": "new_order",
+        "date_range_start": "2026-02-13",
+        "date_range_end": "2026-02-14",
+        "expected_order_count": 12,
+        "download_format": "xlsx",
+        "output_path": "/workspace/automation/data/orders/2026-02-14.xlsx",
+        "post_action": "none"
+      }
+    }
+  ]
+}

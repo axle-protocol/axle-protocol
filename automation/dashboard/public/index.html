@@ -25,26 +25,19 @@
       </div>
 
       <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-        <div class="text-sm text-zinc-400">오늘 승인 대기</div>
-        <div class="mt-2 grid gap-3">
-          <div class="rounded-lg border border-zinc-800 p-3">
-            <div class="text-sm font-medium">인스타 게시물 #1</div>
-            <div class="text-xs text-zinc-400 mt-1">(placeholder) 이미지/캡션/해시태그</div>
-            <div class="mt-3 flex gap-2">
-              <button class="flex-1 rounded-lg bg-emerald-400 text-zinc-950 py-2 text-sm font-semibold">승인</button>
-              <button class="flex-1 rounded-lg bg-zinc-800 py-2 text-sm font-medium">보류</button>
-            </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-zinc-400">승인 대기 / 인증 필요</div>
+            <div class="text-xs text-zinc-500">needs_auth는 최상단 고정 · pending만 승인/보류 가능</div>
           </div>
-
-          <div class="rounded-lg border border-zinc-800 p-3">
-            <div class="text-sm font-medium">스마트스토어 송장 입력</div>
-            <div class="text-xs text-zinc-400 mt-1">(placeholder) 매칭 결과 미리보기</div>
-            <div class="mt-3 flex gap-2">
-              <button class="flex-1 rounded-lg bg-emerald-400 text-zinc-950 py-2 text-sm font-semibold">승인</button>
-              <button class="flex-1 rounded-lg bg-zinc-800 py-2 text-sm font-medium">보류</button>
-            </div>
-          </div>
+          <div class="text-xs text-zinc-400" id="counts">-</div>
         </div>
+
+        <div class="mt-3 flex gap-2">
+          <input id="search" placeholder="검색 (주문번호/계정/문구)" class="w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm outline-none" />
+        </div>
+
+        <div id="queue" class="mt-3 grid gap-3"></div>
       </div>
 
       <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">

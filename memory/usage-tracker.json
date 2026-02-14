@@ -1,8 +1,8 @@
 {
-  "lastCheck": "2026-02-14T12:42:20+09:00",
+  "lastCheck": "2026-02-14T12:57:20+09:00",
   "lastThreshold": 60,
   "model": "openai-codex/gpt-5.2",
-  "contextUsed": "55k/400k",
-  "percentage": 14,
-  "remainingEstimate": "~86% context remaining"
+  "contextUsed": "76k/400k",
+  "percentage": 19,
+  "remainingEstimate": "~81% context remaining"
 }
