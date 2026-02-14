@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 01:55 KST
+# DASHBOARD.md — 2026-02-15 02:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -44,7 +44,7 @@
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
-  - PID: 40690 (latest)
+  - PID: 54766 (latest)
   - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
@@ -75,9 +75,12 @@
 - [x] (IG) 인스타 세미 자동화: 브랜드가이드 + 생성기 + 검증기 + 큐/스케줄러
   - UI: `/admin/instagram`
   - 커밋: `bb1cb6c`
-- [x] (IG) 카드뉴스 이미지 생성(3~5장) 확장 작업용 Claude Code(Opus) 프롬프트 작성
-  - 문서: `automation/dashboard/docs/claude-code-opus-ig-cardnews-imagegen-prompt.md`
-  - 커밋: `e1a3992`
+- [x] (IG) 카드뉴스 이미지 생성 + zip 패키지(Playwright) + 캡션 블록 조합
+  - 커밋: `8535f6f`
+- [x] (IG) 상품 이미지 업로드 → 1페이지(HOOK) 삽입(A)
+  - 커밋: `c0d2df6`
+- [x] (IG) 업로드 UX 안정화 + webp/png 지원 + Playwright closed 재시도
+  - 커밋: `cd4be2f` + `697c53f` + `7c454bc`
 - [x] (Admin) 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
   - 커밋: `8825f5a`
 - [x] (External access MVP) Cloudflare Quick Tunnel로 외부 접속 링크 발급 (실험용)
@@ -91,12 +94,14 @@
   - 커밋: `f520da9`
 - [ ] (Next) 운영용 Cloudflare Named Tunnel + 고정 도메인 + 접근제어
 - [ ] (Next) 관리자 승인(락) (업로드/수정 방지용)
-- [ ] (Next) IG 레퍼런스 딥리서치(한국 공구 90%/정보 10%, 로로뷰티 톤) → 템플릿/블록 200~300 조합 확장
+- [x] (IG) Opus 프롬프트 v2 전환 최적화 요구사항 추가 (세트/슬라이드 선택, price stack, brand mini-kit)
+  - 커밋: `da54621`
+- [ ] (Next) IG: 판매형 template set(7장) + 슬라이드 선택/재정렬 + price stack 컴포넌트
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 37% (149k/400k) — compaction 6회 (리셋됨)
+- Context: 59% (237k/400k) — compaction 0회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
