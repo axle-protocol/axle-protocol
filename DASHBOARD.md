@@ -1,79 +1,65 @@
-# DASHBOARD.md — 2026-02-14 12:12 KST
+# DASHBOARD.md — 2026-02-14 12:42 KST
 
 ## 🎯 현재 프로젝트
 
-### BTS 티켓팅 매크로 (Interpark / NOL)
+### 스마트스토어 자동화 (1순위)
 
-**현상 요약**
-- `tickets.interpark.com/goods/...` URL로 바로 진입하면 종종 `https://nol.interpark.com/ticket` (대기/허브)로 리다이렉트되어 **goods 페이지의 “예매하기” 버튼을 못 찾는 케이스** 발생
-- Turnstile(Cloudflare) 캡챠는 자동 클릭만으로는 불안정 → **사람이 미리 통과**하는 전략이 가장 안정
+**목표 (MVP)**
+- 신규 주문 탐지 → 주문 목록 엑셀 다운로드 저장 → (외부에서 받은) 한진 송장 엑셀 업로드 → 매칭/미리보기 → 승인 후 스마트스토어에 송장 일괄 입력
 
-**현재 전략(실전형)**
-- Han이 오픈 전:
-  - NOL에서 공연 페이지까지 **수동으로 진입 + 로그인/Turnstile 해결**
-  - “예매하기” 버튼 보이는 화면에서 대기
-- 매크로는 오픈 직후:
-  - 예매하기 → 팝업/iframe 전환 → 좌석 선택 → 다음 단계까지 자동화
-  - 결제 자동화는 기본 OFF 유지(리스크/실수 방지)
+**운영 원칙 (리스크 최소화)**
+- 로그인 세션(storage state) 유지 기반 자동화
+- 2FA/추가인증이 뜨면 자동화는 멈추고 “인증 필요” 상태로 전환 → Han이 CRD로 30초 처리
+- 송장 입력은 피해가 크므로: 미리보기 + 승인 게이트 필수
 
-**코드 상태 (최근 반영)**
-- CapSolver: `--capsolver` **옵션일 때만** 사용 (기본 수동)
-- 안전장치:
-  - `--stop-after (login|concert|booking|queue|seats)` 단계별 리허설
-  - dry-run(결제 스킵) 기본값 ON
-- 오픈타임 안정화 패치(핵심):
-  - 팝업/새탭 예매 진입 시 `self.page`도 같이 교체 (downstream가 원탭을 보던 P0 수정)
-  - seat/book iframe을 FrameLocator가 아닌 **실제 Frame**으로 탐색/반환
-  - 좌표 클릭은 `page.mouse.click()`로 absolute 좌표 사용(미스클릭 감소)
-  - Next 버튼을 `ifrmBookStep` → page 순으로 탐색
-- 리소스 차단 수정:
-  - first-party(interpark/nol/interparkcdn/ticketimage) 허용
-  - 3rd-party 이미지/폰트만 차단 (svg 제외)
-- goods 진입 불안정 대응:
-  - goods → nol 허브 후속 리다이렉트 감지 시 **검색 우회**
-  - query 없으면 goodsCode로 검색어 폴백
-  - 검색 아이콘(실제 링크: `/contents/search`) 클릭 → input 찾기/입력
-- 디버그 덤프: `/tmp/bts-debug/<timestamp>_<reason>/`
+**현재 상태**
+- 대시보드(승인 UI) MVP 골격 생성 완료 (Basic Auth)
+- 엑셀 포맷/샘플은 추후 확보 후 매칭 로직 구현 예정
 
-**현재 블로커 / 리스크**
-- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인
-- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state 만료/세션 끊김 케이스
-  - 해결 전략(실전): **오픈 전 사람이 로그인/Turnstile 통과** + 예매하기 버튼 화면에서 대기(세션 유지)
-  - 코드 측면: 야놀자 리다이렉트 감지/재로그인 핸들러는 있음(하지만 Turnstile이 변수)
-- ⚠️ 자동 Turnstile 클릭만으로는 불안정 → 기본 전략은 수동, CapSolver는 opt-in
-- `browser.act` 기반 자동화는 act 타임아웃/불안정 → Playwright 런 기반 유지
+### 인스타그램 마케팅 자동화 (1순위)
 
-### AXLE Protocol (Colosseum)
-- ✅ Colosseum 필수 필드 완료 (상금 수령 자격 OK)
-- ⏸️ 포럼 모니터링: **BTS 티켓팅 집중 요청으로 일시 중지**
+**목표 (MVP)**
+- 제품 실사 이미지 기반: 한국 인플루언서 스타일(공식 브랜드 톤)로
+  - 캡션/해시태그/댓글 유도 문장 생성
+  - 하루 2~3회 게시물 초안 생성 → 대시보드에서 승인 → 브라우저 자동화로 업로드
+
+**운영 원칙 (계정 안전)**
+- 댓글/DM은 초안 생성까지만 자동, 전송은 승인 후
+- 야간 자동 전송 금지(아침에 리포트로 묶음 제공)
+- API 직접 연동보다는 “맥 미니 브라우저 자동화 + 속도 제한” 우선
+
+**현재 상태**
+- 시작은 인스타 웹 MVP로(세팅 최소) → 추후 프로페셔널 전환/Meta Business Suite로 업그레이드 가능
+
+---
+
+### (보류) BTS 티켓팅 / AXLE
+- Han 요청으로 잠시 보류
+- 관련 컨텍스트/코드는 유지
 
 ---
 
 ## 📋 Han 할 일
-- [ ] BTS 티켓팅 운영 방식 확정: **오픈 전 수동 진입 + 오픈 후 자동화**로 진행
-- [ ] (Colosseum) Human Claim 완료 확인 (클레임 안 하면 상금 대상 제외 리스크)
-- [ ] X OAuth 1.0a 설정 (자동 트윗용)
-- [ ] (BTS) 오픈 전 수동 준비: 로그인/Turnstile 통과 + 예매하기 버튼 화면에서 대기(세션 유지)
+- [ ] (Opus) 스마트스토어 PRD/실패케이스/승인UX 명세 프롬프트 실행 → 결과를 Clo에게 전달
+- [ ] (Opus) 인스타 콘텐츠 템플릿/톤/금지표현/벤치마크 항목 프롬프트 실행 → 결과를 Clo에게 전달
+- [ ] (선택) 인스타 계정 프로페셔널(크리에이터/비즈니스) 전환 여부 결정 (MVP 이후)
+- [ ] 스마트스토어 주문 엑셀/한진 송장 엑셀 **샘플 1개(개인정보 마스킹)** 제공 (Phase2 매칭 로직용)
 
 ## 🐾 Clo 작업현황
-- [x] BTS 코드: CapSolver opt-in + 성능/안티봇/관측 리팩터링 커밋 완료
-- [x] BTS 런북: `bts-ticketing/RUNBOOK_OPEN_TIME.md`
-- [x] BTS 안전장치: `--stop-after` + dry-run(결제 스킵 기본) 추가
-- [x] BTS P0 패치 적용 완료 (팝업 tab/page 일관성 + real Frame + absolute 좌표 클릭 + Next in book frame)
-- [x] BTS: NOL 검색 fallback이 엉뚱한 goods 클릭하던 문제 개선(검색 결과 goodsCode 매칭)
-- [x] BTS: 대기열 중 active page 갱신 + 야놀자 리다이렉트 감지/처리
-- [x] BTS: booking 팝업 레이스에서 context.on('page') 리스너 누적 방지(P0-4)
-- [x] BTS: 야놀자 리다이렉트 수동-resume + storage_state 저장 강화(P0-5)
-- [x] (Infra) Chrome Remote Desktop 접속 불가 이슈: **호스트 서비스 재기동으로 복구** (밖에서 접속 성공 확인)
+- [x] (Infra) Chrome Remote Desktop 접속 불가 이슈: 호스트 서비스 재기동으로 복구 (밖에서 접속 성공 확인)
 - [x] (Dev) Codex CLI + Claude Code CLI 설치/버전 확인 완료 (`codex 0.98.0`, `claude 2.1.42`)
-- [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
-  - step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고
-- [ ] (초안 준비) X 댓글/메인 트윗 — Han OK 필요
-- [ ] (일시중지) Colosseum 댓글 작업
+- [x] (MVP) 모바일 우선 **자동화 승인 대시보드 골격** 생성 (Basic Auth)
+  - 경로: `automation/dashboard/`
+  - 실행: `DASHBOARD_PASSWORD=... node automation/dashboard/server.mjs`
+  - 커밋: `c502734`
+- [ ] 스마트스토어: 주문 탐지/엑셀 다운로드 자동화 설계 + 큐 스키마 정의
+- [ ] 스마트스토어: 송장 엑셀 매칭/미리보기/승인/일괄 입력 구현 (샘플 받으면 착수)
+- [ ] 인스타: 콘텐츠 초안 생성 파이프라인(이미지 꾸미기 옵션 포함) + 승인→업로드(브라우저) 플로우 구현
+- [ ] 대시보드: 승인/보류 상태 저장(초기 JSON→SQLite), 실행 로그/스크린샷 뷰 추가
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 7% (27k/400k)
+- Context: 14% (55k/400k)
 - Usage: (see memory/usage-tracker.json)
