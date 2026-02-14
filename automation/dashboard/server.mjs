@@ -182,6 +182,7 @@ function setCookie(res, name, value, opts = {}) {
 
 const vendorsPath = path.join(dataDir, 'vendors.json');
 const vendorSessionsPath = path.join(dataDir, 'vendor_sessions.json');
+const ownerSessionsPath = path.join(dataDir, 'owner_sessions.json');
 const ordersPath = path.join(dataDir, 'orders.json');
 const productsPath = path.join(dataDir, 'products.json');
 const scriptsDir = path.join(__dirname, 'scripts');
@@ -657,10 +658,39 @@ function serveStatic(res, urlPathname) {
   return true;
 }
 
+function loadOwnerSessions() {
+  ensureDataDir();
+  return loadJson(ownerSessionsPath, { sessions: [] });
+}
+
+function saveOwnerSessions(db) {
+  saveJson(ownerSessionsPath, db);
+}
+
+function getOwnerFromSession(req) {
+  const cookies = parseCookies(req);
+  const token = cookies.owner_session;
+  if (!token) return null;
+  const db = loadOwnerSessions();
+  const s = (db.sessions || []).find((x) => x.token === token);
+  if (!s) return null;
+  return { username: OWNER_USERNAME, token };
+}
+
+function checkOwnerAuth(req) {
+  if (checkOwnerBasicAuth(req)) return true;
+  return !!getOwnerFromSession(req);
+}
+
 function shouldRequireOwnerAuth(url) {
   // Vendor portal uses its own session auth.
   if (url.pathname.startsWith('/vendor')) return false;
   if (url.pathname.startsWith('/api/vendor')) return false;
+
+  // Owner session bootstrap endpoints/pages
+  if (url.pathname === '/admin/login') return false;
+  if (url.pathname === '/api/owner/login') return false;
+
   // Everything else is owner dashboard for now.
   return true;
 }
@@ -668,9 +698,9 @@ function shouldRequireOwnerAuth(url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
-  // Owner auth (basic) for non-vendor routes
+  // Owner auth for non-vendor routes (basic OR cookie session)
   if (shouldRequireOwnerAuth(url)) {
-    if (!checkOwnerBasicAuth(req)) return unauthorizedBasic(res);
+    if (!checkOwnerAuth(req)) return unauthorizedBasic(res);
   }
 
   // -------------------------
@@ -701,6 +731,37 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     return serveStatic(res, '/vendor/orders.html');
+  }
+
+  // -------------------------
+  // Owner login (cookie-based; avoids BasicAuth-in-URL fetch restrictions)
+  // -------------------------
+  if (url.pathname === '/admin/login') {
+    return serveStatic(res, '/admin/login.html');
+  }
+
+  if (url.pathname === '/api/owner/login' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const user = String(body?.username || OWNER_USERNAME);
+    const pass = String(body?.password || '');
+    if (user !== OWNER_USERNAME || pass !== OWNER_PASSWORD) {
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGIN_FAILED', ip: getClientIp(req) });
+      return sendJson(res, 401, { ok: false, error: 'bad_credentials' });
+    }
+
+    const token = crypto.randomUUID();
+    const db = loadOwnerSessions();
+    const now = new Date().toISOString();
+    db.sessions = (db.sessions || []).concat({ token, createdAt: now, lastSeenAt: now });
+    // keep last 200 sessions
+    if (db.sessions.length > 200) db.sessions = db.sessions.slice(db.sessions.length - 200);
+    saveOwnerSessions(db);
+
+    const isHttps = String(req.headers['x-forwarded-proto'] || '').includes('https');
+    setCookie(res, 'owner_session', token, { httpOnly: true, sameSite: 'Lax', path: '/', secure: isHttps, maxAge: 60 * 60 * 24 * 30 });
+
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGGED_IN', ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true });
   }
 
   // -------------------------
