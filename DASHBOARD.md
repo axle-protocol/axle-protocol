@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 00:38 KST
+# DASHBOARD.md — 2026-02-14 12:12 KST
 
 ## 🎯 현재 프로젝트
 
@@ -36,8 +36,8 @@
 - 디버그 덤프: `/tmp/bts-debug/<timestamp>_<reason>/`
 
 **현재 블로커 / 리스크**
-- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인 (search가 실제로 `/contents/search`로 이동 후 input 입력)
-- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state가 만료/세션 끊김 케이스.
+- ✅ concert(goods) 진입은 “허브 리다이렉트 + 검색 우회”로 복구 성공 확인
+- ⚠️ 예매하기 클릭 후 종종 **야놀자 로그인으로 리다이렉트** 발생 → storage state 만료/세션 끊김 케이스
   - 해결 전략(실전): **오픈 전 사람이 로그인/Turnstile 통과** + 예매하기 버튼 화면에서 대기(세션 유지)
   - 코드 측면: 야놀자 리다이렉트 감지/재로그인 핸들러는 있음(하지만 Turnstile이 변수)
 - ⚠️ 자동 Turnstile 클릭만으로는 불안정 → 기본 전략은 수동, CapSolver는 opt-in
@@ -46,7 +46,6 @@
 ### AXLE Protocol (Colosseum)
 - ✅ Colosseum 필수 필드 완료 (상금 수령 자격 OK)
 - ⏸️ 포럼 모니터링: **BTS 티켓팅 집중 요청으로 일시 중지**
-  - (필요 시) 다시 10분 주기로 재개
 
 ---
 
@@ -57,7 +56,6 @@
 - [ ] (BTS) 오픈 전 수동 준비: 로그인/Turnstile 통과 + 예매하기 버튼 화면에서 대기(세션 유지)
 
 ## 🐾 Clo 작업현황
-- [x] 메모리 검색: local 고정( OpenAI billing 이슈 회피 )
 - [x] BTS 코드: CapSolver opt-in + 성능/안티봇/관측 리팩터링 커밋 완료
 - [x] BTS 런북: `bts-ticketing/RUNBOOK_OPEN_TIME.md`
 - [x] BTS 안전장치: `--stop-after` + dry-run(결제 스킵 기본) 추가
@@ -66,20 +64,16 @@
 - [x] BTS: 대기열 중 active page 갱신 + 야놀자 리다이렉트 감지/처리
 - [x] BTS: booking 팝업 레이스에서 context.on('page') 리스너 누적 방지(P0-4)
 - [x] BTS: 야놀자 리다이렉트 수동-resume + storage_state 저장 강화(P0-5)
+- [x] (Infra) Chrome Remote Desktop 접속 불가 이슈: **호스트 서비스 재기동으로 복구** (밖에서 접속 성공 확인)
+- [x] (Dev) Codex CLI + Claude Code CLI 설치/버전 확인 완료 (`codex 0.98.0`, `claude 2.1.42`)
 - [ ] BTS: `--stop-after booking/seats` 리허설로 “야놀자 리다이렉트 없이 좌석까지” 성공률 끌어올리기
-  - 현재 상태: A 전략 고정(수동 pre-nav) + step1 booking direct URL 지원.
-  - 관측: motickets `/step1?z=...` 링크로 **direct booking→queue→seats(1석) 성공**, 2석은 가용좌석 1개면 실패.
-  - 신규 기능: `--allow-partial` (2석 목표라도 1석 확보 시 다음 단계로 진행)
-  - 상태: Han이 말한대로 step1 링크가 없으면 E2E(확정 구간) 검증 불가 → 링크 대기 중.
-  - 다음 액션: step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고.
-- [ ] (대기) step1 링크 들어오면 확정구간 E2E 검증
+  - step1 링크 들어오는 즉시 `--seats 2 --allow-partial`로 “확정 구간” 진입 검증 + 결과 보고
 - [ ] (초안 준비) X 댓글/메인 트윗 — Han OK 필요
-- [ ] (요청) Han: "모든 프로젝트 싹다 닫아" (앱/프로세스 종료 범위 확인 필요)
 - [ ] (일시중지) Colosseum 댓글 작업
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 23% (91k/400k)  # compaction 후 리셋됨
-- Usage: (see usage-tracker)
+- Context: 7% (27k/400k)
+- Usage: (see memory/usage-tracker.json)
