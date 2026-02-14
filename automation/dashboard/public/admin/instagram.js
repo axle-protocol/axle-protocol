@@ -273,10 +273,20 @@
       const imgStatus = p.imageStatus || 'none';
 
       // Product image upload (HOOK hero)
+      const hasProd = !!p.assets?.productImage;
+      const prodBadge = hasProd
+        ? `<span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">업로드됨</span>`
+        : `<span class="text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-300">없음</span>`;
+      const uploadedAt = hasProd ? (p.assets.productImage.uploadedAt || '') : '';
+
       parts.push(`
         <div class="mt-2 rounded-lg border border-zinc-800 bg-zinc-950/10 p-2">
-          <div class="text-xs text-zinc-500 mb-1">상품 이미지(1페이지)</div>
-          <div class="flex gap-2 items-center flex-wrap">
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-xs text-zinc-500">상품 이미지(1페이지)</div>
+            ${prodBadge}
+          </div>
+          ${uploadedAt ? `<div class="mt-1 text-[11px] text-zinc-500">업로드 시각: ${escapeHtml(uploadedAt)}</div>` : ''}
+          <div class="mt-2 flex gap-2 items-center flex-wrap">
             <input type="file" accept="image/*" class="prod-img-file text-xs" data-prod-file="${p.id}" />
             <button class="prod-img-upload rounded-lg bg-zinc-800 px-3 py-1.5 text-xs hover:bg-zinc-700" data-prod-upload="${p.id}">업로드</button>
             <a class="text-xs text-zinc-400 underline" href="/api/admin/ig/posts/${p.id}/product_image" target="_blank">현재 이미지 보기</a>
@@ -382,8 +392,11 @@
           const res = await fetch(`/api/admin/ig/posts/${encodeURIComponent(postId)}/product_image`, { method: 'POST', body: fd });
           const j = await res.json().catch(() => ({}));
           if (!res.ok || !j.ok) throw new Error(j.error || res.status);
-          btn.textContent = '업로드 완료';
-          setTimeout(() => { btn.textContent = '업로드'; btn.disabled = false; }, 800);
+          // 재렌더되면 버튼 텍스트는 원래대로 돌아가므로, 성공은 alert + 배지로 표시
+          await loadQueue();
+          alert('업로드 완료');
+          btn.disabled = false;
+          btn.textContent = '업로드';
         } catch (e) {
           alert('업로드 실패: ' + e.message);
           btn.disabled = false;
