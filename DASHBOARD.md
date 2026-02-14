@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 22:25 KST
+# DASHBOARD.md — 2026-02-14 22:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -42,7 +42,7 @@
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
-  - PID: 34952 (latest)
+  - PID: 37663 (latest)
   - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
@@ -50,7 +50,9 @@
 - [x] (Vendor Portal MVP) 사장님 포털 “실동작 버전” 구현 완료
   - 로그인(세션), 내 주문(주소/전화), 송장 입력(검증/정규화), 사장님용 주문 엑셀(xlsx) 다운로드
   - tracking 필드 호환/정규화 fix + 미처리 배지/미처리 우선 정렬
-  - 커밋: `3791715` + `5cb17b3` + `8304ed4`
+  - 배송정보 크게 표시 + 복사 버튼(이름/전화/주소/주문번호)
+  - undefined 노출 방지(구형/누락 필드 fallback)
+  - 커밋: `3791715` + `5cb17b3` + `8304ed4` + `65f8741` + `6027709` + `1dbe27c`
 - [x] (Admin Setup MVP) 관리자 셋업 화면 추가
   - `/admin`: 사장님 생성, 상품 CSV 업로드(상품번호/상품명), 사장님↔상품 매핑(체크박스+검색)
   - 주문 엑셀 업로드 + 발송처리 엑셀 다운로드 버튼 + 미분류 주문 빠른 매핑 포함
@@ -76,6 +78,11 @@
   - 커밋: `e1a3992`
 - [x] (Admin) 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
   - 커밋: `8825f5a`
+- [x] (External access MVP) Cloudflare Quick Tunnel로 외부 접속 링크 발급 (실험용)
+  - Vendor/Admin 동일 호스트에서 동작
+  - 주의: trycloudflare는 끊길 수 있음 → 운영은 Named Tunnel로 전환 필요
+  - 관련 문서: automation/dashboard/docs/cloudflare-tunnel.md
+- [ ] (Next) 운영용 Cloudflare Named Tunnel + 고정 도메인 + 접근제어
 - [ ] (Next) 관리자 승인(락) (업로드/수정 방지용)
 - [ ] (Next) IG 레퍼런스 딥리서치(한국 공구 90%/정보 10%, 로로뷰티 톤) → 템플릿/블록 200~300 조합 확장
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
@@ -84,5 +91,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 58% (231k/400k) — compaction 4회 (리셋됨)
+- Context: 17% (69k/400k) — compaction 6회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
