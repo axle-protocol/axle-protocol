@@ -38,15 +38,20 @@ function orderCard(o) {
   const tracking = o.trackingNumber || '';
   const pending = !String(tracking || '').trim();
 
-  const recipientName = o.recipientName || '-';
-  const recipientPhone = o.recipientPhone || '-';
-  const recipientAddress = o.recipientAddress || '-';
+  const productName = (o.productName || o.product_name || '').trim();
+  const optionInfo = (o.optionInfo || o.option_info || '').trim();
+  const qty = Number(o.qty ?? o.quantity ?? 0);
+  const productOrderNo = String(o.productOrderNo || o.product_order_no || o.id || '').trim();
+
+  const recipientName = (o.recipientName || o.recipient_name || '').trim() || '-';
+  const recipientPhone = (o.recipientPhone || o.recipient_phone || '').trim() || '-';
+  const recipientAddress = (o.recipientAddress || o.recipient_address || '').trim() || '-';
 
   return `
   <div class="rounded-lg border ${pending ? 'border-amber-400/60 bg-amber-400/5' : 'border-zinc-800'} p-3" data-id="${escapeHtml(o.id)}">
-    <div class="text-base font-semibold">${escapeHtml(o.productName || '-')}</div>
-    <div class="text-sm text-zinc-300 mt-1">수량 <span class="font-semibold">${escapeHtml(o.qty || 0)}</span></div>
-    <div class="text-xs text-zinc-500 mt-1">옵션: ${escapeHtml(o.optionInfo || '-') }</div>
+    <div class="text-base font-semibold">${escapeHtml(productName || '-')}</div>
+    <div class="text-sm text-zinc-300 mt-1">수량 <span class="font-semibold">${escapeHtml(qty || 0)}</span></div>
+    <div class="text-xs text-zinc-500 mt-1">옵션: ${escapeHtml(optionInfo || '-') }</div>
 
     <div class="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/30 p-3">
       <div class="text-xs text-zinc-500">배송정보 (마스킹 없음)</div>
@@ -55,7 +60,7 @@ function orderCard(o) {
       <div class="mt-2 text-sm text-zinc-100 break-words whitespace-pre-wrap" data-address>${escapeHtml(recipientAddress)}</div>
 
       <div class="mt-2 text-xs text-zinc-500">상품주문번호</div>
-      <div class="text-sm font-mono text-zinc-200" data-pon>${escapeHtml(o.productOrderNo)}</div>
+      <div class="text-sm font-mono text-zinc-200" data-pon>${escapeHtml(productOrderNo || '-')}</div>
 
       <div class="mt-3 flex gap-2">
         <button class="flex-1 rounded-lg bg-zinc-800 px-3 py-2 text-sm" data-copy="phone">전화 복사</button>
