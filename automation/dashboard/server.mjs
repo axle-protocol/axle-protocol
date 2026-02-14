@@ -955,14 +955,20 @@ async function generateCardImages(post, variant, options = {}) {
   const outDir = path.join(dataDir, 'ig_assets', post.id);
   mkdirSync(outDir, { recursive: true });
 
-  // Optional product hero image (uploaded by owner)
-  const productCandidates = ['product.webp', 'product.png', 'product.jpg', 'product.jpeg'];
+  // Optional product hero image (uploaded by owner) — embed as data URI (more reliable than file:// in setContent)
+  const productCandidates = ['product.png', 'product.jpg', 'product.jpeg', 'product.webp'];
   let productImagePath = '';
   for (const fn of productCandidates) {
     const p = path.join(outDir, fn);
     if (existsSync(p)) { productImagePath = p; break; }
   }
-  const productImageUrl = productImagePath ? `file://${productImagePath}` : '';
+  let productImageBg = 'none';
+  if (productImagePath) {
+    const ext = path.extname(productImagePath).toLowerCase();
+    const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    const b64 = readFileSync(productImagePath).toString('base64');
+    productImageBg = `url('data:${mime};base64,${b64}')`;
+  }
 
   const aiBgPath = await generateAiBackground(palette, post.productName, outDir);
   const background = resolveBackground(palette, aiBgPath);
@@ -996,7 +1002,7 @@ async function generateCardImages(post, variant, options = {}) {
         .replace(/\{\{COLOR_TEXT\}\}/g, palette.text)
         .replace(/\{\{COLOR_ACCENT\}\}/g, palette.accent)
         .replace(/\{\{COLOR_HIGHLIGHT\}\}/g, palette.highlight)
-        .replace(/\{\{PRODUCT_IMAGE_URL\}\}/g, productImageUrl);
+        .replace(/\{\{PRODUCT_IMAGE_BG\}\}/g, productImageBg);
 
       // Replace content placeholders
       for (const [key, val] of Object.entries(pg)) {
