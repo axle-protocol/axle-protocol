@@ -36,9 +36,10 @@ async function postJson(path, body) {
 function orderCard(o) {
   const carrier = o.carrier || 'hanjin';
   const tracking = o.trackingNumber || '';
+  const pending = !String(tracking || '').trim();
 
   return `
-  <div class="rounded-lg border border-zinc-800 p-3" data-id="${escapeHtml(o.id)}">
+  <div class="rounded-lg border ${pending ? 'border-amber-400/60 bg-amber-400/5' : 'border-zinc-800'} p-3" data-id="${escapeHtml(o.id)}">
     <div class="text-sm font-medium">${escapeHtml(o.productName || '-')}</div>
     <div class="text-xs text-zinc-400 mt-1">옵션: ${escapeHtml(o.optionInfo || '-') } · 수량: ${escapeHtml(o.qty || 0)}</div>
 
@@ -55,7 +56,7 @@ function orderCard(o) {
       </select>
       <input class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" data-tracking value="${escapeHtml(tracking)}" placeholder="송장번호" />
     </div>
-    <button class="mt-2 w-full rounded-lg bg-emerald-400 text-zinc-950 py-2 text-sm font-semibold" data-save>저장</button>
+    <button class="mt-2 w-full rounded-lg bg-emerald-400 text-zinc-950 py-2 text-sm font-semibold" data-save>${pending ? '송장 저장(미처리)' : '송장 수정 저장'}</button>
     <div class="mt-2 text-xs" data-msg></div>
   </div>`;
 }
@@ -68,9 +69,22 @@ async function render() {
   const wrap = document.getElementById('orders');
   const orders = list.orders || [];
   if (!orders.length) {
+    document.getElementById('pendingCount').textContent = '0';
     wrap.innerHTML = '<div class="text-sm text-zinc-500">주문 없음</div>';
     return;
   }
+
+  const isPending = (o) => !String(o.trackingNumber || '').trim();
+  const pending = orders.filter(isPending);
+  document.getElementById('pendingCount').textContent = String(pending.length);
+
+  // 미처리 먼저, 그 다음 최신순
+  orders.sort((a, b) => {
+    const ap = isPending(a) ? 0 : 1;
+    const bp = isPending(b) ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
 
   wrap.innerHTML = orders.map(orderCard).join('');
 
