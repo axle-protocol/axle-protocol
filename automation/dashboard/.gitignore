@@ -1,0 +1,8 @@
+# Local runtime data
+/data/vendor_sessions.json
+/data/orders.json
+/data/mapping.json
+/data/products.json
+
+# (optional) treat vendors.json as local if you don't want demo creds in git
+# /data/vendors.json

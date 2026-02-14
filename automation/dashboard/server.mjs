@@ -130,6 +130,8 @@ function setCookie(res, name, value, opts = {}) {
 const vendorsPath = path.join(dataDir, 'vendors.json');
 const vendorSessionsPath = path.join(dataDir, 'vendor_sessions.json');
 const ordersPath = path.join(dataDir, 'orders.json');
+const productsPath = path.join(dataDir, 'products.json');
+const mappingPath = path.join(dataDir, 'mapping.json');
 
 function pbkdf2Hash(password, saltHex) {
   const salt = Buffer.from(saltHex, 'hex');
@@ -217,6 +219,22 @@ function loadOrders() {
 
 function saveOrders(data) {
   saveJson(ordersPath, data);
+}
+
+function loadProducts() {
+  return loadJson(productsPath, { products: [] });
+}
+
+function saveProducts(data) {
+  saveJson(productsPath, data);
+}
+
+function loadMapping() {
+  return loadJson(mappingPath, { mapping: [] });
+}
+
+function saveMapping(data) {
+  saveJson(mappingPath, data);
 }
 
 // -------------------------
@@ -336,6 +354,157 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     return serveStatic(res, '/vendor/orders.html');
+  }
+
+  // -------------------------
+  // Admin pages
+  // -------------------------
+  if (url.pathname === '/admin' || url.pathname === '/admin/') {
+    return serveStatic(res, '/admin/index.html');
+  }
+
+  // -------------------------
+  // Admin APIs
+  // -------------------------
+  if (url.pathname === '/api/admin/state' && req.method === 'GET') {
+    const vendors = loadVendors();
+    const products = loadProducts();
+    const mapping = loadMapping();
+    return sendJson(res, 200, {
+      vendors: (vendors.vendors || []).map((v) => ({ id: v.id, name: v.name, username: v.username })),
+      products: products.products || [],
+      mapping: mapping.mapping || [],
+    });
+  }
+
+  if (url.pathname === '/api/admin/vendors' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const name = String(body?.name || '').trim();
+    const username = String(body?.username || '').trim();
+    const password = String(body?.password || '');
+
+    if (!name || !username || password.length < 4) return sendJson(res, 400, { error: 'bad_input' });
+
+    const data = loadVendors();
+    if ((data.vendors || []).some((v) => v.username === username)) return sendJson(res, 409, { error: 'username_exists' });
+
+    const pw = hashPassword(password);
+    const vendor = { id: `vendor_${crypto.randomUUID()}`, name, username, password: pw };
+    data.vendors = (data.vendors || []).concat(vendor);
+    saveJson(vendorsPath, data);
+
+    return sendJson(res, 200, { ok: true, vendor: { id: vendor.id, name: vendor.name, username: vendor.username } });
+  }
+
+  if (url.pathname === '/api/admin/products_csv' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const csvText = String(body?.csv || '');
+    if (!csvText) return sendJson(res, 400, { error: 'no_csv' });
+
+    const lines = csvText.split(/\r?\n/).filter((l) => l.trim() !== '');
+    if (lines.length < 2) return sendJson(res, 400, { error: 'csv_too_small' });
+
+    // naive CSV parse: split by comma, handle quoted commas minimally
+    function parseLine(line) {
+      const out = [];
+      let cur = '';
+      let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (q && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            q = !q;
+          }
+          continue;
+        }
+        if (ch === ',' && !q) {
+          out.push(cur);
+          cur = '';
+          continue;
+        }
+        cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+
+    const header = parseLine(lines[0]).map((h) => String(h).replace(/^\uFEFF/, '').trim());
+    const idxProductNo = header.findIndex((h) => h === '상품번호(스마트스토어)' || h === '상품번호');
+    const idxName = header.findIndex((h) => h === '상품명');
+
+    if (idxProductNo === -1 || idxName === -1) {
+      return sendJson(res, 400, { error: 'missing_required_columns', required: ['상품번호(스마트스토어)', '상품명'] });
+    }
+
+    const products = [];
+    for (const line of lines.slice(1)) {
+      const cols = parseLine(line);
+      const productNo = String(cols[idxProductNo] || '').trim();
+      const productName = String(cols[idxName] || '').trim();
+      if (!productNo || !productName) continue;
+      products.push({ productNo, productName });
+    }
+
+    const existing = loadProducts();
+    const map = new Map((existing.products || []).map((p) => [p.productNo, p]));
+    for (const p of products) map.set(p.productNo, p);
+    existing.products = Array.from(map.values());
+    saveProducts(existing);
+
+    return sendJson(res, 200, { ok: true, count: products.length, total: existing.products.length });
+  }
+
+  if (url.pathname === '/api/admin/mapping' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const vendorId = String(body?.vendorId || '');
+    const productNos = Array.isArray(body?.productNos) ? body.productNos.map(String) : [];
+
+    if (!vendorId) return sendJson(res, 400, { error: 'bad_input' });
+
+    const m = loadMapping();
+    m.mapping = (m.mapping || []).filter((x) => x.vendorId !== vendorId);
+    for (const pn of productNos) {
+      if (!pn) continue;
+      m.mapping.push({ vendorId, productNo: pn });
+    }
+    saveMapping(m);
+    return sendJson(res, 200, { ok: true, count: productNos.length });
+  }
+
+  if (url.pathname === '/api/admin/seed_order' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const vendorId = String(body?.vendorId || '');
+    const products = loadProducts();
+    const list = products.products || [];
+    if (!vendorId || list.length === 0) return sendJson(res, 400, { error: 'need_vendor_and_products' });
+    const pick = list[Math.floor(Math.random() * list.length)];
+
+    const orders = loadOrders();
+    const now = new Date().toISOString();
+    const id = String(Date.now());
+    orders.orders = (orders.orders || []).concat({
+      id,
+      productOrderNo: id,
+      orderNo: String(Date.now()),
+      productNo: pick.productNo,
+      productName: pick.productName,
+      optionInfo: '',
+      qty: 1,
+      recipientName: '홍길동',
+      recipientPhone: '01012341234',
+      recipientAddress: '서울시 강남구 ...',
+      vendorId,
+      carrier: 'hanjin',
+      trackingNumber: '',
+      createdAt: now,
+      updatedAt: now,
+    });
+    saveOrders(orders);
+
+    return sendJson(res, 200, { ok: true, orderId: id });
   }
 
   // -------------------------
