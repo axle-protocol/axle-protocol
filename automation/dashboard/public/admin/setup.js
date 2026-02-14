@@ -105,6 +105,30 @@ $('saveMapping').addEventListener('click', async ()=>{
   }
 });
 
+async function uploadMultipart(url, { file, password }){
+  const fd = new FormData();
+  fd.append('password', password || '');
+  fd.append('file', file);
+  const res = await fetch(url, { method: 'POST', body: fd });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+$('importOrders').addEventListener('click', async ()=>{
+  $('importMsg').textContent='';
+  const f = $('orderXlsx').files?.[0];
+  const pw = $('orderPw').value;
+  if(!f){ $('importMsg').textContent='xlsx를 선택해줘'; return; }
+  if(!pw){ $('importMsg').textContent='암호를 입력해줘'; return; }
+  $('importMsg').textContent='업로드/파싱 중…';
+  try{
+    const r = await uploadMultipart('/api/admin/orders_xlsx_import', { file: f, password: pw });
+    $('importMsg').textContent = `OK: ${r.imported}건 (총 ${r.totalAfter}건) · 자동배정 ${r.assigned} · 미분류 ${r.unassigned}`;
+  }catch(e){
+    $('importMsg').textContent = String(e);
+  }
+});
+
 $('seedOrder').addEventListener('click', async ()=>{
   $('seedMsg').textContent='';
   const vendorId = $('vendorSelect').value;

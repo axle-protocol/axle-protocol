@@ -1,5 +1,6 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import {
   readFileSync,
   existsSync,
@@ -545,6 +546,162 @@ const server = http.createServer(async (req, res) => {
     }
     saveMapping(m);
     return sendJson(res, 200, { ok: true, count: productNos.length });
+  }
+
+  // -------------------------
+  // Admin: SmartStore order XLSX import (multipart)
+  // -------------------------
+  if (url.pathname === '/api/admin/orders_xlsx_import' && req.method === 'POST') {
+    const ct = String(req.headers['content-type'] || '');
+    const m = ct.match(/boundary=(?:(?:\"([^\"]+)\")|([^;]+))/i);
+    const boundary = m ? (m[1] || m[2]) : null;
+    if (!boundary) return sendJson(res, 400, { error: 'missing_boundary' });
+
+    async function readMultipart(boundaryStr, maxBytes = 30 * 1024 * 1024) {
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of req) {
+        const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        size += b.length;
+        if (size > maxBytes) throw new Error('multipart_too_large');
+        chunks.push(b);
+      }
+      const buf = Buffer.concat(chunks);
+      const boundaryBuf = Buffer.from(`--${boundaryStr}`);
+      const parts = [];
+      let start = buf.indexOf(boundaryBuf);
+      while (start !== -1) {
+        start += boundaryBuf.length;
+        // end?
+        if (buf.slice(start, start + 2).toString('utf8') === '--') break;
+        // skip leading CRLF
+        if (buf.slice(start, start + 2).toString('utf8') === '\r\n') start += 2;
+        const headerEnd = buf.indexOf(Buffer.from('\r\n\r\n'), start);
+        if (headerEnd === -1) break;
+        const headerText = buf.slice(start, headerEnd).toString('utf8');
+        const bodyStart = headerEnd + 4;
+        let next = buf.indexOf(boundaryBuf, bodyStart);
+        if (next === -1) break;
+        // body ends with CRLF right before boundary
+        let bodyEnd = next - 2;
+        if (bodyEnd < bodyStart) bodyEnd = bodyStart;
+        const body = buf.slice(bodyStart, bodyEnd);
+
+        const headers = {};
+        for (const line of headerText.split('\r\n')) {
+          const idx = line.indexOf(':');
+          if (idx === -1) continue;
+          headers[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
+        }
+        const cd = headers['content-disposition'] || '';
+        const nameMatch = cd.match(/name="([^"]+)"/);
+        const fileMatch = cd.match(/filename="([^"]*)"/);
+        parts.push({
+          name: nameMatch ? nameMatch[1] : null,
+          filename: fileMatch ? fileMatch[1] : null,
+          headers,
+          data: body,
+        });
+
+        start = next;
+      }
+      return parts;
+    }
+
+    try {
+      const parts = await readMultipart(boundary);
+      const pwPart = parts.find((p) => p.name === 'password');
+      const filePart = parts.find((p) => p.name === 'file');
+      const password = pwPart ? pwPart.data.toString('utf8').trim() : '';
+      if (!password) return sendJson(res, 400, { error: 'missing_password' });
+      if (!filePart || !filePart.data || filePart.data.length === 0) return sendJson(res, 400, { error: 'missing_file' });
+
+      const uploadsDir = path.join(dataDir, 'uploads');
+      ensureDir(uploadsDir);
+      const tmpName = `smartstore.${Date.now()}.${crypto.randomUUID()}.xlsx`;
+      const tmpPath = path.join(uploadsDir, tmpName);
+      writeFileSync(tmpPath, filePart.data);
+
+      const scriptPath = path.join(__dirname, 'scripts', 'parse_smartstore_orders.py');
+      const run = spawnSync('python3', [scriptPath], {
+        env: {
+          ...process.env,
+          SMARTSTORE_XLSX_PASSWORD: password,
+          SMARTSTORE_XLSX_PATH: tmpPath,
+        },
+        encoding: 'utf8',
+        maxBuffer: 20 * 1024 * 1024,
+      });
+
+      if (run.status !== 0) {
+        auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ADMIN_ORDERS_IMPORT_FAILED', ip: getClientIp(req), meta: { code: run.status, stderr: (run.stderr || '').slice(0, 2000) } });
+        return sendJson(res, 500, { error: 'parse_failed', stderr: (run.stderr || '').slice(0, 2000) });
+      }
+
+      const parsed = safeJsonParse(run.stdout || '', null);
+      if (!parsed || !Array.isArray(parsed.items)) return sendJson(res, 500, { error: 'bad_parse_output' });
+
+      const mapping = loadMapping();
+      const productToVendor = new Map((mapping.mapping || []).map((m2) => [String(m2.productNo), String(m2.vendorId)]));
+
+      const orders = loadOrders();
+      const byId = new Map((orders.orders || []).map((o) => [String(o.id), o]));
+      let imported = 0;
+      let assigned = 0;
+      let unassigned = 0;
+      const now = new Date().toISOString();
+
+      for (const it of parsed.items) {
+        const id = String(it.product_order_no);
+        const productNo = String(it.product_no || '');
+        const vendorId = productToVendor.get(productNo) || null;
+        if (vendorId) assigned++; else unassigned++;
+
+        const row = {
+          id,
+          productOrderNo: id,
+          orderNo: String(it.order_no || ''),
+          productNo,
+          productName: it.product_name || '',
+          optionInfo: it.option_info || '',
+          qty: Number(it.qty || 0),
+          recipientName: it.recipient_name || '',
+          recipientPhone: it.recipient_phone || null,
+          recipientAddress: it.recipient_address || null,
+          vendorId,
+          carrier: null,
+          trackingNumber: '',
+          createdAt: byId.has(id) ? byId.get(id).createdAt : now,
+          updatedAt: now,
+          _raw: {
+            orderedAt: it.ordered_at || null,
+            orderStatus: it.order_status || null,
+            shippingAttr: it.shipping_attr || null,
+            claimStatus: it.claim_status || null,
+            buyerName: it.buyer_name || null,
+            buyerId: it.buyer_id || null,
+          },
+        };
+
+        if (byId.has(id)) {
+          // overwrite mutable fields; keep tracking info if already entered
+          const prev = byId.get(id);
+          row.carrier = prev.carrier || row.carrier;
+          row.trackingNumber = prev.trackingNumber || row.trackingNumber;
+        }
+
+        byId.set(id, row);
+        imported++;
+      }
+
+      orders.orders = Array.from(byId.values());
+      saveOrders(orders);
+
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ADMIN_ORDERS_IMPORTED', ip: getClientIp(req), meta: { imported, assigned, unassigned } });
+      return sendJson(res, 200, { ok: true, imported, assigned, unassigned, totalAfter: orders.orders.length });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'import_exception', message: String(e?.message || e) });
+    }
   }
 
   if (url.pathname === '/api/admin/seed_order' && req.method === 'POST') {
