@@ -271,6 +271,20 @@
     const parts = [];
     if (p.status === 'approved' || p.status === 'sent') {
       const imgStatus = p.imageStatus || 'none';
+
+      // Product image upload (HOOK hero)
+      parts.push(`
+        <div class="mt-2 rounded-lg border border-zinc-800 bg-zinc-950/10 p-2">
+          <div class="text-xs text-zinc-500 mb-1">상품 이미지(1페이지)</div>
+          <div class="flex gap-2 items-center flex-wrap">
+            <input type="file" accept="image/*" class="prod-img-file text-xs" data-prod-file="${p.id}" />
+            <button class="prod-img-upload rounded-lg bg-zinc-800 px-3 py-1.5 text-xs hover:bg-zinc-700" data-prod-upload="${p.id}">업로드</button>
+            <a class="text-xs text-zinc-400 underline" href="/api/admin/ig/posts/${p.id}/product_image" target="_blank">현재 이미지 보기</a>
+          </div>
+          <div class="mt-1 text-xs text-zinc-500">팁: 업로드 후 ‘카드 이미지 생성/재생성’하면 1페이지에 삽입됩니다.</div>
+        </div>
+      `);
+
       if (imgStatus === 'none' || imgStatus === 'failed') {
         parts.push(`<button class="gen-img-btn rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-violet-500" data-id="${p.id}">카드 이미지 생성</button>`);
       }
@@ -352,6 +366,31 @@
       `;
       container.appendChild(card);
     }
+
+    // Upload product image
+    container.querySelectorAll('.prod-img-upload').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const postId = btn.getAttribute('data-prod-upload');
+        const input = container.querySelector(`input[data-prod-file="${postId}"]`);
+        const f = input?.files?.[0];
+        if (!f) { alert('이미지 파일을 선택해주세요.'); return; }
+        btn.disabled = true;
+        btn.textContent = '업로드 중...';
+        try {
+          const fd = new FormData();
+          fd.append('file', f);
+          const res = await fetch(`/api/admin/ig/posts/${encodeURIComponent(postId)}/product_image`, { method: 'POST', body: fd });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok || !j.ok) throw new Error(j.error || res.status);
+          btn.textContent = '업로드 완료';
+          setTimeout(() => { btn.textContent = '업로드'; btn.disabled = false; }, 800);
+        } catch (e) {
+          alert('업로드 실패: ' + e.message);
+          btn.disabled = false;
+          btn.textContent = '업로드';
+        }
+      });
+    });
 
     // Generate images (sync — shows loading state)
     container.querySelectorAll('.gen-img-btn').forEach((btn) => {

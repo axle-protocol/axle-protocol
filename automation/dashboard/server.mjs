@@ -121,6 +121,57 @@ function readJsonBody(req) {
   });
 }
 
+async function readMultipart(req, boundaryStr, maxBytes = 30 * 1024 * 1024) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += b.length;
+    if (size > maxBytes) throw new Error('multipart_too_large');
+    chunks.push(b);
+  }
+  const buf = Buffer.concat(chunks);
+  const boundaryBuf = Buffer.from(`--${boundaryStr}`);
+  const parts = [];
+  let start = buf.indexOf(boundaryBuf);
+  while (start !== -1) {
+    start += boundaryBuf.length;
+    // end?
+    if (buf.slice(start, start + 2).toString('utf8') === '--') break;
+    // skip leading CRLF
+    if (buf.slice(start, start + 2).toString('utf8') === '\r\n') start += 2;
+    const headerEnd = buf.indexOf(Buffer.from('\r\n\r\n'), start);
+    if (headerEnd === -1) break;
+    const headerText = buf.slice(start, headerEnd).toString('utf8');
+    const bodyStart = headerEnd + 4;
+    let next = buf.indexOf(boundaryBuf, bodyStart);
+    if (next === -1) break;
+    // body ends with CRLF right before boundary
+    let bodyEnd = next - 2;
+    if (bodyEnd < bodyStart) bodyEnd = bodyStart;
+    const body = buf.slice(bodyStart, bodyEnd);
+
+    const headers = {};
+    for (const line of headerText.split('\r\n')) {
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      headers[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
+    }
+    const cd = headers['content-disposition'] || '';
+    const nameMatch = cd.match(/name="([^"]+)"/);
+    const fileMatch = cd.match(/filename="([^"]*)"/);
+    parts.push({
+      name: nameMatch ? nameMatch[1] : null,
+      filename: fileMatch ? fileMatch[1] : null,
+      headers,
+      data: body,
+    });
+
+    start = next;
+  }
+  return parts;
+}
+
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
@@ -788,48 +839,102 @@ function parseVariantToPages(variant, post, pageCount) {
   const product = post.productName || '';
   const benefit = post.keyBenefit || '';
   const price = post.price ? `${Number(post.price).toLocaleString()}원` : '';
-  const detail = [];
-  if (post.targetAudience) detail.push(`${post.targetAudience}에게 특히 잘 맞아요`);
-  if (post.notes) detail.push(post.notes);
-  const detailText = detail.join('\n') || `${product}의 매력은 직접 느껴보세요`;
+  const priceOriginal = post.price ? `정가 ${Number(Math.round(post.price * 1.3)).toLocaleString()}원` : '';
 
-  // Split benefit text into list items for WHY page
-  const benefitItems = benefit.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  // Build structured detail text
+  const detailParts = [];
+  if (post.targetAudience) detailParts.push(`${post.targetAudience}에게 특히 잘 맞아요`);
+  if (post.notes) detailParts.push(post.notes);
+  const detailText = detailParts.join('\n') || `${product}의 매력은 직접 느껴보세요`;
+
+  // Intelligent benefit splitting for WHY page (3 items)
+  // Try splitting by comma, period, or newline; fallback to benefit + detail fragments
+  let benefitItems = benefit.split(/[,、·\n]/).map((s) => s.trim()).filter((s) => s.length > 2);
+  if (benefitItems.length < 2) benefitItems = benefit.split(/\s(?=와|과|및|그리고)/).map((s) => s.trim()).filter(Boolean);
   const item1 = benefitItems[0] || benefit;
-  const item2 = benefitItems[1] || detailText.split('\n')[0] || '';
-  const item3 = benefitItems[2] || (post.notes || '매일 사용하기 좋은 제품');
+  const item2 = benefitItems[1] || (post.targetAudience ? `${post.targetAudience} 맞춤` : '매일 사용하기 좋은 제품');
+  const item3 = benefitItems[2] || (post.notes || '검증된 품질과 합리적 가격');
+
+  // Extract hook — first caption block is the hook, second is benefit/body
+  const hookText = blocks[0] || product;
+  // CTA is the last block
+  const ctaBlock = blocks[blocks.length - 1] || '프로필 링크에서 확인하세요';
+  // Offer block is second-to-last if it contains price/공구 keywords
+  const offerCandidate = blocks.length >= 3 ? blocks[blocks.length - 2] : '';
+  const isOfferBlock = /원|공구|특가|가격|한정/.test(offerCandidate);
+  const offerText = isOfferBlock ? offerCandidate : (price ? `지금 공구가 ${price}` : '지금 특별한 가격으로');
 
   // Determine pages based on count
   let sequence;
   if (pageCount <= 3) sequence = ['hook', 'why', 'cta'];
-  else if (pageCount === 4) sequence = ['hook', 'why', 'detail', 'cta'];
+  else if (pageCount === 4) sequence = ['hook', 'why', 'offer', 'cta'];
   else sequence = ['hook', 'why', 'detail', 'offer', 'cta'];
 
   const pages = [];
   for (const type of sequence) {
-    const data = {
-      type,
-      HOOK_TEXT: blocks[0] || product,
-      SUB_TEXT: benefit,
-      ITEM_1: item1,
-      ITEM_2: item2,
-      ITEM_3: item3,
-      DETAIL_TEXT: detailText,
-      DETAIL_LEFT: benefit,
-      DETAIL_RIGHT: detailText,
-      OFFER_TEXT: blocks[blocks.length - 2] || '지금 특별한 가격으로',
-      ORIGINAL_PRICE: price ? `정가 ${price}` : '',
-      DEAL_PRICE: price || '특별가',
-      CTA_TEXT: blocks[blocks.length - 1] || '프로필 링크에서 확인하세요',
-      CTA_SUB: product,
-    };
+    const data = { type };
+    switch (type) {
+      case 'hook':
+        data.HOOK_TEXT = hookText;
+        data.SUB_TEXT = benefit.length > 30 ? benefit.slice(0, 30) + '...' : benefit;
+        break;
+      case 'why':
+        data.ITEM_1 = item1;
+        data.ITEM_2 = item2;
+        data.ITEM_3 = item3;
+        break;
+      case 'detail':
+        data.DETAIL_TEXT = detailText;
+        data.DETAIL_LEFT = benefit;
+        data.DETAIL_RIGHT = detailText;
+        break;
+      case 'offer':
+        data.OFFER_TEXT = offerText;
+        data.ORIGINAL_PRICE = priceOriginal;
+        data.DEAL_PRICE = price || '특별가';
+        break;
+      case 'cta':
+        data.CTA_TEXT = ctaBlock;
+        data.CTA_SUB = product;
+        break;
+    }
     pages.push(data);
   }
   return pages;
 }
 
-function resolveBackground(palette) {
-  return `linear-gradient(160deg, ${palette.bg} 0%, ${palette.bg}DD 40%, ${palette.accent}22 100%)`;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+
+async function generateAiBackground(palette, productName, outDir) {
+  if (!OPENAI_API_KEY) return null;
+  try {
+    const prompt = `Minimal luxury beauty product background, soft ${palette.bg} tones, subtle fabric or marble texture, very blurred, no text, no objects, studio lighting, editorial skincare photography mood, warm ivory beige palette`;
+    const resp = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1024', response_format: 'b64_json' }),
+    });
+    if (!resp.ok) { console.error('[ig-bg] OpenAI error:', resp.status); return null; }
+    const data = await resp.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) return null;
+    const bgPath = path.join(outDir, '_ai_background.png');
+    writeFileSync(bgPath, Buffer.from(b64, 'base64'));
+    return bgPath;
+  } catch (err) {
+    console.error('[ig-bg] AI background failed:', err.message);
+    return null;
+  }
+}
+
+function resolveBackground(palette, aiBgPath) {
+  if (aiBgPath) {
+    // CSS uses file:// path for local Playwright render
+    const fileUrl = `file://${aiBgPath}`;
+    return `url('${fileUrl}') center/cover no-repeat, linear-gradient(160deg, ${palette.bg} 0%, ${palette.accent}15 100%)`;
+  }
+  // Enhanced gradient fallback with subtle texture feel
+  return `linear-gradient(160deg, ${palette.bg} 0%, ${palette.bg}EE 30%, ${palette.accent}12 70%, ${palette.bg}DD 100%)`;
 }
 
 async function generateCardImages(post, variant, options = {}) {
@@ -839,11 +944,17 @@ async function generateCardImages(post, variant, options = {}) {
   if (!layout) throw new Error('No layouts available');
 
   const palette = layout.palette;
-  const background = resolveBackground(palette);
-  const pages = parseVariantToPages(variant, post, pageCount);
-  const templateDir = path.join(__dirname, 'public', 'admin', 'ig-templates');
   const outDir = path.join(dataDir, 'ig_assets', post.id);
   mkdirSync(outDir, { recursive: true });
+
+  // Optional product hero image (uploaded by owner)
+  const productImagePath = path.join(outDir, 'product.jpg');
+  const productImageUrl = existsSync(productImagePath) ? `file://${productImagePath}` : '';
+
+  const aiBgPath = await generateAiBackground(palette, post.productName, outDir);
+  const background = resolveBackground(palette, aiBgPath);
+  const pages = parseVariantToPages(variant, post, pageCount);
+  const templateDir = path.join(__dirname, 'public', 'admin', 'ig-templates');
 
   const browser = await getBrowser();
   const context = await browser.newContext({ viewport: { width: 1080, height: 1350 } });
@@ -870,7 +981,8 @@ async function generateCardImages(post, variant, options = {}) {
         .replace(/\{\{COLOR_BG\}\}/g, palette.bg)
         .replace(/\{\{COLOR_TEXT\}\}/g, palette.text)
         .replace(/\{\{COLOR_ACCENT\}\}/g, palette.accent)
-        .replace(/\{\{COLOR_HIGHLIGHT\}\}/g, palette.highlight);
+        .replace(/\{\{COLOR_HIGHLIGHT\}\}/g, palette.highlight)
+        .replace(/\{\{PRODUCT_IMAGE_URL\}\}/g, productImageUrl);
 
       // Replace content placeholders
       for (const [key, val] of Object.entries(pg)) {
@@ -1102,6 +1214,55 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------
+  // Admin: IG product image upload (for HOOK hero)
+  // -------------------------
+  if (url.pathname?.startsWith('/api/admin/ig/posts/') && url.pathname.endsWith('/product_image') && req.method === 'POST') {
+    const parts = url.pathname.split('/').filter(Boolean); // api admin ig posts :id product_image
+    const postId = parts[4];
+
+    const ct = String(req.headers['content-type'] || '');
+    const m = ct.match(/boundary=(?:(?:\"([^\"]+)\")|([^;]+))/i);
+    const boundary = m ? (m[1] || m[2]) : null;
+    if (!boundary) return sendJson(res, 400, { ok: false, error: 'missing_boundary' });
+
+    try {
+      const mp = await readMultipart(req, boundary, 15 * 1024 * 1024);
+      const filePart = mp.find((p) => p.name === 'file');
+      if (!filePart || !filePart.data || filePart.data.length === 0) return sendJson(res, 400, { ok: false, error: 'missing_file' });
+
+      const posts = loadIgPosts();
+      const idx = (posts.posts || []).findIndex((p) => p.id === postId);
+      if (idx === -1) return sendJson(res, 404, { ok: false, error: 'not_found' });
+
+      const outDir = path.join(dataDir, 'ig_assets', postId);
+      mkdirSync(outDir, { recursive: true });
+      const outPath = path.join(outDir, 'product.jpg');
+      writeFileSync(outPath, filePart.data);
+
+      posts.posts[idx].assets = posts.posts[idx].assets || {};
+      posts.posts[idx].assets.productImage = { filename: 'product.jpg', uploadedAt: new Date().toISOString() };
+      posts.posts[idx].updatedAt = new Date().toISOString();
+      saveIgPosts(posts);
+
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_PRODUCT_IMAGE_UPLOADED', postId, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true });
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'upload_failed', detail: String(e?.message || e) });
+    }
+  }
+
+  if (url.pathname?.startsWith('/api/admin/ig/posts/') && url.pathname.includes('/product_image') && req.method === 'GET') {
+    const parts = url.pathname.split('/').filter(Boolean); // api admin ig posts :id product_image
+    const postId = parts[4];
+    const imgPath = path.join(dataDir, 'ig_assets', postId, 'product.jpg');
+    if (!existsSync(imgPath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('not found');
+    }
+    return serveFile(res, imgPath);
+  }
+
+  // -------------------------
   // Admin APIs
   // -------------------------
   if (url.pathname === '/api/admin/state' && req.method === 'GET') {
@@ -1311,7 +1472,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const parts = await readMultipart(boundary);
+      const parts = await readMultipart(req, boundary);
       const pwPart = parts.find((p) => p.name === 'password');
       const filePart = parts.find((p) => p.name === 'file');
       const password = pwPart ? pwPart.data.toString('utf8').trim() : '';
