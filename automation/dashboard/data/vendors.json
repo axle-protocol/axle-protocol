@@ -1,0 +1,15 @@
+{
+  "vendors": [
+    {
+      "id": "vendor_demo",
+      "name": "데모 벤더",
+      "username": "demo",
+      "password": {
+        "algo": "pbkdf2_sha256",
+        "iter": 120000,
+        "salt": "1667c74065c2d96a058ae8e3060f96c5",
+        "hash": "3c0053d57400dd1ada383cda3aeae7715879510ff95c79503e15087671fbf1cf"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "orders": [
+    {
+      "id": "SS-20260214-0001",
+      "vendorId": "vendor_demo",
+      "createdAt": "2026-02-14T04:30:00.000Z",
+      "status": "shipped",
+      "buyer": {
+        "name": "홍길동"
+      },
+      "recipient": {
+        "name": "홍길동",
+        "phone": "010-1234-5678",
+        "zipcode": "06236",
+        "address1": "서울 강남구 테헤란로 123",
+        "address2": "101동 1001호"
+      },
+      "items": [
+        {
+          "name": "상품A",
+          "qty": 1
+        },
+        {
+          "name": "상품B",
+          "qty": 2
+        }
+      ],
+      "tracking": {
+        "carrier": "cj",
+        "number": "1234567890",
+        "updatedAt": "2026-02-14T04:40:03.975Z"
+      },
+      "updatedAt": "2026-02-14T04:40:03.975Z"
+    }
+  ]
+}

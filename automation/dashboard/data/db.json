@@ -1,0 +1,16 @@
+{
+  "vendors": [
+    {
+      "id": "vendor-demo",
+      "name": "데모사장님",
+      "password_hash": null,
+      "created_at": "2026-02-14T00:00:00.000Z",
+      "disabled": false
+    }
+  ],
+  "vendor_invites": [],
+  "sessions": [],
+  "orders": [],
+  "item_vendor_map": [],
+  "audit": []
+}
