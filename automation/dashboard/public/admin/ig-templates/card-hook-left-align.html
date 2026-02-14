@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: {{BACKGROUND}};
+  color: {{COLOR_TEXT}};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.container {
+  width: 100%;
+  padding: 100px 120px;
+}
+.content {
+  display: flex;
+  align-items: stretch;
+  gap: 40px;
+}
+.accent-bar {
+  width: 6px;
+  flex-shrink: 0;
+  background: {{COLOR_ACCENT}};
+  border-radius: 3px;
+}
+.text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 32px;
+}
+.hook-text {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  color: {{COLOR_TEXT}};
+}
+.sub-text {
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: {{COLOR_TEXT}};
+  opacity: 0.7;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="content">
+    <div class="accent-bar"></div>
+    <div class="text-block">
+      <div class="hook-text">{{HOOK_TEXT}}</div>
+      <div class="sub-text">{{SUB_TEXT}}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

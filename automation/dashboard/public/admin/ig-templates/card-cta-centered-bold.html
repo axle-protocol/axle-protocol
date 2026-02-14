@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: {{BACKGROUND}};
+  color: {{COLOR_TEXT}};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.container {
+  width: 100%;
+  padding: 100px 100px;
+  text-align: center;
+}
+.cta-text {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: {{COLOR_TEXT}};
+  margin-bottom: 48px;
+}
+.cta-accent-line {
+  width: 60px;
+  height: 4px;
+  background: {{COLOR_ACCENT}};
+  margin: 0 auto 48px;
+  border-radius: 2px;
+}
+.cta-sub {
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: {{COLOR_TEXT}};
+  opacity: 0.7;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="cta-text">{{CTA_TEXT}}</div>
+  <div class="cta-accent-line"></div>
+  <div class="cta-sub">{{CTA_SUB}}</div>
+</div>
+</body>
+</html>

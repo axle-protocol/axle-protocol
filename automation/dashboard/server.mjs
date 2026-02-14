@@ -17,6 +17,8 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as XLSX from 'xlsx';
+import { chromium } from 'playwright';
+import archiver from 'archiver';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -748,6 +750,137 @@ function findNextIgSlot(posts, guide) {
     }
   }
   return null;
+}
+
+// -------------------------
+// Card Image Generation (Playwright)
+// -------------------------
+
+let _browser = null;
+
+async function getBrowser() {
+  if (_browser && _browser.isConnected()) return _browser;
+  _browser = await chromium.launch();
+  return _browser;
+}
+
+function loadIgLayouts() {
+  const p = path.join(dataDir, 'ig_layouts.json');
+  if (!existsSync(p)) return { layouts: [] };
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return { layouts: [] }; }
+}
+
+const IG_PAGE_SEQUENCE = ['hook', 'why', 'detail', 'offer', 'cta'];
+
+function parseVariantToPages(variant, post, pageCount) {
+  const caption = variant?.caption || '';
+  const blocks = caption.split(/\n\n+/).filter((b) => b.trim());
+  const product = post.productName || '';
+  const benefit = post.keyBenefit || '';
+  const price = post.price ? `${Number(post.price).toLocaleString()}원` : '';
+  const detail = [];
+  if (post.targetAudience) detail.push(`${post.targetAudience}에게 특히 잘 맞아요`);
+  if (post.notes) detail.push(post.notes);
+  const detailText = detail.join('\n') || `${product}의 매력은 직접 느껴보세요`;
+
+  // Split benefit text into list items for WHY page
+  const benefitItems = benefit.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  const item1 = benefitItems[0] || benefit;
+  const item2 = benefitItems[1] || detailText.split('\n')[0] || '';
+  const item3 = benefitItems[2] || (post.notes || '매일 사용하기 좋은 제품');
+
+  // Determine pages based on count
+  let sequence;
+  if (pageCount <= 3) sequence = ['hook', 'why', 'cta'];
+  else if (pageCount === 4) sequence = ['hook', 'why', 'detail', 'cta'];
+  else sequence = ['hook', 'why', 'detail', 'offer', 'cta'];
+
+  const pages = [];
+  for (const type of sequence) {
+    const data = {
+      type,
+      HOOK_TEXT: blocks[0] || product,
+      SUB_TEXT: benefit,
+      ITEM_1: item1,
+      ITEM_2: item2,
+      ITEM_3: item3,
+      DETAIL_TEXT: detailText,
+      DETAIL_LEFT: benefit,
+      DETAIL_RIGHT: detailText,
+      OFFER_TEXT: blocks[blocks.length - 2] || '지금 특별한 가격으로',
+      ORIGINAL_PRICE: price ? `정가 ${price}` : '',
+      DEAL_PRICE: price || '특별가',
+      CTA_TEXT: blocks[blocks.length - 1] || '프로필 링크에서 확인하세요',
+      CTA_SUB: product,
+    };
+    pages.push(data);
+  }
+  return pages;
+}
+
+function resolveBackground(palette) {
+  return `linear-gradient(160deg, ${palette.bg} 0%, ${palette.bg}DD 40%, ${palette.accent}22 100%)`;
+}
+
+async function generateCardImages(post, variant, options = {}) {
+  const { layoutId, pageCount = 5 } = options;
+  const layoutsData = loadIgLayouts();
+  const layout = layoutsData.layouts.find((l) => l.id === layoutId) || layoutsData.layouts[0];
+  if (!layout) throw new Error('No layouts available');
+
+  const palette = layout.palette;
+  const background = resolveBackground(palette);
+  const pages = parseVariantToPages(variant, post, pageCount);
+  const templateDir = path.join(__dirname, 'public', 'admin', 'ig-templates');
+  const outDir = path.join(dataDir, 'ig_assets', post.id);
+  mkdirSync(outDir, { recursive: true });
+
+  const browser = await getBrowser();
+  const context = await browser.newContext({ viewport: { width: 1080, height: 1350 } });
+  const cards = [];
+
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      const pg = pages[i];
+      const layoutVariant = layout.pages[pg.type] || 'centered-big';
+      const tplFile = path.join(templateDir, `card-${pg.type}-${layoutVariant}.html`);
+
+      // Fallback to first available template for that page type if specific one missing
+      let html;
+      if (existsSync(tplFile)) {
+        html = readFileSync(tplFile, 'utf8');
+      } else {
+        const fallbackFiles = readdirSync(templateDir).filter((f) => f.startsWith(`card-${pg.type}-`));
+        if (fallbackFiles.length === 0) continue;
+        html = readFileSync(path.join(templateDir, fallbackFiles[0]), 'utf8');
+      }
+
+      // Replace color/background placeholders
+      html = html.replace(/\{\{BACKGROUND\}\}/g, background)
+        .replace(/\{\{COLOR_BG\}\}/g, palette.bg)
+        .replace(/\{\{COLOR_TEXT\}\}/g, palette.text)
+        .replace(/\{\{COLOR_ACCENT\}\}/g, palette.accent)
+        .replace(/\{\{COLOR_HIGHLIGHT\}\}/g, palette.highlight);
+
+      // Replace content placeholders
+      for (const [key, val] of Object.entries(pg)) {
+        if (key === 'type') continue;
+        html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(val));
+      }
+
+      const page = await context.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle' });
+      const filename = `card-${i + 1}-${pg.type}.png`;
+      const outPath = path.join(outDir, filename);
+      await page.screenshot({ path: outPath, type: 'png' });
+      await page.close();
+      cards.push({ index: i, type: pg.type, filename, path: outPath });
+    }
+  } finally {
+    await context.close();
+  }
+
+  return { cards, layoutId: layout.id, layoutName: layout.name, outDir };
 }
 
 // -------------------------
@@ -1710,7 +1843,115 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, post });
     }
 
+    if (action === 'generate_images') {
+      if (!post.approvedVariantId) return sendJson(res, 409, { error: 'must_approve_variant_first' });
+      if (post.imageStatus === 'generating' && !body?.regenerate) return sendJson(res, 409, { error: 'already_generating' });
+
+      const variant = (post.variants || []).find((v) => v.id === post.approvedVariantId);
+      if (!variant) return sendJson(res, 404, { error: 'approved_variant_not_found' });
+
+      const layoutId = body?.layoutId || null;
+      const pageCount = Math.min(Math.max(body?.pageCount || 5, 3), 5);
+
+      post.imageStatus = 'generating';
+      post.imageError = null;
+      data.posts[idx] = post;
+      saveIgPosts(data);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_IMAGES_GENERATE_REQUESTED', postId: post.id, layoutId, pageCount, ip: getClientIp(req) });
+
+      try {
+        const result = await generateCardImages(post, variant, { layoutId, pageCount });
+        post.assets = { cards: result.cards.map((c) => ({ index: c.index, type: c.type, filename: c.filename })), generatedAt: new Date().toISOString(), layoutId: result.layoutId, layoutName: result.layoutName };
+        post.imageStatus = 'ready';
+        post.imageError = null;
+        const data2 = loadIgPosts();
+        const idx2 = (data2.posts || []).findIndex((p) => p.id === postId);
+        if (idx2 !== -1) { data2.posts[idx2] = post; saveIgPosts(data2); }
+        auditLog({ actorType: 'system', action: 'IG_IMAGES_GENERATED', postId: post.id, cardCount: result.cards.length, layoutId: result.layoutId, ip: getClientIp(req) });
+        return sendJson(res, 200, { ok: true, post });
+      } catch (err) {
+        post.imageStatus = 'failed';
+        post.imageError = err.message;
+        const data2 = loadIgPosts();
+        const idx2 = (data2.posts || []).findIndex((p) => p.id === postId);
+        if (idx2 !== -1) { data2.posts[idx2] = post; saveIgPosts(data2); }
+        auditLog({ actorType: 'system', action: 'IG_IMAGES_GENERATE_FAILED', postId: post.id, error: err.message, ip: getClientIp(req) });
+        return sendJson(res, 500, { ok: false, error: 'image_generation_failed', detail: err.message });
+      }
+    }
+
     return sendJson(res, 400, { error: 'unknown_action' });
+  }
+
+  // IG card image preview (individual card)
+  const cardMatch = url.pathname.match(/^\/api\/admin\/ig\/posts\/([^/]+)\/card\/(\d+)$/);
+  if (cardMatch && req.method === 'GET') {
+    const postId = cardMatch[1];
+    const cardIndex = Number(cardMatch[2]);
+    const data = loadIgPosts();
+    const post = (data.posts || []).find((p) => p.id === postId);
+    if (!post) return sendJson(res, 404, { error: 'post_not_found' });
+    if (!post.assets?.cards) return sendJson(res, 404, { error: 'no_images' });
+    const card = post.assets.cards.find((c) => c.index === cardIndex);
+    if (!card) return sendJson(res, 404, { error: 'card_not_found' });
+    const imgPath = path.join(dataDir, 'ig_assets', postId, card.filename);
+    if (!existsSync(imgPath)) return sendJson(res, 404, { error: 'image_file_missing' });
+    const stat = statSync(imgPath);
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': stat.size, 'Cache-Control': 'public, max-age=300' });
+    createReadStream(imgPath).pipe(res);
+    return;
+  }
+
+  // IG posting package ZIP download
+  const zipMatch = url.pathname.match(/^\/api\/admin\/ig\/posts\/([^/]+)\/package\.zip$/);
+  if (zipMatch && req.method === 'GET') {
+    const postId = zipMatch[1];
+    const data = loadIgPosts();
+    const post = (data.posts || []).find((p) => p.id === postId);
+    if (!post) return sendJson(res, 404, { error: 'post_not_found' });
+    if (post.imageStatus !== 'ready' || !post.assets?.cards) return sendJson(res, 409, { error: 'images_not_ready' });
+    const variant = (post.variants || []).find((v) => v.id === post.approvedVariantId);
+    if (!variant) return sendJson(res, 404, { error: 'variant_not_found' });
+
+    const assetsDir = path.join(dataDir, 'ig_assets', postId);
+    const safeName = post.productName.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 30) || 'ig_post';
+    const encodedName = encodeURIComponent(post.productName + '_package.zip');
+    res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${safeName}_package.zip"; filename*=UTF-8''${encodedName}`,
+    });
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.pipe(res);
+
+    for (const card of post.assets.cards) {
+      const fp = path.join(assetsDir, card.filename);
+      if (existsSync(fp)) archive.file(fp, { name: card.filename });
+    }
+
+    archive.append(variant.caption, { name: 'caption.txt' });
+    archive.append(variant.hashtags, { name: 'hashtags.txt' });
+    archive.append(JSON.stringify({
+      postId: post.id,
+      productName: post.productName,
+      keyBenefit: post.keyBenefit,
+      tone: variant.cluster,
+      ctaType: variant.ctaType,
+      scheduledAt: post.scheduledAt,
+      generatedAt: post.assets.generatedAt,
+      layoutId: post.assets.layoutId,
+      layoutName: post.assets.layoutName,
+      cardCount: post.assets.cards.length,
+    }, null, 2), { name: 'meta.json' });
+
+    archive.finalize();
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_PACKAGE_DOWNLOADED', postId: post.id, ip: getClientIp(req) });
+    return;
+  }
+
+  // IG layouts list
+  if (url.pathname === '/api/admin/ig/layouts' && req.method === 'GET') {
+    return sendJson(res, 200, loadIgLayouts());
   }
 
   // static (owner UI + vendor static assets)

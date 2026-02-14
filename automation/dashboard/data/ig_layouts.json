@@ -1,0 +1,100 @@
+{
+  "layouts": [
+    {
+      "id": "lux-minimal-01",
+      "name": "럭셔리 미니멀 A",
+      "pages": {
+        "hook": "centered-big",
+        "why": "numbered-list",
+        "detail": "single-accent",
+        "offer": "price-comparison",
+        "cta": "centered-bold"
+      },
+      "palette": { "bg": "#F5F0EB", "text": "#2D2A26", "accent": "#B5AFA8", "highlight": "#C4956A" }
+    },
+    {
+      "id": "lux-minimal-02",
+      "name": "럭셔리 미니멀 B",
+      "pages": {
+        "hook": "left-align",
+        "why": "icon-bullets",
+        "detail": "two-column",
+        "offer": "simple-block",
+        "cta": "bottom-card"
+      },
+      "palette": { "bg": "#F5F0EB", "text": "#2D2A26", "accent": "#B5AFA8", "highlight": "#C4956A" }
+    },
+    {
+      "id": "warm-ivory-01",
+      "name": "웜 아이보리",
+      "pages": {
+        "hook": "split-text",
+        "why": "numbered-list",
+        "detail": "two-column",
+        "offer": "price-comparison",
+        "cta": "bottom-card"
+      },
+      "palette": { "bg": "#FAF6F1", "text": "#3A3530", "accent": "#C9B99A", "highlight": "#D4A574" }
+    },
+    {
+      "id": "soft-gray-01",
+      "name": "소프트 그레이",
+      "pages": {
+        "hook": "centered-big",
+        "why": "icon-bullets",
+        "detail": "single-accent",
+        "offer": "simple-block",
+        "cta": "centered-bold"
+      },
+      "palette": { "bg": "#F0F0EE", "text": "#2C2C2C", "accent": "#9E9E9E", "highlight": "#7A7A7A" }
+    },
+    {
+      "id": "blush-pink-01",
+      "name": "블러시 핑크",
+      "pages": {
+        "hook": "left-align",
+        "why": "numbered-list",
+        "detail": "single-accent",
+        "offer": "price-comparison",
+        "cta": "centered-bold"
+      },
+      "palette": { "bg": "#FDF5F3", "text": "#3D2E2A", "accent": "#D4A99A", "highlight": "#C97B6B" }
+    },
+    {
+      "id": "sage-green-01",
+      "name": "세이지 그린",
+      "pages": {
+        "hook": "split-text",
+        "why": "icon-bullets",
+        "detail": "two-column",
+        "offer": "simple-block",
+        "cta": "bottom-card"
+      },
+      "palette": { "bg": "#F4F6F0", "text": "#2D3328", "accent": "#8A9A7B", "highlight": "#6B8A5E" }
+    },
+    {
+      "id": "warm-mocha-01",
+      "name": "웜 모카",
+      "pages": {
+        "hook": "centered-big",
+        "why": "numbered-list",
+        "detail": "two-column",
+        "offer": "price-comparison",
+        "cta": "bottom-card"
+      },
+      "palette": { "bg": "#F3EDE6", "text": "#332D27", "accent": "#A8907A", "highlight": "#8B7355" }
+    },
+    {
+      "id": "cool-slate-01",
+      "name": "쿨 슬레이트",
+      "pages": {
+        "hook": "left-align",
+        "why": "icon-bullets",
+        "detail": "single-accent",
+        "offer": "simple-block",
+        "cta": "centered-bold"
+      },
+      "palette": { "bg": "#EEEEF2", "text": "#2A2A35", "accent": "#8888A0", "highlight": "#6A6A8A" }
+    }
+  ]
+}

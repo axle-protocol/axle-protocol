@@ -244,6 +244,47 @@
   $('#statusFilter').addEventListener('change', loadQueue);
   $('#refreshQueue').addEventListener('click', loadQueue);
 
+  function imageStatusBadge(p) {
+    const s = p.imageStatus || 'none';
+    const map = {
+      none: { color: 'bg-zinc-700 text-zinc-400', label: '이미지 없음' },
+      generating: { color: 'bg-amber-500/20 text-amber-300', label: '생성 중...' },
+      ready: { color: 'bg-emerald-500/20 text-emerald-300', label: '이미지 준비됨' },
+      failed: { color: 'bg-red-500/20 text-red-300', label: '생성 실패' },
+    };
+    const m = map[s] || map.none;
+    return `<span class="text-xs px-2 py-0.5 rounded-full ${m.color}">${m.label}</span>`;
+  }
+
+  function cardPreviewHtml(p) {
+    if (!p.assets?.cards?.length) return '';
+    const thumbs = p.assets.cards.map((c) =>
+      `<a href="/api/admin/ig/posts/${p.id}/card/${c.index}" target="_blank" class="flex-shrink-0">
+        <img src="/api/admin/ig/posts/${p.id}/card/${c.index}" alt="${escapeHtml(c.type)}"
+          class="rounded-lg border border-zinc-700 h-28 w-auto object-cover hover:opacity-80 transition-opacity" />
+      </a>`
+    ).join('');
+    return `<div class="flex gap-2 overflow-x-auto mt-2 pb-1">${thumbs}</div>`;
+  }
+
+  function imageActionsHtml(p) {
+    const parts = [];
+    if (p.status === 'approved' || p.status === 'sent') {
+      const imgStatus = p.imageStatus || 'none';
+      if (imgStatus === 'none' || imgStatus === 'failed') {
+        parts.push(`<button class="gen-img-btn rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-violet-500" data-id="${p.id}">카드 이미지 생성</button>`);
+      }
+      if (imgStatus === 'ready') {
+        parts.push(`<a href="/api/admin/ig/posts/${p.id}/package.zip" class="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500 inline-block no-underline">ZIP 다운로드</a>`);
+        parts.push(`<button class="gen-img-btn rounded-lg bg-zinc-700 text-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-600" data-id="${p.id}" data-regen="1">재생성</button>`);
+      }
+      if (imgStatus === 'failed' && p.imageError) {
+        parts.push(`<span class="text-xs text-red-400">오류: ${escapeHtml(p.imageError)}</span>`);
+      }
+    }
+    return parts.length ? `<div class="flex gap-2 flex-wrap items-center mt-2">${parts.join('')}</div>` : '';
+  }
+
   function renderQueue(posts) {
     const container = $('#queueList');
     const empty = $('#queueEmpty');
@@ -297,17 +338,46 @@
           <span class="text-xs text-white px-2 py-0.5 rounded-full ${statusColor}">${escapeHtml(statusLabel)}</span>
           ${p.ctaType ? `<span class="text-xs bg-blue-400/20 text-blue-300 px-2 py-0.5 rounded-full">CTA ${escapeHtml(p.ctaType)}</span>` : ''}
           ${p.slot ? `<span class="text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">${escapeHtml(p.slot)}</span>` : ''}
+          ${imageStatusBadge(p)}
         </div>
         <div class="text-sm font-medium text-zinc-200 mb-1">${escapeHtml(p.productName)}</div>
         <div class="text-xs text-zinc-400 mb-1 whitespace-pre-wrap">${escapeHtml(preview)}</div>
-        <div class="text-xs text-zinc-600">
+        ${cardPreviewHtml(p)}
+        <div class="text-xs text-zinc-600 mt-1">
           예정: ${escapeHtml(scheduledStr)} · 생성: ${escapeHtml(createdStr)}
           ${p.variants ? ` · 변형 ${p.variants.length}개` : ''}
         </div>
+        ${imageActionsHtml(p)}
         ${actionsHtml}
       `;
       container.appendChild(card);
     }
+
+    // Generate images (sync — shows loading state)
+    container.querySelectorAll('.gen-img-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const regen = btn.dataset.regen === '1';
+        btn.disabled = true;
+        btn.textContent = '이미지 생성 중...';
+        btn.className = 'rounded-lg bg-zinc-700 text-amber-300 px-3 py-1.5 text-xs animate-pulse cursor-wait';
+        try {
+          const r = await jpost(`/api/admin/ig/posts/${btn.dataset.id}/generate_images`, { regenerate: regen });
+          if (r.ok) {
+            loadQueue();
+          } else {
+            alert('이미지 생성 오류: ' + (r.error || r.detail || ''));
+            btn.disabled = false;
+            btn.textContent = regen ? '재생성' : '카드 이미지 생성';
+            btn.className = 'gen-img-btn rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-violet-500';
+          }
+        } catch (e) {
+          alert('요청 실패: ' + e.message);
+          btn.disabled = false;
+          btn.textContent = regen ? '재생성' : '카드 이미지 생성';
+          btn.className = 'gen-img-btn rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-violet-500';
+        }
+      });
+    });
 
     // Mark sent
     container.querySelectorAll('.mark-sent-btn').forEach((btn) => {

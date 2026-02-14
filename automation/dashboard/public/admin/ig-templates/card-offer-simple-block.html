@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: {{BACKGROUND}};
+  color: {{COLOR_TEXT}};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.container {
+  width: 100%;
+  padding: 100px 120px;
+  text-align: center;
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+}
+.offer-text {
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: {{COLOR_TEXT}};
+}
+.deal-price {
+  font-size: 64px;
+  font-weight: 700;
+  color: {{COLOR_ACCENT}};
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="block">
+    <div class="offer-text">{{OFFER_TEXT}}</div>
+    <div class="deal-price">{{DEAL_PRICE}}</div>
+  </div>
+</div>
+</body>
+</html>
