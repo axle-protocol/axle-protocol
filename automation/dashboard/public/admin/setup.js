@@ -12,15 +12,26 @@ async function jpost(url, body){
 }
 
 let state = { vendors: [], products: [], mapping: [] };
+let unassigned = [];
 
 function renderVendors(){
   const sel = $('vendorSelect');
   sel.innerHTML = '';
+  const sel2 = $('assignVendor');
+  if (sel2) sel2.innerHTML = '';
+
   for(const v of state.vendors){
     const opt = document.createElement('option');
     opt.value = v.id;
     opt.textContent = `${v.username} · ${v.name}`;
     sel.appendChild(opt);
+
+    if (sel2) {
+      const opt2 = document.createElement('option');
+      opt2.value = v.id;
+      opt2.textContent = `${v.username} · ${v.name}`;
+      sel2.appendChild(opt2);
+    }
   }
 }
 
@@ -52,11 +63,45 @@ function renderItems(){
   }
 }
 
+function renderUnassigned(){
+  const wrap = $('unassigned');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  if(!unassigned.length){
+    wrap.innerHTML = '<div class="p-3 text-sm text-zinc-500">미분류 주문 없음</div>';
+    return;
+  }
+  for(const o of unassigned.slice(0, 300)){
+    const row = document.createElement('label');
+    row.className = 'flex items-center gap-3 p-2 border-b border-zinc-900';
+    row.innerHTML = `
+      <input type="checkbox" data-order="${o.id}" />
+      <div class="text-sm">
+        <div class="text-zinc-100">${(o.productName||'').slice(0,60)} <span class="text-xs text-zinc-500">x${o.qty||''}</span></div>
+        <div class="text-xs text-zinc-500">상품주문번호: ${o.productOrderNo||o.id} · 상품번호: ${o.productNo||''}</div>
+      </div>
+    `;
+    wrap.appendChild(row);
+  }
+}
+
+async function refreshUnassigned(){
+  try{
+    const r = await jget('/api/admin/orders_unassigned');
+    unassigned = r.orders || [];
+    $('assignMsg').textContent = `미분류 ${unassigned.length}건`;
+    renderUnassigned();
+  }catch(e){
+    $('assignMsg').textContent = String(e);
+  }
+}
+
 async function refreshAll(){
   const j = await jget('/api/admin/state');
   state = j;
   renderVendors();
   renderItems();
+  await refreshUnassigned();
 }
 
 $('createVendor').addEventListener('click', async ()=>{
@@ -126,6 +171,35 @@ $('importOrders').addEventListener('click', async ()=>{
     $('importMsg').textContent = `OK: ${r.imported}건 (총 ${r.totalAfter}건) · 자동배정 ${r.assigned} · 미분류 ${r.unassigned}`;
   }catch(e){
     $('importMsg').textContent = String(e);
+  }
+});
+
+$('downloadShipping')?.addEventListener('click', async ()=>{
+  $('shipMsg').textContent='';
+  const chunk = ($('shipChunk').value||'').trim();
+  const size = ($('shipSize').value||'').trim();
+  const qs = new URLSearchParams();
+  if(chunk) qs.set('chunk', chunk);
+  if(size) qs.set('size', size);
+  const url = '/api/admin/shipping_export.xlsx' + (qs.toString()?`?${qs.toString()}`:'');
+  $('shipMsg').textContent='다운로드 시작…';
+  window.location.href = url;
+});
+
+$('refreshUnassigned')?.addEventListener('click', refreshUnassigned);
+
+$('assignOrders')?.addEventListener('click', async ()=>{
+  $('assignMsg').textContent='';
+  const vendorId = $('assignVendor')?.value;
+  const checked = Array.from(document.querySelectorAll('#unassigned input[type=checkbox]:checked')).map(x=>x.getAttribute('data-order'));
+  if(!vendorId){ $('assignMsg').textContent='vendor 선택 필요'; return; }
+  if(!checked.length){ $('assignMsg').textContent='선택된 주문 없음'; return; }
+  try{
+    const r = await jpost('/api/admin/orders_assign', { vendorId, orderIds: checked });
+    $('assignMsg').textContent = `지정 OK: ${r.updated}건`;
+    await refreshUnassigned();
+  }catch(e){
+    $('assignMsg').textContent = String(e);
   }
 });
 

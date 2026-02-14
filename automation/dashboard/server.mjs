@@ -824,6 +824,37 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true, count: productNos.length });
   }
 
+  if (url.pathname === '/api/admin/orders_unassigned' && req.method === 'GET') {
+    const orders = loadOrders();
+    const list = (orders.orders || []).filter((o) => !o.vendorId);
+    return sendJson(res, 200, { ok: true, orders: list, count: list.length });
+  }
+
+  if (url.pathname === '/api/admin/orders_assign' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const vendorId = String(body?.vendorId || '').trim();
+    const orderIds = Array.isArray(body?.orderIds) ? body.orderIds.map(String) : [];
+    if (!vendorId || orderIds.length === 0) return sendJson(res, 400, { error: 'bad_input' });
+
+    const orders = loadOrders();
+    const set = new Set(orderIds);
+    let updated = 0;
+    const now = new Date().toISOString();
+
+    orders.orders = (orders.orders || []).map((o) => {
+      const id = String(o.id || o.productOrderNo || '');
+      if (set.has(id)) {
+        updated++;
+        return { ...o, vendorId, updatedAt: now };
+      }
+      return o;
+    });
+
+    saveOrders(orders);
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ADMIN_ORDERS_ASSIGNED', ip: getClientIp(req), meta: { vendorId, updated } });
+    return sendJson(res, 200, { ok: true, updated });
+  }
+
   // -------------------------
   // Admin: SmartStore order XLSX import (multipart)
   // -------------------------
