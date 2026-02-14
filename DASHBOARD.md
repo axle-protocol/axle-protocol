@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 14:12 KST
+# DASHBOARD.md — 2026-02-14 14:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -50,6 +50,10 @@
 - [x] (Admin Setup MVP) 관리자 셋업 화면 추가
   - `/admin`: 사장님 생성, 상품 CSV 업로드(상품번호/상품명), 사장님↔상품 매핑(체크박스+검색), 샘플 주문 생성
   - 커밋: `c730c30`
+- [x] (Safety MVP) JSON 무결성/감사로그 최소 구현
+  - atomic JSON write(tmp→rename) + backups/ (7일 정리)
+  - audit JSONL(data/audit.jsonl) + vendor 주요 액션 로깅
+  - 커밋: `b0b4e4c`
 - [ ] (Next) 주문 엑셀 업로드(+비번 입력) → 복호화/파싱 → orders 저장(실데이터)
 - [ ] (Next) 주문 업로드 시 상품번호 기반 자동 할당 + 미매핑 목록(관리자에서 즉시 매핑)
 - [ ] (Next) 관리자 승인 + 발송처리 업로드 엑셀(4열) 생성(+분할)
@@ -59,5 +63,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 15% (59k/400k) — compaction 2회
+- Context: 50% (201k/400k) — compaction 2회
 - Usage: (see memory/usage-tracker.json)
