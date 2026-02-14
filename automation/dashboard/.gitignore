@@ -3,6 +3,8 @@
 /data/orders.json
 /data/mapping.json
 /data/products.json
+/data/audit.jsonl
+/data/backups/
 
 # (optional) treat vendors.json as local if you don't want demo creds in git
 # /data/vendors.json
