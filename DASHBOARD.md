@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 18:25 KST
+# DASHBOARD.md — 2026-02-14 18:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -42,7 +42,7 @@
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
-  - PID: 32286
+  - PID: 32882 (latest)
   - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
@@ -62,12 +62,19 @@
   - API: `POST /api/admin/orders_xlsx_import`
   - 커밋: `7eafa3c`
 - [x] (Import) 주문 업로드 시 상품번호 기반 vendor 자동 할당 + 미분류 카운트 제공
-- [ ] (Next) 관리자 승인 + 발송처리 업로드 엑셀(4열) 생성(+분할)
+- [x] (Admin) 발송처리 업로드 엑셀(4열) 생성(+분할)
+  - API: `GET /api/admin/shipping_export.xlsx`
+  - 분할: `?chunk=0&size=2000`
+  - 커밋: `5fcbc9f`
+- [x] (IG) 인스타 세미 자동화: 브랜드가이드 + 생성기 + 검증기 + 큐/스케줄러
+  - UI: `/admin/instagram`
+  - 커밋: `bb1cb6c`
+- [ ] (Next) 관리자 승인(락) + 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 18% (74k/400k) — compaction 4회 (리셋됨)
+- Context: 22% (87k/400k) — compaction 4회 (리셋됨)
 - Usage: (see memory/usage-tracker.json)
