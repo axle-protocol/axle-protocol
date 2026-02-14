@@ -41,6 +41,22 @@
       </div>
 
       <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-zinc-400">해야 할 일(내부)</div>
+            <div class="text-xs text-zinc-500">Han + Clo만 보는 로드맵</div>
+          </div>
+        </div>
+
+        <div class="mt-3 flex gap-2">
+          <input id="roadmapText" placeholder="할 일 추가…" class="w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm outline-none" />
+          <button id="roadmapAdd" class="rounded-lg bg-zinc-100 text-zinc-900 px-3 py-2 text-sm font-medium">추가</button>
+        </div>
+
+        <div id="roadmap" class="mt-3 grid gap-2"></div>
+      </div>
+
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
         <div class="text-sm text-zinc-400">리포트</div>
         <ul class="mt-2 text-sm list-disc pl-5 text-zinc-200 space-y-1">
           <li>최근 실행 로그 / 스크린샷 / 에러 모음 (예정)</li>

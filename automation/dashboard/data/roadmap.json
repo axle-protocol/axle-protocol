@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "seed-1",
+      "text": "(운영) Cloudflare Named Tunnel + 고정 도메인 (24/7)",
+      "done": false,
+      "createdAt": "2026-02-15T02:06:00+09:00",
+      "updatedAt": "2026-02-15T02:06:00+09:00"
+    },
+    {
+      "id": "seed-2",
+      "text": "(검증) 실주문 엑셀 1건 E2E: 주소/전화/옵션 컬럼 확정",
+      "done": false,
+      "createdAt": "2026-02-15T02:06:00+09:00",
+      "updatedAt": "2026-02-15T02:06:00+09:00"
+    },
+    {
+      "id": "seed-3",
+      "text": "(IG) 상품 이미지 업로드 → 카드 템플릿에 삽입(A) MVP",
+      "done": false,
+      "createdAt": "2026-02-15T02:06:00+09:00",
+      "updatedAt": "2026-02-15T02:06:00+09:00"
+    }
+  ]
+}

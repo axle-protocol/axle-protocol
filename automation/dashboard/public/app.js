@@ -166,15 +166,115 @@ async function refreshQueue() {
   render(j.items || []);
 }
 
+async function roadmapPost(action, payload) {
+  const res = await fetch('/api/admin/roadmap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function renderRoadmap(items) {
+  const el = document.getElementById('roadmap');
+  if (!el) return;
+
+  const sorted = [...(items || [])].sort((a, b) => {
+    const ad = a.done ? 1 : 0;
+    const bd = b.done ? 1 : 0;
+    if (ad !== bd) return ad - bd;
+    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  });
+
+  if (!sorted.length) {
+    el.innerHTML = '<div class="text-sm text-zinc-500">할 일 없음</div>';
+    return;
+  }
+
+  el.innerHTML = '';
+  for (const it of sorted) {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/10 px-3 py-2';
+    row.innerHTML = `
+      <label class="flex items-center gap-2 text-sm ${it.done ? 'text-zinc-500 line-through' : 'text-zinc-200'}">
+        <input type="checkbox" data-roadmap-toggle="${escapeHtml(it.id)}" ${it.done ? 'checked' : ''} />
+        <span>${escapeHtml(it.text)}</span>
+      </label>
+      <button class="text-xs text-zinc-400 underline" data-roadmap-remove="${escapeHtml(it.id)}">삭제</button>
+    `;
+    el.appendChild(row);
+  }
+
+  el.querySelectorAll('input[data-roadmap-toggle]').forEach((cb) => {
+    cb.addEventListener('change', async () => {
+      const id = cb.getAttribute('data-roadmap-toggle');
+      cb.disabled = true;
+      try {
+        await roadmapPost('toggle', { id });
+        await refreshRoadmap();
+      } catch (e) {
+        alert(String(e));
+      } finally {
+        cb.disabled = false;
+      }
+    });
+  });
+
+  el.querySelectorAll('button[data-roadmap-remove]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-roadmap-remove');
+      if (!confirm('삭제할까?')) return;
+      btn.disabled = true;
+      try {
+        await roadmapPost('remove', { id });
+        await refreshRoadmap();
+      } catch (e) {
+        alert(String(e));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+async function refreshRoadmap() {
+  const el = document.getElementById('roadmap');
+  if (!el) return;
+  const res = await fetch('/api/admin/roadmap', { cache: 'no-store' });
+  const j = await res.json();
+  renderRoadmap(j.items || []);
+}
+
 async function refreshAll() {
   await refreshHealth();
   await refreshQueue();
+  await refreshRoadmap();
 }
 
 document.getElementById('refresh')?.addEventListener('click', refreshAll);
 document.getElementById('search')?.addEventListener('input', () => {
   window.clearTimeout(window.__qTimer);
   window.__qTimer = window.setTimeout(refreshQueue, 250);
+});
+
+document.getElementById('roadmapAdd')?.addEventListener('click', async () => {
+  const input = document.getElementById('roadmapText');
+  const text = input?.value?.trim();
+  if (!text) return;
+  try {
+    await roadmapPost('add', { text });
+    input.value = '';
+    await refreshRoadmap();
+  } catch (e) {
+    alert(String(e));
+  }
+});
+
+document.getElementById('roadmapText')?.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('roadmapAdd')?.click();
+  }
 });
 
 refreshAll();

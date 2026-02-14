@@ -192,6 +192,7 @@ const mappingPath = path.join(dataDir, 'mapping.json');
 const auditLogPath = path.join(dataDir, 'audit.jsonl');
 const igGuidePath = path.join(dataDir, 'ig_brand_guide.json');
 const igPostsPath = path.join(dataDir, 'ig_posts.json');
+const roadmapPath = path.join(dataDir, 'roadmap.json');
 
 const CARRIER_LABEL = {
   cj: 'CJ대한통운',
@@ -205,6 +206,15 @@ function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
   if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
   return req.socket?.remoteAddress || null;
+}
+
+function loadRoadmap() {
+  ensureDataDir();
+  return loadJson(roadmapPath, { items: [] });
+}
+
+function saveRoadmap(db) {
+  saveJson(roadmapPath, db);
 }
 
 function auditLog(entry) {
@@ -1043,6 +1053,52 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/admin/instagram' || url.pathname === '/admin/instagram/') {
     return serveStatic(res, '/admin/instagram.html');
+  }
+
+  // -------------------------
+  // Owner-only roadmap (private task list)
+  // -------------------------
+  if (url.pathname === '/api/admin/roadmap' && req.method === 'GET') {
+    const db = loadRoadmap();
+    return sendJson(res, 200, { ok: true, items: db.items || [] });
+  }
+
+  if (url.pathname === '/api/admin/roadmap' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const action = String(body?.action || '');
+    const db = loadRoadmap();
+    db.items = Array.isArray(db.items) ? db.items : [];
+    const now = new Date().toISOString();
+
+    if (action === 'add') {
+      const text = String(body?.text || '').trim();
+      if (!text) return sendJson(res, 400, { ok: false, error: 'missing_text' });
+      const item = { id: crypto.randomUUID(), text, done: false, createdAt: now, updatedAt: now };
+      db.items.push(item);
+      saveRoadmap(db);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ROADMAP_ADD', ip: getClientIp(req), meta: { id: item.id } });
+      return sendJson(res, 200, { ok: true, item });
+    }
+
+    if (action === 'toggle') {
+      const id = String(body?.id || '');
+      if (!id) return sendJson(res, 400, { ok: false, error: 'missing_id' });
+      db.items = db.items.map((it) => (it.id === id ? { ...it, done: !it.done, updatedAt: now } : it));
+      saveRoadmap(db);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ROADMAP_TOGGLE', ip: getClientIp(req), meta: { id } });
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (action === 'remove') {
+      const id = String(body?.id || '');
+      if (!id) return sendJson(res, 400, { ok: false, error: 'missing_id' });
+      db.items = db.items.filter((it) => it.id !== id);
+      saveRoadmap(db);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ROADMAP_REMOVE', ip: getClientIp(req), meta: { id } });
+      return sendJson(res, 200, { ok: true });
+    }
+
+    return sendJson(res, 400, { ok: false, error: 'bad_action' });
   }
 
   // -------------------------
