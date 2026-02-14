@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 02:55 KST
+# DASHBOARD.md — 2026-02-15 03:25 KST
 
 ## 🎯 현재 프로젝트
 
@@ -44,7 +44,7 @@
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
-  - PID: 54766 (latest)
+  - PID: 55095 (latest)
   - Log: /tmp/automation-dashboard.log
 - [x] (Infra) Chrome Remote Desktop 접속 불가 이슈 복구
 - [x] (Dashboard v2) 큐 JSON 저장 + 승인/보류 API + 실데이터 렌더링
@@ -81,6 +81,9 @@
   - 커밋: `c0d2df6`
 - [x] (IG) 업로드 UX 안정화 + webp/png 지원 + Playwright closed 재시도
   - 커밋: `cd4be2f` + `697c53f` + `7c454bc`
+- [x] (IG) 제품 이미지 삽입 안정화(Playwright file:// 로딩 불안정 제거)
+  - webp 업로드 시 png 변환: `e399854`
+  - 제품이미지 data URI(base64) 임베드로 1페이지 삽입 확정: `5a71834`
 - [x] (Admin) 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
   - 커밋: `8825f5a`
 - [x] (External access MVP) Cloudflare Quick Tunnel로 외부 접속 링크 발급 (실험용)
@@ -97,11 +100,12 @@
 - [x] (IG) Opus 프롬프트 v2 전환 최적화 요구사항 추가 (세트/슬라이드 선택, price stack, brand mini-kit)
   - 커밋: `da54621`
 - [ ] (Next) IG: 판매형 template set(7장) + 슬라이드 선택/재정렬 + price stack 컴포넌트
+- [ ] (Next) IG: 미리캔버스/망고보드 스타일 리서치 → ‘사람이 만든’ 판매형 10종 세트 구조 정의
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 59% (237k/400k) — compaction 0회 (리셋됨)
+- Context: 63% (252k/400k) — compaction 0회
 - Usage: (see memory/usage-tracker.json)
