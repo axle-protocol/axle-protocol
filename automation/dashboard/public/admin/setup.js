@@ -96,12 +96,29 @@ async function refreshUnassigned(){
   }
 }
 
+function renderStats(stats){
+  const el = $('stats');
+  if(!el) return;
+  const v = state.vendors?.length || 0;
+  const p = state.products?.length || 0;
+  const m = state.mapping?.length || 0;
+  const total = stats?.total ?? '-';
+  const un = stats?.unassigned ?? '-';
+  el.textContent = `사장님 ${v}명 · 상품 ${p}개 · 매핑 ${m}개 · 주문 ${total}건 · 미분류 ${un}건`;
+}
+
 async function refreshAll(){
   const j = await jget('/api/admin/state');
   state = j;
   renderVendors();
   renderItems();
   await refreshUnassigned();
+  try{
+    const s = await jget('/api/admin/orders_stats');
+    renderStats(s);
+  }catch{
+    renderStats(null);
+  }
 }
 
 $('createVendor').addEventListener('click', async ()=>{

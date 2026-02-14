@@ -495,7 +495,144 @@ function generateIgHashtags(guide, productName, seed) {
   return all.map((t) => `#${t}`);
 }
 
+// --- Caption Block Combinator ---
+
+const TONE_MAP = { 'friendly-info': 'empathy', 'secret-deal': 'info', 'lux-minimal': 'luxury' };
+
+function loadCaptionBlocks() {
+  const p = path.join(dataDir, 'ig_caption_blocks.json');
+  if (!existsSync(p)) return null;
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; }
+}
+
+function filterBlocksByTone(blocks, category, tone) {
+  const list = blocks[category] || [];
+  return list.filter((b) => b.tone.includes(tone));
+}
+
+function captionTrigrams(text) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const set = new Set();
+  for (let i = 0; i <= clean.length - 3; i++) set.add(clean.slice(i, i + 3));
+  return set;
+}
+
+function trigramSimilarity(a, b) {
+  if (a.size === 0 && b.size === 0) return 1;
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+function isTooSimilar(caption, recentCaptions, threshold = 0.4) {
+  const tg = captionTrigrams(caption);
+  for (const rc of recentCaptions) {
+    if (trigramSimilarity(tg, captionTrigrams(rc)) >= threshold) return true;
+  }
+  return false;
+}
+
+function getRecentCaptions(posts, limit = 30) {
+  return (posts || [])
+    .filter((p) => p.status !== 'canceled' && p.approvedVariantId)
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, limit)
+    .map((p) => {
+      const v = (p.variants || []).find((vv) => vv.id === p.approvedVariantId);
+      return v ? v.caption : '';
+    })
+    .filter(Boolean);
+}
+
 function generateIgDrafts(params, guide) {
+  const { productName, keyBenefit, price, targetAudience, notes, tone } = params;
+  const blocks = loadCaptionBlocks();
+
+  // Fallback to legacy template-based generation if blocks file missing
+  if (!blocks) return generateIgDraftsLegacy(params, guide);
+
+  const detailParts = [];
+  if (price) detailParts.push(`${Number(price).toLocaleString()}원대 가격도 합리적이에요`);
+  if (targetAudience) detailParts.push(`${targetAudience}에게 특히 잘 맞아요`);
+  if (notes) detailParts.push(notes);
+  const detail = detailParts.join('\n') || `${productName}의 매력은 직접 느껴보세요`;
+  const priceText = price ? `${Number(price).toLocaleString()}원` : '특별가';
+
+  const replacePlaceholders = (text) =>
+    text.replace(/\{product\}/g, productName)
+      .replace(/\{benefit\}/g, keyBenefit)
+      .replace(/\{detail\}/g, detail)
+      .replace(/\{price\}/g, priceText)
+      .replace(/\{targetAudience\}/g, targetAudience || '');
+
+  const clusters = ['empathy', 'info', 'luxury'];
+  let distribution;
+  if (tone && clusters.includes(tone)) {
+    distribution = [tone, tone, ...clusters.filter((c) => c !== tone)];
+  } else {
+    distribution = ['empathy', 'info', 'luxury', 'empathy', 'info'];
+  }
+
+  const seed = igHashSeed(productName + new Date().toISOString().slice(0, 10));
+  const existingData = loadIgPosts();
+  const recentCaptions = getRecentCaptions(existingData.posts);
+  const variants = [];
+
+  for (let i = 0; i < distribution.length; i++) {
+    const clusterTone = distribution[i];
+
+    const hooks = filterBlocksByTone(blocks, 'hook', clusterTone);
+    const benefits = filterBlocksByTone(blocks, 'benefit', clusterTone);
+    const proofs = filterBlocksByTone(blocks, 'proof', clusterTone);
+    const offers = filterBlocksByTone(blocks, 'offer', clusterTone);
+    const ctas = filterBlocksByTone(blocks, 'cta', clusterTone);
+
+    if (hooks.length === 0 || benefits.length === 0) continue;
+
+    // Try up to 5 times to avoid similarity with recent captions
+    let caption = '';
+    let chosenCta = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const s = seed + i * 7 + attempt * 13;
+      const hook = hooks[s % hooks.length];
+      const benefit = benefits[(s + 3) % benefits.length];
+      const proof = proofs.length > 0 ? proofs[(s + 5) % proofs.length] : null;
+      const offer = offers.length > 0 ? offers[(s + 7) % offers.length] : null;
+      chosenCta = ctas.length > 0 ? ctas[(s + 11) % ctas.length] : null;
+
+      let parts = [hook.text, benefit.text];
+      if (proof) parts.push(proof.text);
+      if (offer && price) parts.push(offer.text);
+      if (chosenCta) parts.push(chosenCta.text);
+      else {
+        const ctaType = i === seed % distribution.length ? 'A' : 'C';
+        parts.push(ctaType === 'A' ? (guide.ctaPolicy?.typeA?.text || "댓글에 '공구' 남겨주세요!") : (guide.ctaPolicy?.typeC?.text || '프로필 링크에서 확인하세요 :)'));
+      }
+
+      caption = replacePlaceholders(parts.join('\n\n'));
+      if (!isTooSimilar(caption, recentCaptions)) break;
+    }
+
+    const ctaType = chosenCta?.ctaType || (i === seed % distribution.length ? 'A' : 'C');
+    const hashtags = generateIgHashtags(guide, productName, seed + i);
+    const variant = {
+      id: `var_${crypto.randomUUID()}`,
+      cluster: clusterTone,
+      clusterName: (guide.tone?.clusters || []).find((c) => c.id === clusterTone)?.name || clusterTone,
+      caption,
+      hashtags: hashtags.join(' '),
+      ctaType,
+      validation: null,
+    };
+    variant.validation = validateIgDraft(variant, guide);
+    variants.push(variant);
+  }
+  return variants;
+}
+
+// Legacy fallback when ig_caption_blocks.json is missing
+function generateIgDraftsLegacy(params, guide) {
   const { productName, keyBenefit, price, targetAudience, notes, tone } = params;
   const detailParts = [];
   if (price) detailParts.push(`${Number(price).toLocaleString()}원대 가격도 합리적이에요`);
@@ -884,6 +1021,13 @@ const server = http.createServer(async (req, res) => {
     }
     saveMapping(m);
     return sendJson(res, 200, { ok: true, count: productNos.length });
+  }
+
+  if (url.pathname === '/api/admin/orders_stats' && req.method === 'GET') {
+    const orders = loadOrders();
+    const list = orders.orders || [];
+    const unassigned = list.filter((o) => !o.vendorId);
+    return sendJson(res, 200, { ok: true, total: list.length, unassigned: unassigned.length });
   }
 
   if (url.pathname === '/api/admin/orders_unassigned' && req.method === 'GET') {
