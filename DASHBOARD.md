@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-14 22:55 KST
+# DASHBOARD.md — 2026-02-14 23:25 KST
 
 ## 🎯 현재 프로젝트
 
@@ -36,6 +36,8 @@
 ---
 
 ## 📋 Han 할 일
+- [ ] (운영) Cloudflare로 옮길 **운영용 도메인 결정** (기존 가비아 도메인 vs 새 도메인)
+  - 형태: `vendor.<domain>` / `admin.<domain>` (서브도메인 분리)
 - [ ] (선택) Codex CLI를 쓰려면 OpenAI **API Billing/Quota** 활성화 필요 (ChatGPT Pro와 별개)
 - [ ] (선택) Codex 자동화용 OpenRouter는 일단 보류 (키 노출 이슈로 revoke 권장)
 - [ ] (결정) 매핑 운영 초기: **상품번호 기반 자동 매핑(권장)** + 미매핑은 ‘미분류’로 처리
