@@ -948,8 +948,13 @@ async function generateCardImages(post, variant, options = {}) {
   mkdirSync(outDir, { recursive: true });
 
   // Optional product hero image (uploaded by owner)
-  const productImagePath = path.join(outDir, 'product.jpg');
-  const productImageUrl = existsSync(productImagePath) ? `file://${productImagePath}` : '';
+  const productCandidates = ['product.webp', 'product.png', 'product.jpg', 'product.jpeg'];
+  let productImagePath = '';
+  for (const fn of productCandidates) {
+    const p = path.join(outDir, fn);
+    if (existsSync(p)) { productImagePath = p; break; }
+  }
+  const productImageUrl = productImagePath ? `file://${productImagePath}` : '';
 
   const aiBgPath = await generateAiBackground(palette, post.productName, outDir);
   const background = resolveBackground(palette, aiBgPath);
@@ -1016,6 +1021,7 @@ const MIME = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
@@ -1236,11 +1242,19 @@ const server = http.createServer(async (req, res) => {
 
       const outDir = path.join(dataDir, 'ig_assets', postId);
       mkdirSync(outDir, { recursive: true });
-      const outPath = path.join(outDir, 'product.jpg');
+
+      const origName = String(filePart.filename || '').toLowerCase();
+      const ext = (origName.match(/\.(webp|png|jpe?g)$/)?.[0]) || '.jpg';
+      const outName = `product${ext}`;
+      // cleanup old variants
+      for (const fn of ['product.webp','product.png','product.jpg','product.jpeg']) {
+        try { if (existsSync(path.join(outDir, fn))) unlinkSync(path.join(outDir, fn)); } catch {}
+      }
+      const outPath = path.join(outDir, outName);
       writeFileSync(outPath, filePart.data);
 
       posts.posts[idx].assets = posts.posts[idx].assets || {};
-      posts.posts[idx].assets.productImage = { filename: 'product.jpg', uploadedAt: new Date().toISOString() };
+      posts.posts[idx].assets.productImage = { filename: outName, uploadedAt: new Date().toISOString() };
       posts.posts[idx].updatedAt = new Date().toISOString();
       saveIgPosts(posts);
 
@@ -1254,8 +1268,14 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname?.startsWith('/api/admin/ig/posts/') && url.pathname.includes('/product_image') && req.method === 'GET') {
     const parts = url.pathname.split('/').filter(Boolean); // api admin ig posts :id product_image
     const postId = parts[4];
-    const imgPath = path.join(dataDir, 'ig_assets', postId, 'product.jpg');
-    if (!existsSync(imgPath)) {
+    const dir = path.join(dataDir, 'ig_assets', postId);
+    const candidates = ['product.webp', 'product.png', 'product.jpg', 'product.jpeg'];
+    let imgPath = '';
+    for (const fn of candidates) {
+      const p = path.join(dir, fn);
+      if (existsSync(p)) { imgPath = p; break; }
+    }
+    if (!imgPath) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       return res.end('not found');
     }
