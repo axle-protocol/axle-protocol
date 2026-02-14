@@ -417,7 +417,7 @@
           if (r.ok) {
             loadQueue();
           } else {
-            alert('이미지 생성 오류: ' + (r.error || r.detail || ''));
+            alert('이미지 생성 오류: ' + (r.error || '') + (r.detail ? `\n${r.detail}` : ''));
             btn.disabled = false;
             btn.textContent = regen ? '재생성' : '카드 이미지 생성';
             btn.className = 'gen-img-btn rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-violet-500';

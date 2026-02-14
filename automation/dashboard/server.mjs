@@ -821,7 +821,15 @@ let _browser = null;
 
 async function getBrowser() {
   if (_browser && _browser.isConnected()) return _browser;
-  _browser = await chromium.launch();
+  try {
+    if (_browser) {
+      try { await _browser.close(); } catch {}
+    }
+  } catch {}
+  _browser = await chromium.launch({
+    headless: true,
+    args: ['--disable-dev-shm-usage'],
+  });
   return _browser;
 }
 
@@ -961,12 +969,13 @@ async function generateCardImages(post, variant, options = {}) {
   const pages = parseVariantToPages(variant, post, pageCount);
   const templateDir = path.join(__dirname, 'public', 'admin', 'ig-templates');
 
-  const browser = await getBrowser();
-  const context = await browser.newContext({ viewport: { width: 1080, height: 1350 } });
-  const cards = [];
+  async function runOnce() {
+    const browser = await getBrowser();
+    const context = await browser.newContext({ viewport: { width: 1080, height: 1350 } });
+    const cards = [];
 
-  try {
-    for (let i = 0; i < pages.length; i++) {
+    try {
+      for (let i = 0; i < pages.length; i++) {
       const pg = pages[i];
       const layoutVariant = layout.pages[pg.type] || 'centered-big';
       const tplFile = path.join(templateDir, `card-${pg.type}-${layoutVariant}.html`);
@@ -995,19 +1004,34 @@ async function generateCardImages(post, variant, options = {}) {
         html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(val));
       }
 
-      const page = await context.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle' });
-      const filename = `card-${i + 1}-${pg.type}.png`;
-      const outPath = path.join(outDir, filename);
-      await page.screenshot({ path: outPath, type: 'png' });
-      await page.close();
-      cards.push({ index: i, type: pg.type, filename, path: outPath });
+        const page = await context.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle' });
+        const filename = `card-${i + 1}-${pg.type}.png`;
+        const outPath = path.join(outDir, filename);
+        await page.screenshot({ path: outPath, type: 'png' });
+        await page.close();
+        cards.push({ index: i, type: pg.type, filename, path: outPath });
+      }
+    } finally {
+      await context.close();
     }
-  } finally {
-    await context.close();
+
+    return { cards, layoutId: layout.id, layoutName: layout.name, outDir };
   }
 
-  return { cards, layoutId: layout.id, layoutName: layout.name, outDir };
+  try {
+    return await runOnce();
+  } catch (err) {
+    const msg = String(err?.message || err);
+    // Sometimes Playwright crashes/gets closed; retry once with a fresh browser.
+    if (msg.includes('Target page, context or browser has been closed') || msg.includes('browser has been closed')) {
+      console.error('[ig] generateCardImages: browser closed, retrying once');
+      _browser = null;
+      return await runOnce();
+    }
+    console.error('[ig] generateCardImages failed:', msg);
+    throw err;
+  }
 }
 
 // -------------------------
