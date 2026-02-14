@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 03:25 KST
+# DASHBOARD.md — 2026-02-15 03:55 KST
 
 ## 🎯 현재 프로젝트
 
@@ -84,6 +84,7 @@
 - [x] (IG) 제품 이미지 삽입 안정화(Playwright file:// 로딩 불안정 제거)
   - webp 업로드 시 png 변환: `e399854`
   - 제품이미지 data URI(base64) 임베드로 1페이지 삽입 확정: `5a71834`
+- [ ] (WIP) 미리캔버스/망고보드 스타일 분석 → 판매형 10종 세트 구조 스펙 작성
 - [x] (Admin) 발송처리 다운로드 버튼(/admin UI) + 미분류 주문 빠른 매핑 UX
   - 커밋: `8825f5a`
 - [x] (External access MVP) Cloudflare Quick Tunnel로 외부 접속 링크 발급 (실험용)
@@ -107,5 +108,5 @@
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 63% (252k/400k) — compaction 0회
+- Context: 14% (58k/400k) — compaction 1회
 - Usage: (see memory/usage-tracker.json)
