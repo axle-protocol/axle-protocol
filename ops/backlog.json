@@ -1,43 +1,42 @@
 {
   "version": 1,
-  "updatedAt": "2026-02-15T09:50:07.650Z",
+  "updatedAt": "2026-02-15T19:12:30+09:00",
   "items": [
     {
-      "id": "IG-OPS-001",
+      "id": "IG-OPS-003",
       "owner": "designer",
       "priority": "P0",
-      "status": "queued",
-      "title": "인스타 반자동 운영 플로우 확정 + 체크리스트 v1",
-      "definitionOfDone": [
-        "하루 1~2포스트 운영 플로우 문서화",
-        "업로드 리마인더 템플릿",
-        "승인/발행 상태 전이 규칙"
-      ],
-      "notes": "이미지 생성은 미리캔버스 사용 가정. OpenClaw는 원고/검증/리마인더/로그 중심.",
-      "queuedAt": "2026-02-15T09:50:07.651Z"
-    },
-    {
-      "id": "IG-OPS-002",
-      "owner": "designer",
-      "priority": "P1",
       "status": "todo",
-      "title": "레퍼런스 기반 판매형 카피 템플릿 3종(훅/신뢰/CTA)"
+      "title": "뷰티(팔로워 성장) 30일 캘린더+템플릿+샘플 패키지 v1 작성",
+      "definitionOfDone": [
+        "calendar-30d.md 작성",
+        "templates.md 작성",
+        "examples.md 작성"
+      ]
     },
     {
-      "id": "SYS-OPS-001",
-      "owner": "qa",
-      "priority": "P0",
-      "status": "queued",
-      "title": "병목 점검 루틴: 진행 안 되는 이유 자동 진단(blocked 이유 수집)",
-      "queuedAt": "2026-02-15T09:50:07.651Z"
-    },
-    {
-      "id": "SYS-OPS-002",
+      "id": "IG-AUTO-001",
       "owner": "dev",
       "priority": "P1",
-      "status": "queued",
-      "title": "/agents에 backlog/blocked/최근 리포트 요약 노출",
-      "queuedAt": "2026-02-15T09:50:07.651Z"
+      "status": "todo",
+      "title": "(Phase B) 인스타 게시 직전 자동화 설계: 로그인된 크롬 탭 attach 기반 플로우",
+      "definitionOfDone": [
+        "세션 연결 방식(Chrome relay) 정리",
+        "업로드 화면 진입→파일 선택→캡션 입력 단계 정의",
+        "리스크/가드레일(속도 제한/심야 중단) 정의"
+      ]
+    },
+    {
+      "id": "SYS-OPS-003",
+      "owner": "qa",
+      "priority": "P1",
+      "status": "todo",
+      "title": "병목 리포트 템플릿을 /agents에서 보기 좋게 요약 규칙 확정",
+      "definitionOfDone": [
+        "blocked reason 집계 규칙",
+        "P0_BLOCKER 반복 탐지 규칙",
+        "needFromHan 질문 1~3개로 압축 규칙"
+      ]
     }
   ]
 }
