@@ -31,29 +31,28 @@
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
     .section-label {
-      margin-top: 160px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.3em;
-      color: {{COLOR_ACCENT}};
       opacity: 0.4;
       text-align: center;
+      margin-bottom: 80px;
     }
 
     .items-container {
-      margin-top: 120px;
       display: flex;
       flex-direction: column;
       align-items: center;
       width: 100%;
-      padding: 0 120px;
+      gap: 0;
     }
 
     .item {
@@ -66,36 +65,39 @@
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.15em;
-      color: {{COLOR_ACCENT}};
+      opacity: 0.4;
+      text-align: center;
       margin-bottom: 16px;
     }
 
     .item-text {
-      font-size: var(--body);
-      font-weight: 400;
+      font-size: 28px;
+      font-weight: 500;
       line-height: 1.7;
+      letter-spacing: -0.01em;
       white-space: pre-line;
+      text-align: center;
       max-height: 80px;
       overflow: hidden;
     }
 
-    .item-separator {
-      width: 50px;
+    .item-divider {
+      width: 48px;
       height: 1px;
-      background: {{COLOR_ACCENT}}26;
+      background: {{COLOR_ACCENT}}33;
       margin: 36px 0;
     }
 
     .logistics-note {
-      margin-top: 80px;
-      font-size: 18px;
-      font-weight: 400;
-      line-height: var(--lh-body);
+      margin-top: auto;
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      opacity: 0.4;
       text-align: center;
-      opacity: 0.5;
-      padding: 0 120px;
       white-space: pre-line;
-      max-height: 80px;
+      max-height: 60px;
       overflow: hidden;
     }
   </style>
@@ -108,12 +110,12 @@
         <div class="item-label">배송</div>
         <div class="item-text">{{SHIPPING_INFO}}</div>
       </div>
-      <div class="item-separator"></div>
+      <div class="item-divider"></div>
       <div class="item">
         <div class="item-label">반품</div>
         <div class="item-text">{{RETURN_INFO}}</div>
       </div>
-      <div class="item-separator"></div>
+      <div class="item-divider"></div>
       <div class="item">
         <div class="item-label">교환</div>
         <div class="item-text">{{EXCHANGE_INFO}}</div>

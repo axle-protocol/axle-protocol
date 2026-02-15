@@ -31,72 +31,73 @@
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 80px;
+      flex-direction: column;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.0;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      text-align: center;
+      opacity: 0.4;
+      margin-bottom: 64px;
     }
 
     .columns {
       display: flex;
-      align-items: flex-start;
-      width: 100%;
+      gap: 48px;
+      flex: 1;
     }
 
     .column {
       flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .column:first-child {
-      padding-right: 48px;
-    }
-
-    .column:last-child {
-      padding-left: 48px;
     }
 
     .column-label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
+      line-height: 1.0;
+      letter-spacing: 0.3em;
       text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: {{COLOR_ACCENT}};
       opacity: 0.4;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
     }
 
     .column-text {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 400;
+      line-height: 1.8;
       letter-spacing: -0.01em;
-      line-height: 1.7;
-      white-space: pre-line;
-      color: {{COLOR_TEXT}};
-      max-height: 280px;
+      text-align: left;
+      max-height: 400px;
       overflow: hidden;
+      white-space: pre-line;
     }
 
     .vertical-divider {
       width: 1px;
+      background: {{COLOR_ACCENT}}1A;
       align-self: stretch;
-      background: {{COLOR_ACCENT}}26;
-      min-height: 300px;
     }
   </style>
 </head>
 <body>
   <div class="content">
+    <div class="section-label">상세 정보</div>
     <div class="columns">
       <div class="column">
-        <div class="column-label">POINT 01</div>
+        <div class="column-label">특징</div>
         <div class="column-text">{{DETAIL_LEFT}}</div>
       </div>
       <div class="vertical-divider"></div>
       <div class="column">
-        <div class="column-label">POINT 02</div>
+        <div class="column-label">상세</div>
         <div class="column-text">{{DETAIL_RIGHT}}</div>
       </div>
     </div>

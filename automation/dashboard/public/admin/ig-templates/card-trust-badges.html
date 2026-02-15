@@ -31,76 +31,86 @@
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
     .section-label {
-      margin-top: 160px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
-      text-transform: uppercase;
       letter-spacing: 0.3em;
-      color: {{COLOR_ACCENT}};
+      text-transform: uppercase;
       opacity: 0.4;
       text-align: center;
-    }
-
-    .trust-headline {
-      margin-top: 40px;
-      font-size: 30px;
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.5;
-      padding: 0 100px;
-      max-height: 80px;
+      margin-bottom: 48px;
+      max-height: 20px;
       overflow: hidden;
     }
 
-    .badges-container {
-      margin-top: 100px;
+    .trust-headline {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.4;
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 64px;
+      max-height: 100px;
+      overflow: hidden;
+    }
+
+    .badges-row {
       display: flex;
-      align-items: flex-start;
+      gap: 24px;
       justify-content: center;
-      gap: 36px;
-      padding: 0 80px;
+      flex-wrap: wrap;
     }
 
     .badge {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 48px 24px;
       border: 1px solid {{COLOR_ACCENT}}33;
-      border-radius: 20px;
+      border-radius: 16px;
+      padding: 40px 28px;
+      text-align: center;
+      min-width: 240px;
+      flex: 1;
+      max-width: 280px;
     }
 
     .badge-icon {
       font-size: 28px;
       font-weight: 700;
       color: {{COLOR_ACCENT}};
-      margin-bottom: 28px;
-      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+      max-height: 36px;
+      overflow: hidden;
     }
 
     .badge-text {
       font-size: 22px;
       font-weight: 400;
       line-height: 1.6;
-      white-space: pre-line;
-      max-height: 120px;
+      max-height: 100px;
+      overflow: hidden;
+    }
+
+    .trust-stat {
+      margin-top: auto;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: {{COLOR_HIGHLIGHT}};
+      text-align: center;
+      max-height: 40px;
       overflow: hidden;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">TRUST</div>
+    <div class="section-label">실제 후기</div>
     <div class="trust-headline">{{TRUST_HEADLINE}}</div>
-    <div class="badges-container">
+    <div class="badges-row">
       <div class="badge">
         <div class="badge-icon">01</div>
         <div class="badge-text">{{REVIEW_1}}</div>
@@ -109,11 +119,8 @@
         <div class="badge-icon">02</div>
         <div class="badge-text">{{REVIEW_2}}</div>
       </div>
-      <div class="badge">
-        <div class="badge-icon">&#9733;</div>
-        <div class="badge-text">{{TRUST_STAT}}</div>
-      </div>
     </div>
+    <div class="trust-stat">{{TRUST_STAT}}</div>
   </div>
 </body>
 </html>

@@ -26,71 +26,97 @@
       z-index: 0;
     }
 
-    .left-border {
-      position: absolute;
-      left: 100px;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: {{COLOR_ACCENT}}14;
-      z-index: 1;
-    }
-
     .content {
       position: relative;
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding-left: 140px;
-      padding-right: 120px;
-      gap: 56px;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0.4;
+      margin-bottom: 80px;
+      text-align: center;
+      max-height: 20px;
+      overflow: hidden;
+    }
+
+    .items-container {
+      display: flex;
+      flex-direction: column;
+      padding: 0 40px;
     }
 
     .item {
       display: flex;
+      flex-direction: row;
       align-items: flex-start;
-      gap: 24px;
+      gap: 28px;
+      margin-bottom: 48px;
+    }
+
+    .item:last-child {
+      margin-bottom: 0;
     }
 
     .bullet {
-      width: 8px;
-      height: 8px;
-      min-width: 8px;
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
       border-radius: 50%;
       background: {{COLOR_ACCENT}};
-      margin-top: 12px;
+      margin-top: 14px;
+      flex-shrink: 0;
     }
 
     .item-text {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 400;
+      line-height: 1.7;
       letter-spacing: -0.01em;
+      text-align: left;
+      max-height: 100px;
+      overflow: hidden;
+    }
+
+    .sub-text {
+      font-size: 20px;
+      font-weight: 300;
       line-height: 1.6;
-      white-space: pre-line;
-      color: {{COLOR_TEXT}};
-      max-height: 120px;
+      letter-spacing: 0.01em;
+      opacity: 0.7;
+      text-align: center;
+      margin-top: auto;
+      max-height: 60px;
       overflow: hidden;
     }
   </style>
 </head>
 <body>
-  <div class="left-border"></div>
   <div class="content">
-    <div class="item">
-      <div class="bullet"></div>
-      <div class="item-text">{{ITEM_1}}</div>
+    <div class="section-label">장점</div>
+    <div class="items-container">
+      <div class="item">
+        <div class="bullet"></div>
+        <div class="item-text">{{ITEM_1}}</div>
+      </div>
+      <div class="item">
+        <div class="bullet"></div>
+        <div class="item-text">{{ITEM_2}}</div>
+      </div>
+      <div class="item">
+        <div class="bullet"></div>
+        <div class="item-text">{{ITEM_3}}</div>
+      </div>
     </div>
-    <div class="item">
-      <div class="bullet"></div>
-      <div class="item-text">{{ITEM_2}}</div>
-    </div>
-    <div class="item">
-      <div class="bullet"></div>
-      <div class="item-text">{{ITEM_3}}</div>
-    </div>
+    <div class="sub-text">{{SUB_TEXT}}</div>
   </div>
 </body>
 </html>

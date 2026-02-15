@@ -31,86 +31,79 @@
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 0 80px;
     }
 
     .section-label {
       font-size: 13px;
       font-weight: 500;
+      letter-spacing: 0.3em;
       text-transform: uppercase;
-      letter-spacing: 0.35em;
-      color: {{COLOR_ACCENT}};
-      margin-bottom: 64px;
+      opacity: 0.4;
+      text-align: center;
+      max-height: 20px;
+      overflow: hidden;
     }
 
-    .table {
-      width: 100%;
-      max-width: 860px;
+    .cards-container {
       display: flex;
       flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      margin-top: 64px;
     }
 
-    .row {
+    .option-card {
+      background: {{COLOR_ACCENT}}08;
+      border: 1px solid {{COLOR_ACCENT}}14;
+      border-radius: 16px;
+      padding: 36px 44px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 36px 40px;
-      background: {{COLOR_ACCENT}}0F;
-      border-bottom: 1px solid {{COLOR_ACCENT}}1A;
-    }
-
-    .row:first-child {
-      border-radius: 16px 16px 0 0;
-    }
-
-    .row:last-child {
-      border-radius: 0 0 16px 16px;
-      border-bottom: none;
+      align-items: center;
+      max-height: 120px;
+      overflow: hidden;
     }
 
     .option-name {
-      font-size: 24px;
-      font-weight: 400;
-      letter-spacing: -0.01em;
-      line-height: 1.5;
-      color: {{COLOR_TEXT}};
-      flex: 1;
-      max-height: 60px;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      line-height: 1.4;
+      text-align: left;
+      max-height: 50px;
       overflow: hidden;
-      padding-right: 24px;
+      flex: 1;
     }
 
     .option-price {
       font-size: 28px;
       font-weight: 700;
-      color: {{COLOR_ACCENT}};
       letter-spacing: -0.02em;
+      text-align: right;
       white-space: nowrap;
+      color: {{COLOR_TEXT}};
+      max-height: 50px;
       overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 320px;
-      max-height: 60px;
-      flex-shrink: 0;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">OPTIONS</div>
-    <div class="table">
-      <div class="row">
+    <div class="section-label">구성 옵션</div>
+    <div class="cards-container">
+      <div class="option-card">
         <div class="option-name">{{OPTION_1_NAME}}</div>
         <div class="option-price">{{OPTION_1_PRICE}}</div>
       </div>
-      <div class="row">
+      <div class="option-card">
         <div class="option-name">{{OPTION_2_NAME}}</div>
         <div class="option-price">{{OPTION_2_PRICE}}</div>
       </div>
-      <div class="row">
+      <div class="option-card">
         <div class="option-name">{{OPTION_3_NAME}}</div>
         <div class="option-price">{{OPTION_3_PRICE}}</div>
       </div>

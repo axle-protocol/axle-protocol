@@ -857,16 +857,43 @@ const IG_DEFAULT_SLIDES = ['cover', 'why', 'options', 'trust', 'logistics', 'how
 const IG_VALID_TYPES = new Set([...IG_DEFAULT_SLIDES, 'hook', 'detail', 'offer']);
 
 const PAGE_CHAR_LIMITS = {
-  HOOK_TEXT: 80, COVER_HEADLINE: 80, SUB_TEXT: 60, COVER_SUB: 60,
-  ITEM_1: 50, ITEM_2: 50, ITEM_3: 50,
-  DETAIL_TEXT: 150, DETAIL_LEFT: 80, DETAIL_RIGHT: 80,
-  OFFER_TEXT: 100, ORIGINAL_PRICE: 20, DEAL_PRICE: 15,
-  DISCOUNT_RATE: 10, DEADLINE_INFO: 60,
-  CTA_TEXT: 80, CTA_SUB: 40, CTA_MAIN: 30, CTA_SUB_ACTION: 30,
-  OPTION_1_NAME: 30, OPTION_1_PRICE: 15, OPTION_2_NAME: 30, OPTION_2_PRICE: 15, OPTION_3_NAME: 30, OPTION_3_PRICE: 15,
-  TRUST_HEADLINE: 30, TRUST_STAT: 30, REVIEW_1: 60, REVIEW_2: 60,
-  SHIPPING_INFO: 40, RETURN_INFO: 40, EXCHANGE_INFO: 40, LOGISTICS_NOTE: 40,
-  STEP_1: 40, STEP_2: 40, STEP_3: 40, HOWTO_NOTE: 40,
+  HOOK_TEXT: 40, // was 80, now H1 56px = shorter
+  COVER_HEADLINE: 40, // was 80
+  SUB_TEXT: 40, // was 60
+  COVER_SUB: 40, // was 60
+  ITEM_1: 30, // was 50, now H2 36px
+  ITEM_2: 30,
+  ITEM_3: 30,
+  DETAIL_TEXT: 120, // was 150
+  DETAIL_LEFT: 60, // was 80
+  DETAIL_RIGHT: 60, // was 80
+  OFFER_TEXT: 80, // was 100
+  ORIGINAL_PRICE: 15, // was 20
+  DEAL_PRICE: 10, // was 15
+  DISCOUNT_RATE: 8, // was 10
+  DEADLINE_INFO: 40, // was 60
+  CTA_TEXT: 40, // was 80, now 48px font
+  CTA_SUB: 30, // was 40
+  CTA_MAIN: 12, // was 30, button text
+  CTA_SUB_ACTION: 20, // was 30
+  OPTION_1_NAME: 20, // was 30
+  OPTION_1_PRICE: 12, // was 15
+  OPTION_2_NAME: 20,
+  OPTION_2_PRICE: 12,
+  OPTION_3_NAME: 20,
+  OPTION_3_PRICE: 12,
+  TRUST_HEADLINE: 20, // was 30
+  TRUST_STAT: 20, // was 30
+  REVIEW_1: 40, // was 60
+  REVIEW_2: 40, // was 60
+  SHIPPING_INFO: 30, // was 40
+  RETURN_INFO: 30,
+  EXCHANGE_INFO: 30,
+  LOGISTICS_NOTE: 30, // was 40
+  STEP_1: 20, // was 40, shorter for flow cards
+  STEP_2: 20,
+  STEP_3: 20,
+  HOWTO_NOTE: 30, // was 40
   PRODUCT_IMAGE_URL: 999,
 };
 
@@ -977,6 +1004,7 @@ function parseVariantToPages(variant, post, pageCount, slides) {
         data.ITEM_1 = item1;
         data.ITEM_2 = item2;
         data.ITEM_3 = item3;
+        data.SUB_TEXT = benefit;
         break;
       case 'options':
         data.OPTION_1_NAME = opt1Name;
@@ -1119,7 +1147,8 @@ async function generateCardImages(post, variant, options = {}) {
         .replace(/\{\{COLOR_TEXT\}\}/g, palette.text)
         .replace(/\{\{COLOR_ACCENT\}\}/g, palette.accent)
         .replace(/\{\{COLOR_HIGHLIGHT\}\}/g, palette.highlight)
-        .replace(/\{\{PRODUCT_IMAGE_BG\}\}/g, productImageBg);
+        .replace(/\{\{PRODUCT_IMAGE_BG\}\}/g, productImageBg)
+        .replace(/\{\{PRODUCT_IMAGE_URL\}\}/g, productImageBg);
 
       // Replace content placeholders
       for (const [key, val] of Object.entries(pg)) {

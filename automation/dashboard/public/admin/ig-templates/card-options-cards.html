@@ -31,57 +31,56 @@
       z-index: 1;
       width: 100%;
       height: 100%;
+      padding: 100px 80px 150px 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 0 80px;
     }
 
     .section-label {
       font-size: 13px;
       font-weight: 500;
+      letter-spacing: 0.3em;
       text-transform: uppercase;
-      letter-spacing: 0.35em;
-      color: {{COLOR_ACCENT}};
-      margin-bottom: 64px;
+      opacity: 0.4;
+      text-align: center;
+      max-height: 20px;
+      overflow: hidden;
     }
 
-    .cards {
-      width: 100%;
-      max-width: 860px;
+    .cards-container {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
+      width: 100%;
+      margin-top: 64px;
     }
 
-    .card {
-      background: {{COLOR_ACCENT}}0A;
-      border: 1px solid {{COLOR_ACCENT}}14;
-      border-radius: var(--radius-card);
+    .option-card {
+      background: {{COLOR_ACCENT}}08;
+      border-radius: 16px;
       padding: 40px 44px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      max-height: 140px;
+      overflow: hidden;
     }
 
     .option-name {
-      font-size: var(--h2);
-      font-weight: 400;
-      letter-spacing: -0.01em;
-      line-height: 1.5;
-      color: {{COLOR_TEXT}};
-      text-align: left;
-      max-height: 60px;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      max-height: 50px;
       overflow: hidden;
     }
 
     .option-price {
-      font-size: 36px;
+      font-size: 28px;
       font-weight: 700;
-      color: {{COLOR_ACCENT}};
       letter-spacing: -0.02em;
-      line-height: 1;
-      margin-top: 16px;
-      max-height: 60px;
+      color: {{COLOR_HIGHLIGHT}};
+      max-height: 40px;
       overflow: hidden;
     }
   </style>
@@ -89,16 +88,16 @@
 <body>
   <div class="content">
     <div class="section-label">구성 옵션</div>
-    <div class="cards">
-      <div class="card">
+    <div class="cards-container">
+      <div class="option-card">
         <div class="option-name">{{OPTION_1_NAME}}</div>
         <div class="option-price">{{OPTION_1_PRICE}}</div>
       </div>
-      <div class="card">
+      <div class="option-card">
         <div class="option-name">{{OPTION_2_NAME}}</div>
         <div class="option-price">{{OPTION_2_PRICE}}</div>
       </div>
-      <div class="card">
+      <div class="option-card">
         <div class="option-name">{{OPTION_3_NAME}}</div>
         <div class="option-price">{{OPTION_3_PRICE}}</div>
       </div>
