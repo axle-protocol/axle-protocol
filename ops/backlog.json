@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "updatedAt": "2026-02-15T09:50:07.650Z",
+  "items": [
+    {
+      "id": "IG-OPS-001",
+      "owner": "designer",
+      "priority": "P0",
+      "status": "queued",
+      "title": "인스타 반자동 운영 플로우 확정 + 체크리스트 v1",
+      "definitionOfDone": [
+        "하루 1~2포스트 운영 플로우 문서화",
+        "업로드 리마인더 템플릿",
+        "승인/발행 상태 전이 규칙"
+      ],
+      "notes": "이미지 생성은 미리캔버스 사용 가정. OpenClaw는 원고/검증/리마인더/로그 중심.",
+      "queuedAt": "2026-02-15T09:50:07.651Z"
+    },
+    {
+      "id": "IG-OPS-002",
+      "owner": "designer",
+      "priority": "P1",
+      "status": "todo",
+      "title": "레퍼런스 기반 판매형 카피 템플릿 3종(훅/신뢰/CTA)"
+    },
+    {
+      "id": "SYS-OPS-001",
+      "owner": "qa",
+      "priority": "P0",
+      "status": "queued",
+      "title": "병목 점검 루틴: 진행 안 되는 이유 자동 진단(blocked 이유 수집)",
+      "queuedAt": "2026-02-15T09:50:07.651Z"
+    },
+    {
+      "id": "SYS-OPS-002",
+      "owner": "dev",
+      "priority": "P1",
+      "status": "queued",
+      "title": "/agents에 backlog/blocked/최근 리포트 요약 노출",
+      "queuedAt": "2026-02-15T09:50:07.651Z"
+    }
+  ]
+}

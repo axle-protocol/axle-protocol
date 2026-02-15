@@ -23,6 +23,11 @@ automation/dashboard/data/ig_brand_guide.json
 automation/dashboard/data/ig_posts.json
 automation/dashboard/data/owner_sessions.json
 automation/dashboard/data/uploads/
+automation/dashboard/data/audit.jsonl
+
+# ops runtime logs (do not commit)
+ops/handoff.jsonl
+ops/status/
 
 # local scratch
 tmp/
