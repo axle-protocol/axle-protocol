@@ -494,7 +494,7 @@ const IG_CAPTION_TEMPLATES = {
     },
     {
       hook: '이건 진짜 말해야 할 것 같아서',
-      body: '{product} 쓰기 시작하고 달라진 점\n\n{benefit}\n{detail}\n\n과장 아니고 진심이에요',
+      body: '{product} 쓰기 시작하고 달라진 점\n\n{benefit}\n{detail}\n\n진심이에요',
     },
   ],
   info: [
@@ -551,14 +551,54 @@ function pickFromArray(arr, count, seed) {
 function generateIgHashtags(guide, productName, seed) {
   const rules = guide.hashtagRules || {};
   const mix = rules.mix || {};
-  const broad = pickFromArray(mix.broad?.examples || [], (mix.broad?.min || 3) + (seed % ((mix.broad?.max || 5) - (mix.broad?.min || 3) + 1)), seed);
-  const niche = pickFromArray(mix.niche?.examples || [], (mix.niche?.min || 4) + (seed % ((mix.niche?.max || 7) - (mix.niche?.min || 4) + 1)), seed + 1);
-  const brand = pickFromArray(mix.brand?.examples || [], (mix.brand?.min || 2) + (seed % ((mix.brand?.max || 3) - (mix.brand?.min || 2) + 1)), seed + 2);
-  const cta = pickFromArray(mix.cta?.examples || [], (mix.cta?.min || 1) + (seed % ((mix.cta?.max || 2) - (mix.cta?.min || 1) + 1)), seed + 3);
+
+  const broad = pickFromArray(
+    mix.broad?.examples || [],
+    (mix.broad?.min || 3) + (seed % ((mix.broad?.max || 5) - (mix.broad?.min || 3) + 1)),
+    seed,
+  );
+  const niche = pickFromArray(
+    mix.niche?.examples || [],
+    (mix.niche?.min || 4) + (seed % ((mix.niche?.max || 7) - (mix.niche?.min || 4) + 1)),
+    seed + 1,
+  );
+  const brand = pickFromArray(
+    mix.brand?.examples || [],
+    (mix.brand?.min || 2) + (seed % ((mix.brand?.max || 3) - (mix.brand?.min || 2) + 1)),
+    seed + 2,
+  );
+  const cta = pickFromArray(
+    mix.cta?.examples || [],
+    (mix.cta?.min || 1) + (seed % ((mix.cta?.max || 2) - (mix.cta?.min || 1) + 1)),
+    seed + 3,
+  );
+
+  const htMin = rules.min || 12;
+  const htMax = rules.max || 18;
+
   const productTag = productName.replace(/\s+/g, '');
+  const pool = [...new Set([
+    ...(mix.broad?.examples || []),
+    ...(mix.niche?.examples || []),
+    ...(mix.brand?.examples || []),
+    ...(mix.cta?.examples || []),
+  ])];
+
   const all = [...broad, ...niche, ...brand, ...cta];
-  if (!all.includes(productTag)) all.push(productTag);
-  return all.map((t) => `#${t}`);
+  if (productTag && !all.includes(productTag)) all.push(productTag);
+
+  // Ensure we always meet htMin, otherwise approval can get blocked.
+  // (Defaults add up to 11 including productTag: 3+4+2+1 + productTag)
+  let guard = 0;
+  while (all.length < htMin && guard++ < 50) {
+    const pick = pool[(seed + guard * 7) % Math.max(pool.length, 1)];
+    if (!pick) break;
+    if (!all.includes(pick)) all.push(pick);
+  }
+
+  // Enforce htMax (dedupe already done by includes)
+  const trimmed = all.slice(0, htMax);
+  return trimmed.map((t) => `#${t}`);
 }
 
 // --- Caption Block Combinator ---
@@ -686,7 +726,7 @@ function generateIgDrafts(params, guide) {
       id: `var_${crypto.randomUUID()}`,
       cluster: clusterTone,
       clusterName: (guide.tone?.clusters || []).find((c) => c.id === clusterTone)?.name || clusterTone,
-      caption,
+      caption: sanitizeIgCaption(caption, guide),
       hashtags: hashtags.join(' '),
       ctaType,
       validation: null,
@@ -735,7 +775,7 @@ function generateIgDraftsLegacy(params, guide) {
       id: `var_${crypto.randomUUID()}`,
       cluster,
       clusterName: (guide.tone?.clusters || []).find((c) => c.id === cluster)?.name || cluster,
-      caption,
+      caption: sanitizeIgCaption(caption, guide),
       hashtags: hashtags.join(' '),
       ctaType,
       validation: null,
@@ -744,6 +784,29 @@ function generateIgDraftsLegacy(params, guide) {
     variants.push(variant);
   }
   return variants;
+}
+
+function sanitizeIgCaption(caption, guide) {
+  let out = caption || '';
+  for (const phrase of guide.bannedPhrases || []) {
+    if (!phrase) continue;
+    // Remove banned phrases (keep meaning; avoid blocking approval).
+    out = out.split(phrase).join('');
+  }
+  // Normalize excessive whitespace
+  out = out.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
+
+function parsePriceNumber(raw) {
+  if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  // Numeric-only policy: allow digits only (string)
+  const s = String(raw).trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
 }
 
 function validateIgDraft(variant, guide) {
@@ -918,9 +981,11 @@ function parseVariantToPages(variant, post, pageCount, slides) {
   const blocks = caption.split(/\n\n+/).filter((b) => b.trim());
   const product = post.productName || '';
   const benefit = post.keyBenefit || '';
-  const price = post.price ? `${Number(post.price).toLocaleString()}원` : '';
-  const priceOriginal = post.price ? `정가 ${Number(Math.round(post.price * 1.3)).toLocaleString()}원` : '';
-  const discountRate = post.price ? `${Math.round((1 - 1/1.3) * 100)}% OFF` : '';
+  const priceNum = typeof post.price === 'number' ? post.price : Number(post.price);
+  const hasPrice = Number.isFinite(priceNum) && priceNum > 0;
+  const price = hasPrice ? `${Math.round(priceNum).toLocaleString()}원` : '';
+  const priceOriginal = hasPrice ? `정가 ${Math.round(priceNum * 1.3).toLocaleString()}원` : '';
+  const discountRate = hasPrice ? `${Math.round((1 - 1 / 1.3) * 100)}% OFF` : '';
 
   // Build structured detail text
   const detailParts = [];
@@ -2158,14 +2223,22 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/admin/ig/posts' && req.method === 'POST') {
     const body = await readJsonBody(req);
     if (!body?.productName || !body?.keyBenefit) return sendJson(res, 400, { error: 'productName and keyBenefit required' });
+
+    // price policy: numeric-only (e.g., 48000)
+    const priceNum = parsePriceNumber(body?.price);
+    if (body?.price !== undefined && body?.price !== null && body?.price !== '' && priceNum === null) {
+      return sendJson(res, 400, { error: 'invalid_price_format', detail: 'price는 숫자만 입력하세요 (예: 48000)' });
+    }
+
     const guide = loadIgGuide();
-    const variants = generateIgDrafts(body, guide);
+    const draftParams = { ...body, price: priceNum };
+    const variants = generateIgDrafts(draftParams, guide);
     const post = {
       id: `ig_${crypto.randomUUID()}`,
       createdAt: new Date().toISOString(),
       productName: body.productName,
       keyBenefit: body.keyBenefit,
-      price: body.price || null,
+      price: priceNum,
       targetAudience: body.targetAudience || null,
       notes: body.notes || null,
       options: body.options || null,
@@ -2227,11 +2300,22 @@ const server = http.createServer(async (req, res) => {
 
     if (action === 'approve') {
       if (post.status !== 'draft') return sendJson(res, 409, { error: 'can_only_approve_drafts' });
-      const variantId = body?.variantId;
-      if (!variantId) return sendJson(res, 400, { error: 'variantId required' });
-      const variant = (post.variants || []).find((v) => v.id === variantId);
+      let variantId = body?.variantId;
+      if (!variantId) {
+        // Auto-pick a valid variant (policy B)
+        const picked = (post.variants || []).find((v) => v.validation?.valid);
+        if (!picked) return sendJson(res, 409, { error: 'no_valid_variants', detail: '승인 가능한 draft가 없습니다(금지어/해시태그 규칙 확인 필요)' });
+        variantId = picked.id;
+      }
+      let variant = (post.variants || []).find((v) => v.id === variantId);
       if (!variant) return sendJson(res, 404, { error: 'variant_not_found' });
-      if (!variant.validation?.valid) return sendJson(res, 409, { error: 'variant_has_validation_errors', errors: variant.validation?.errors });
+      if (!variant.validation?.valid) {
+        // Fall back to first valid variant instead of blocking approval
+        const picked = (post.variants || []).find((v) => v.validation?.valid);
+        if (!picked) return sendJson(res, 409, { error: 'variant_has_validation_errors', errors: variant.validation?.errors });
+        variant = picked;
+        variantId = picked.id;
+      }
 
       const guide = loadIgGuide();
       let scheduledAt = body?.scheduledAt;
