@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-16 00:50 KST
+# DASHBOARD.md — 2026-02-16 01:20 KST
 
 ## 🎯 현재 프로젝트
 
@@ -62,6 +62,9 @@
   - Han 입력 필요: 오늘 밀 상품 10개(이름/카테고리/딜가) → 실제 상품명 버전으로 전환
 - [x] (Phase B) “게시 직전까지만 자동” 상태머신 설계(만들기→파일→캡션→공유 직전 STOP) 완료
   - 가드레일: Share/Post/공유/게시 버튼 절대 클릭 금지 + 2FA/챌린지 즉시 중단
+- [~] (Ops) Claude Code(Opus) ↔ Codex(터미널) 리뷰 루프 자동화(피로 작업 대체)
+  - Claude Code가 클립보드에 `REVIEW-REQUEST` 포함 텍스트를 넣으면 Codex 터미널에 자동 paste+Enter
+  - 결과 파일은 Claude Code가 읽는 흐름(규칙 기반)
 
 ---
 
