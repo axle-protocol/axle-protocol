@@ -2492,6 +2492,40 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, loadIgLayouts());
   }
 
+  // -------------------------
+  // Ops dashboard (developer-only)
+  // -------------------------
+  if (url.pathname === '/__ops' && req.method === 'GET') {
+    return serveStatic(res, '/__ops.html');
+  }
+
+  if (url.pathname === '/api/ops/dashboard' && req.method === 'GET') {
+    // Owner BasicAuth still applies (we do not exempt this path).
+    const base = path.join(__dirname, '..', '..'); // workspace root
+    const statusDir = path.join(base, 'ops', 'status');
+    const handoffPath = path.join(base, 'ops', 'handoff.jsonl');
+
+    const readText = (p) => {
+      try { return existsSync(p) ? readFileSync(p, 'utf8') : ''; } catch { return ''; }
+    };
+
+    const dev = readText(path.join(statusDir, 'dev.md'));
+    const qa = readText(path.join(statusDir, 'qa.md'));
+    const ig = readText(path.join(statusDir, 'ig.md'));
+
+    const lines = readText(handoffPath).split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const recent = lines.slice(-30).map((l) => {
+      try { return JSON.parse(l); } catch { return { raw: l }; }
+    });
+
+    return sendJson(res, 200, {
+      ok: true,
+      updatedAt: new Date().toISOString(),
+      status: { dev, qa, ig },
+      handoff: recent,
+    });
+  }
+
   // static (owner UI + vendor static assets)
   return serveStatic(res, url.pathname);
 });

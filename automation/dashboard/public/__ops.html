@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ops Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121823;
+      --text: #e7eef8;
+      --muted: rgba(231, 238, 248, 0.65);
+      --border: rgba(255,255,255,0.08);
+      --ok: #49d17c;
+      --warn: #f0c36a;
+      --bad: #ff6b6b;
+    }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", Arial; background: var(--bg); color: var(--text); }
+    header { padding: 18px 20px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h1 { margin:0; font-size: 16px; letter-spacing: -0.01em; }
+    .meta { font-size: 12px; color: var(--muted); }
+    .wrap { padding: 18px 20px; display:grid; gap:14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; min-height: 220px; }
+    .card h2 { margin:0 0 10px; font-size: 14px; display:flex; align-items:center; justify-content:space-between; }
+    .tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+    pre { margin:0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New"; font-size: 12px; color: var(--text); line-height: 1.55; }
+
+    .timeline { grid-column: 1 / -1; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px; }
+    .btn { cursor:pointer; font-size: 12px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); }
+    .btn:hover { border-color: rgba(255,255,255,0.18); }
+    .hint { color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1100px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Ops Dashboard (장군 · 서기 · 디자이너)</h1>
+      <div class="meta" id="meta">loading…</div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn" id="refresh">새로고침</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>장군 <span class="tag">Dev</span></h2>
+      <pre id="dev">loading…</pre>
+    </div>
+    <div class="card">
+      <h2>서기 <span class="tag">QA/Ops</span></h2>
+      <pre id="qa">loading…</pre>
+    </div>
+    <div class="card">
+      <h2>디자이너 <span class="tag">IG/Content</span></h2>
+      <pre id="ig">loading…</pre>
+    </div>
+
+    <div class="card timeline">
+      <div class="row">
+        <div>
+          <div style="font-size:14px; font-weight:600;">Handoff Timeline</div>
+          <div class="hint">최근 TASK/REPORT 로그 (hand-off.jsonl)</div>
+        </div>
+      </div>
+      <pre id="timeline">loading…</pre>
+    </div>
+  </div>
+
+<script>
+  async function loadAll() {
+    const res = await fetch('/api/ops/dashboard');
+    if (!res.ok) {
+      document.getElementById('meta').textContent = `error: ${res.status}`;
+      return;
+    }
+    const j = await res.json();
+    document.getElementById('meta').textContent = `updatedAt: ${j.updatedAt}`;
+    document.getElementById('dev').textContent = j.status?.dev || '(empty)';
+    document.getElementById('qa').textContent = j.status?.qa || '(empty)';
+    document.getElementById('ig').textContent = j.status?.ig || '(empty)';
+    document.getElementById('timeline').textContent = (j.handoff || []).map((x) => JSON.stringify(x)).join('\n') || '(empty)';
+  }
+  document.getElementById('refresh').addEventListener('click', loadAll);
+  loadAll();
+  setInterval(loadAll, 15000);
+</script>
+</body>
+</html>
