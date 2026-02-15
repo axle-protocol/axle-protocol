@@ -503,6 +503,220 @@ function saveMapping(data) {
 }
 
 // -------------------------
+// Naver carrier code mapping (module scope — used by doNaverShipBatch + endpoints)
+// -------------------------
+const NAVER_LIVE = (process.env.NAVER_LIVE || 'false') === 'true';
+
+const NAVER_CARRIER_MAP = {
+  cj: 'CJGLS',
+  hanjin: 'HANJIN',
+  lotte: 'LOTTE',
+  post: 'EPOST',
+  logen: 'LOGEN',
+  kyungdong: 'KYUNGDONG',
+};
+
+// -------------------------
+// Shared Naver functions (extracted from endpoint handlers)
+// -------------------------
+
+/**
+ * Sync orders from Naver Commerce API.
+ * @param {string} from - start date (YYYY-MM-DD)
+ * @param {string} to - end date (YYYY-MM-DD)
+ * @returns {{ imported, updated, total, from, to }}
+ */
+async function doNaverSync(from, to) {
+  if (!naverCommerce) throw new Error('naver_api_not_configured');
+
+  const result = await naverCommerce.fetchOrders(from, to);
+  const productOrderIds = (result?.lastChangeStatuses || []).map((s) => s.productOrderId);
+
+  if (productOrderIds.length === 0) {
+    return { imported: 0, updated: 0, total: 0, from, to };
+  }
+
+  const mapping = loadMapping();
+  const productToVendor = new Map((mapping.mapping || []).map((m2) => [String(m2.productNo), String(m2.vendorId)]));
+  const orders = loadOrders();
+  const byPon = new Map((orders.orders || []).map((o) => [String(o.productOrderNo), o]));
+  const now = new Date().toISOString();
+  let imported = 0;
+  let updated = 0;
+
+  for (const poId of productOrderIds) {
+    try {
+      const detail = await naverCommerce.getOrderDetail(poId);
+      const po = detail?.productOrder || detail;
+      const productNo = String(po.productNo || po.productId || '');
+      const vendorId = productToVendor.get(productNo) || null;
+
+      const row = {
+        id: String(po.productOrderId || poId),
+        productOrderNo: String(po.productOrderId || poId),
+        orderNo: String(po.orderId || ''),
+        productNo,
+        productName: po.productName || '',
+        optionInfo: po.optionManageCode || po.optionContent || '',
+        qty: Number(po.quantity || 1),
+        recipientName: po.shippingAddress?.name || '',
+        recipientPhone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
+        recipientAddress: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailAddress].filter(Boolean).join(' ') || null,
+        vendorId,
+        status: vendorId ? 'assigned' : 'new',
+        carrier: null,
+        trackingNumber: '',
+        createdAt: po.orderDate || now,
+        updatedAt: now,
+        naverStatus: po.productOrderStatus || null,
+        _naverRaw: { claimType: po.claimType || null, claimStatus: po.claimStatus || null },
+      };
+
+      if (byPon.has(row.productOrderNo)) {
+        const existing = byPon.get(row.productOrderNo);
+        existing.naverStatus = row.naverStatus;
+        existing._naverRaw = row._naverRaw;
+        existing.updatedAt = now;
+        if (!existing.vendorId && vendorId) {
+          existing.vendorId = vendorId;
+          if (getOrderStatus(existing) === 'new') transitionOrder(existing, 'assigned', { actor: 'system:naver_sync', reason: 'auto_assign' });
+        }
+        updated++;
+      } else {
+        orders.orders.push(row);
+        byPon.set(row.productOrderNo, row);
+        imported++;
+      }
+    } catch (e) {
+      console.error(`[naver-sync] Failed to fetch detail for ${poId}:`, e.message);
+    }
+  }
+
+  saveOrders(orders);
+  return { imported, updated, total: productOrderIds.length, from, to };
+}
+
+/**
+ * Ship a batch of orders via Naver Commerce API.
+ * @param {string[]} orderIds
+ * @returns {{ success, failed, skipped, results }}
+ */
+async function doNaverShipBatch(orderIds) {
+  if (!naverCommerce) throw new Error('naver_api_not_configured');
+
+  const db = loadOrders();
+  const results = [];
+  let success = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const orderId of orderIds) {
+    const order = (db.orders || []).find((o) => o.id === orderId);
+    if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
+
+    if (order.naverShippedAt) {
+      results.push({ orderId, ok: true, skipped: true, reason: 'already_shipped' });
+      skipped++;
+      continue;
+    }
+
+    const tn = String(order.trackingNumber || order.tracking?.number || '').trim();
+    const carrier = String(order.carrier || order.tracking?.carrier || '').trim();
+    if (!tn) { results.push({ orderId, ok: false, error: 'no_tracking_number' }); failed++; continue; }
+
+    const naverCarrier = NAVER_CARRIER_MAP[carrier];
+    if (!naverCarrier) { results.push({ orderId, ok: false, error: `unknown_carrier: ${carrier}` }); failed++; continue; }
+
+    if (!NAVER_LIVE) {
+      // Dry-run: no state change, no API call, log only
+      results.push({ orderId, ok: true, dryRun: true });
+      auditLog({ actorType: 'system', action: 'NAVER_SHIP_DRY_RUN', orderId, carrier: naverCarrier, trackingNumber: tn });
+      success++;
+      continue;
+    }
+
+    const tr = transitionOrder(order, 'exported', { actor: 'system:naver_ship', reason: 'naver_ship' });
+    if (!tr.ok) { results.push({ orderId, ok: false, error: tr.error }); failed++; continue; }
+
+    const shipAttemptId = crypto.randomUUID();
+    order._shipAttempt = { id: shipAttemptId, startedAt: new Date().toISOString(), carrier: naverCarrier, trackingNumber: tn };
+
+    try {
+      await naverCommerce.shipOrder(order.productOrderNo, naverCarrier, tn);
+      order.naverStatus = 'DISPATCHED';
+      order.naverShippedAt = new Date().toISOString();
+      order.exportedAt = new Date().toISOString();
+      order._shipAttempt.status = 'success';
+      results.push({ orderId, ok: true });
+      success++;
+    } catch (e) {
+      order.status = tr.prev;
+      if (Array.isArray(order._history) && order._history.length > 0) order._history.pop();
+      order._shipAttempt.status = 'failed';
+      order._shipAttempt.error = e.message;
+      order._shipAttempt.failedAt = new Date().toISOString();
+      results.push({ orderId, ok: false, error: e.message });
+      failed++;
+    }
+  }
+
+  saveOrders(db);
+  return { success, failed, skipped, results, dryRun: !NAVER_LIVE };
+}
+
+/**
+ * Confirm a batch of orders via Naver Commerce API.
+ * @param {string[]} orderIds
+ * @returns {{ success, failed, results }}
+ */
+async function doNaverConfirmBatch(orderIds) {
+  if (!naverCommerce) throw new Error('naver_api_not_configured');
+
+  const db = loadOrders();
+  const results = [];
+  let success = 0;
+  let failed = 0;
+
+  for (const orderId of orderIds) {
+    const order = (db.orders || []).find((o) => o.id === orderId);
+    if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
+
+    if (order.naverConfirmedAt) {
+      results.push({ orderId, ok: true, skipped: true, reason: 'already_confirmed' });
+      success++;
+      continue;
+    }
+
+    if (!NAVER_LIVE) {
+      results.push({ orderId, ok: true, dryRun: true });
+      auditLog({ actorType: 'system', action: 'NAVER_CONFIRM_DRY_RUN', orderId });
+      success++;
+      continue;
+    }
+
+    try {
+      await naverCommerce.confirmOrder(order.productOrderNo);
+      order.naverStatus = 'PAYED';
+      order.naverConfirmedAt = new Date().toISOString();
+      const tr = transitionOrder(order, 'confirmed', { actor: 'system:naver_confirm', reason: 'naver_confirm' });
+      if (!tr.ok) {
+        results.push({ orderId, ok: false, error: `confirm_api_ok_but_transition_failed: ${tr.error}` });
+        failed++;
+        continue;
+      }
+      results.push({ orderId, ok: true });
+      success++;
+    } catch (e) {
+      results.push({ orderId, ok: false, error: e.message });
+      failed++;
+    }
+  }
+
+  saveOrders(db);
+  return { success, failed, results, dryRun: !NAVER_LIVE };
+}
+
+// -------------------------
 // Existing queue (owner)
 // -------------------------
 
@@ -520,7 +734,7 @@ function validateTransition(from, to) {
   const allowed = {
     draft: ['pending', 'held'],
     pending: ['approved', 'held'],
-    approved: ['running'],
+    approved: ['running', 'failed'],
     running: ['success', 'failed', 'needs_auth'],
     failed: ['pending', 'held'],
     needs_auth: ['pending', 'held'],
@@ -2511,6 +2725,94 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true, logged: true });
   }
 
+  if (url.pathname === '/api/agent/request_ship' && req.method === 'POST') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const queue = loadQueue();
+
+    // Collect already-queued order IDs
+    const activeStates = new Set(['pending', 'approved', 'running']);
+    const queuedOrderIds = new Set();
+    for (const item of queue.items || []) {
+      if (item.type === 'smartstore_ship_batch' && activeStates.has(item.state)) {
+        for (const oid of (item.payload?.orderIds || [])) queuedOrderIds.add(oid);
+      }
+    }
+
+    const ready = (orders.orders || []).filter((o) => {
+      if (queuedOrderIds.has(o.id)) return false;
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      const carrier = String(o.carrier || o.tracking?.carrier || '').trim();
+      return tn.length > 0 && carrier.length > 0 && !o.exportedAt && o.status !== 'hold' && o.status !== 'cancelled';
+    });
+
+    if (ready.length === 0) return sendJson(res, 200, { ok: true, created: false, message: 'no dispatch_ready orders' });
+
+    const batchId = `ship-batch-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    queue.items.push({
+      id: batchId,
+      type: 'smartstore_ship_batch',
+      state: 'pending',
+      source: 'agent',
+      payload: { action: 'ship', orderIds: ready.map((o) => o.id), orderCount: ready.length, summary: `${ready.length}건 발송처리 (agent)` },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    saveQueue(queue);
+    auditLog({ actorType: 'agent', action: 'REQUEST_SHIP', batchId, orderCount: ready.length });
+    return sendJson(res, 200, { ok: true, created: true, batchId, orderCount: ready.length });
+  }
+
+  if (url.pathname === '/api/agent/request_confirm' && req.method === 'POST') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const queue = loadQueue();
+
+    const activeStates = new Set(['pending', 'approved', 'running']);
+    const queuedOrderIds = new Set();
+    for (const item of queue.items || []) {
+      if (item.type === 'smartstore_confirm_batch' && activeStates.has(item.state)) {
+        for (const oid of (item.payload?.orderIds || [])) queuedOrderIds.add(oid);
+      }
+    }
+
+    const ready = (orders.orders || []).filter((o) => {
+      if (queuedOrderIds.has(o.id)) return false;
+      return o.status === 'exported' && o.naverShippedAt && !o.naverConfirmedAt;
+    });
+
+    if (ready.length === 0) return sendJson(res, 200, { ok: true, created: false, message: 'no confirm_ready orders' });
+
+    const batchId = `confirm-batch-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    queue.items.push({
+      id: batchId,
+      type: 'smartstore_confirm_batch',
+      state: 'pending',
+      source: 'agent',
+      payload: { action: 'confirm', orderIds: ready.map((o) => o.id), orderCount: ready.length, summary: `${ready.length}건 구매확인 (agent)` },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    saveQueue(queue);
+    auditLog({ actorType: 'agent', action: 'REQUEST_CONFIRM', batchId, orderCount: ready.length });
+    return sendJson(res, 200, { ok: true, created: true, batchId, orderCount: ready.length });
+  }
+
+  if (url.pathname === '/api/agent/automation_status' && req.method === 'GET') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const queue = loadQueue();
+    const pendingBatches = (queue.items || []).filter((it) =>
+      (it.type === 'smartstore_ship_batch' || it.type === 'smartstore_confirm_batch') && it.state === 'pending'
+    ).length;
+    return sendJson(res, 200, {
+      automationEnabled,
+      naverLive: NAVER_LIVE,
+      lastSyncAt,
+      lastSyncResult,
+      pendingBatches,
+    });
+  }
+
   // -------------------------
   // Admin: Orders list with status filter
   // -------------------------
@@ -2617,18 +2919,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------
-  // Phase 4: Naver Commerce API endpoints
+  // Phase 4: Naver Commerce API endpoints (thin wrappers → doNaver* functions)
   // -------------------------
-
-  // Internal carrier code -> Naver carrier code mapping
-  const NAVER_CARRIER_MAP = {
-    cj: 'CJGLS',
-    hanjin: 'HANJIN',
-    lotte: 'LOTTE',
-    post: 'EPOST',
-    logen: 'LOGEN',
-    kyungdong: 'KYUNGDONG',
-  };
 
   if (url.pathname === '/api/admin/naver/status' && req.method === 'GET') {
     return sendJson(res, 200, {
@@ -2639,80 +2931,13 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api/admin/naver/sync_orders' && req.method === 'POST') {
     if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured', detail: 'Set NAVER_CLIENT_ID and NAVER_CLIENT_SECRET' });
-
     const body = await readJsonBody(req);
     const from = body?.from || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const to = body?.to || new Date().toISOString().slice(0, 10);
-
     try {
-      const result = await naverCommerce.fetchOrders(from, to);
-      const productOrderIds = (result?.lastChangeStatuses || []).map((s) => s.productOrderId);
-
-      if (productOrderIds.length === 0) {
-        return sendJson(res, 200, { ok: true, imported: 0, message: 'No new orders in range' });
-      }
-
-      // Fetch details for each order
-      const mapping = loadMapping();
-      const productToVendor = new Map((mapping.mapping || []).map((m2) => [String(m2.productNo), String(m2.vendorId)]));
-      const orders = loadOrders();
-      const byPon = new Map((orders.orders || []).map((o) => [String(o.productOrderNo), o]));
-      const now = new Date().toISOString();
-      let imported = 0;
-      let updated = 0;
-
-      for (const poId of productOrderIds) {
-        try {
-          const detail = await naverCommerce.getOrderDetail(poId);
-          const po = detail?.productOrder || detail;
-          const productNo = String(po.productNo || po.productId || '');
-          const vendorId = productToVendor.get(productNo) || null;
-
-          const row = {
-            id: String(po.productOrderId || poId),
-            productOrderNo: String(po.productOrderId || poId),
-            orderNo: String(po.orderId || ''),
-            productNo,
-            productName: po.productName || '',
-            optionInfo: po.optionManageCode || po.optionContent || '',
-            qty: Number(po.quantity || 1),
-            recipientName: po.shippingAddress?.name || '',
-            recipientPhone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
-            recipientAddress: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailAddress].filter(Boolean).join(' ') || null,
-            vendorId,
-            status: vendorId ? 'assigned' : 'new',
-            carrier: null,
-            trackingNumber: '',
-            createdAt: po.orderDate || now,
-            updatedAt: now,
-            naverStatus: po.productOrderStatus || null,
-            _naverRaw: { claimType: po.claimType || null, claimStatus: po.claimStatus || null },
-          };
-
-          if (byPon.has(row.productOrderNo)) {
-            // Update existing
-            const existing = byPon.get(row.productOrderNo);
-            existing.naverStatus = row.naverStatus;
-            existing._naverRaw = row._naverRaw;
-            existing.updatedAt = now;
-            if (!existing.vendorId && vendorId) {
-              existing.vendorId = vendorId;
-              if (getOrderStatus(existing) === 'new') transitionOrder(existing, 'assigned', { actor: 'system:naver_sync', reason: 'auto_assign' });
-            }
-            updated++;
-          } else {
-            orders.orders.push(row);
-            byPon.set(row.productOrderNo, row);
-            imported++;
-          }
-        } catch (e) {
-          console.error(`[naver-sync] Failed to fetch detail for ${poId}:`, e.message);
-        }
-      }
-
-      saveOrders(orders);
-      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_ORDER_SYNC', imported, updated, from, to, ip: getClientIp(req) });
-      return sendJson(res, 200, { ok: true, imported, updated, total: productOrderIds.length, from, to });
+      const r = await doNaverSync(from, to);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_ORDER_SYNC', imported: r.imported, updated: r.updated, from, to, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true, ...r });
     } catch (e) {
       return sendJson(res, 500, { error: 'naver_sync_failed', detail: e.message });
     }
@@ -2720,96 +2945,31 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/api/admin/naver/ship' && req.method === 'POST') {
     if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured' });
-
     const body = await readJsonBody(req);
     const orderIds = body?.orderIds;
     if (!Array.isArray(orderIds) || orderIds.length === 0) return sendJson(res, 400, { error: 'orderIds required' });
     if (orderIds.length > 50) return sendJson(res, 400, { error: 'max 50 orders per request' });
-
-    const db = loadOrders();
-    const results = [];
-    let success = 0;
-    let failed = 0;
-    let skipped = 0;
-
-    for (const orderId of orderIds) {
-      const order = (db.orders || []).find((o) => o.id === orderId);
-      if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
-
-      // Idempotency: already shipped to Naver → skip
-      if (order.naverShippedAt) {
-        results.push({ orderId, ok: true, skipped: true, reason: 'already_shipped' });
-        skipped++;
-        continue;
-      }
-
-      const tn = String(order.trackingNumber || order.tracking?.number || '').trim();
-      const carrier = String(order.carrier || order.tracking?.carrier || '').trim();
-      if (!tn) { results.push({ orderId, ok: false, error: 'no_tracking_number' }); failed++; continue; }
-
-      const naverCarrier = NAVER_CARRIER_MAP[carrier];
-      if (!naverCarrier) { results.push({ orderId, ok: false, error: `unknown_carrier: ${carrier}` }); failed++; continue; }
-
-      // State machine: must be 'shipped' to export
-      const tr = transitionOrder(order, 'exported', { actor: `owner:${OWNER_USERNAME}`, reason: 'naver_ship' });
-      if (!tr.ok) { results.push({ orderId, ok: false, error: tr.error }); failed++; continue; }
-
-      const shipAttemptId = crypto.randomUUID();
-      order._shipAttempt = { id: shipAttemptId, startedAt: new Date().toISOString(), carrier: naverCarrier, trackingNumber: tn };
-
-      try {
-        await naverCommerce.shipOrder(order.productOrderNo, naverCarrier, tn);
-        order.naverStatus = 'DISPATCHED';
-        order.naverShippedAt = new Date().toISOString();
-        order.exportedAt = new Date().toISOString();
-        order._shipAttempt.status = 'success';
-        results.push({ orderId, ok: true });
-        success++;
-      } catch (e) {
-        // Rollback status on API failure
-        order.status = tr.prev;
-        order._shipAttempt.status = 'failed';
-        order._shipAttempt.error = e.message;
-        order._shipAttempt.failedAt = new Date().toISOString();
-        results.push({ orderId, ok: false, error: e.message });
-        failed++;
-      }
+    try {
+      const r = await doNaverShipBatch(orderIds);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_SHIP', success: r.success, failed: r.failed, skipped: r.skipped, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true, ...r });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'naver_ship_failed', detail: e.message });
     }
-
-    saveOrders(db);
-    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_SHIP', success, failed, skipped, ip: getClientIp(req) });
-    return sendJson(res, 200, { ok: true, success, failed, skipped, results });
   }
 
   if (url.pathname === '/api/admin/naver/confirm' && req.method === 'POST') {
     if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured' });
-
     const body = await readJsonBody(req);
     const orderIds = body?.orderIds;
     if (!Array.isArray(orderIds) || orderIds.length === 0) return sendJson(res, 400, { error: 'orderIds required' });
-
-    const results = [];
-    let success = 0;
-    let failed = 0;
-
-    for (const orderId of orderIds) {
-      const db = loadOrders();
-      const order = (db.orders || []).find((o) => o.id === orderId);
-      if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
-
-      try {
-        await naverCommerce.confirmOrder(order.productOrderNo);
-        order.naverStatus = 'PAYED';
-        results.push({ orderId, ok: true });
-        success++;
-      } catch (e) {
-        results.push({ orderId, ok: false, error: e.message });
-        failed++;
-      }
+    try {
+      const r = await doNaverConfirmBatch(orderIds);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_CONFIRM', success: r.success, failed: r.failed, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true, ...r });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'naver_confirm_failed', detail: e.message });
     }
-
-    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_CONFIRM', success, failed, ip: getClientIp(req) });
-    return sendJson(res, 200, { ok: true, success, failed, results });
   }
 
   // -------------------------
@@ -3224,15 +3384,219 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // -------------------------
+  // Automation: status + toggle endpoints
+  // -------------------------
+
+  if (url.pathname === '/api/admin/automation/status' && req.method === 'GET') {
+    const queue = loadQueue();
+    const pendingBatches = (queue.items || []).filter((it) =>
+      (it.type === 'smartstore_ship_batch' || it.type === 'smartstore_confirm_batch') && it.state === 'pending'
+    ).length;
+    const approvedBatches = (queue.items || []).filter((it) =>
+      (it.type === 'smartstore_ship_batch' || it.type === 'smartstore_confirm_batch') && it.state === 'approved'
+    ).length;
+    return sendJson(res, 200, {
+      automationEnabled,
+      naverLive: NAVER_LIVE,
+      syncIntervalMin: AUTO_SYNC_INTERVAL_MIN,
+      executeIntervalSec: AUTO_EXECUTE_INTERVAL_SEC,
+      lastSyncAt,
+      lastSyncResult,
+      pendingBatches,
+      approvedBatches,
+    });
+  }
+
+  if (url.pathname === '/api/admin/automation/toggle' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    if (typeof body?.enabled !== 'boolean') return sendJson(res, 400, { error: 'enabled (boolean) required' });
+    automationEnabled = body.enabled;
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'AUTOMATION_TOGGLE', enabled: automationEnabled, ip: getClientIp(req) });
+    console.log(`[automation] toggled: ${automationEnabled ? 'ON' : 'OFF'}`);
+    return sendJson(res, 200, { ok: true, automationEnabled });
+  }
+
   // static (owner UI + vendor static assets)
   return serveStatic(res, url.pathname);
 });
+
+// -------------------------
+// Automation state + schedulers
+// -------------------------
+const AUTO_SYNC_INTERVAL_MIN = Math.max(1, Number(process.env.AUTO_SYNC_INTERVAL_MIN || 30));
+const AUTO_EXECUTE_INTERVAL_SEC = Math.max(10, Number(process.env.AUTO_EXECUTE_INTERVAL_SEC || 60));
+let automationEnabled = (process.env.AUTO_SYNC_ENABLED || 'false') === 'true';
+let lastSyncAt = null;
+let lastSyncResult = null;
+
+/**
+ * Auto-sync orders from Naver (safe, no approval needed).
+ */
+async function autoSyncOrders() {
+  if (!automationEnabled) return;
+  if (!naverCommerce) return;
+  const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const to = new Date().toISOString().slice(0, 10);
+  try {
+    const r = await doNaverSync(from, to);
+    lastSyncAt = new Date().toISOString();
+    lastSyncResult = { ...r, status: 'success' };
+    auditLog({ actorType: 'system', action: 'AUTO_SYNC', imported: r.imported, updated: r.updated, from, to });
+    console.log(`[auto-sync] imported=${r.imported} updated=${r.updated}`);
+    // After sync, auto-create batches for approval
+    try { autoCreateBatches(); } catch (batchErr) { console.error('[auto-batch] failed:', batchErr.message); }
+  } catch (e) {
+    lastSyncAt = new Date().toISOString();
+    lastSyncResult = { status: 'failed', error: e.message };
+    console.error('[auto-sync] failed:', e.message);
+  }
+}
+
+/**
+ * Auto-create ship/confirm batch queue items from ready orders.
+ * Skips orders already in pending/approved/running queue items.
+ */
+function autoCreateBatches() {
+  const orders = loadOrders();
+  const queue = loadQueue();
+  const allOrders = orders.orders || [];
+
+  // Collect order IDs already in active queue items
+  const activeStates = new Set(['pending', 'approved', 'running']);
+  const queuedOrderIds = new Set();
+  for (const item of queue.items || []) {
+    if ((item.type === 'smartstore_ship_batch' || item.type === 'smartstore_confirm_batch') && activeStates.has(item.state)) {
+      for (const oid of (item.payload?.orderIds || [])) queuedOrderIds.add(oid);
+    }
+  }
+
+  // Ship batch: orders with tracking + carrier, not yet exported, not hold/cancelled
+  const shipReady = allOrders.filter((o) => {
+    if (queuedOrderIds.has(o.id)) return false;
+    const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+    const carrier = String(o.carrier || o.tracking?.carrier || '').trim();
+    return tn.length > 0 && carrier.length > 0 && !o.exportedAt && o.status !== 'hold' && o.status !== 'cancelled';
+  });
+
+  if (shipReady.length > 0) {
+    const batchId = `ship-batch-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    queue.items.push({
+      id: batchId,
+      type: 'smartstore_ship_batch',
+      state: 'pending',
+      source: 'scheduler',
+      payload: {
+        action: 'ship',
+        orderIds: shipReady.map((o) => o.id),
+        orderCount: shipReady.length,
+        summary: `${shipReady.length}건 발송처리 대기`,
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    console.log(`[auto-batch] created ship batch: ${batchId} (${shipReady.length} orders)`);
+  }
+
+  // Confirm batch: exported orders (shipped to Naver, not yet confirmed)
+  const confirmReady = allOrders.filter((o) => {
+    if (queuedOrderIds.has(o.id)) return false;
+    return o.status === 'exported' && o.naverShippedAt && !o.naverConfirmedAt;
+  });
+
+  if (confirmReady.length > 0) {
+    const batchId = `confirm-batch-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    queue.items.push({
+      id: batchId,
+      type: 'smartstore_confirm_batch',
+      state: 'pending',
+      source: 'scheduler',
+      payload: {
+        action: 'confirm',
+        orderIds: confirmReady.map((o) => o.id),
+        orderCount: confirmReady.length,
+        summary: `${confirmReady.length}건 구매확인 대기`,
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    console.log(`[auto-batch] created confirm batch: ${batchId} (${confirmReady.length} orders)`);
+  }
+
+  if (shipReady.length > 0 || confirmReady.length > 0) {
+    saveQueue(queue);
+  }
+}
+
+/**
+ * Auto-execute approved ship/confirm batches (runs every AUTO_EXECUTE_INTERVAL_SEC).
+ */
+let _autoExecuteRunning = false;
+async function autoExecuteApproved() {
+  if (!automationEnabled) return;
+  if (_autoExecuteRunning) return;
+  _autoExecuteRunning = true;
+  try { await _doAutoExecute(); } finally { _autoExecuteRunning = false; }
+}
+async function _doAutoExecute() {
+  const queue = loadQueue();
+  const approvedItems = (queue.items || []).filter((it) =>
+    (it.type === 'smartstore_ship_batch' || it.type === 'smartstore_confirm_batch') && it.state === 'approved'
+  );
+
+  for (const item of approvedItems) {
+    const orderIds = item.payload?.orderIds || [];
+    if (orderIds.length === 0) {
+      item.state = 'failed';
+      item.error_message = 'empty orderIds';
+      item.updated_at = new Date().toISOString();
+      continue;
+    }
+
+    // Transition to running
+    item.state = 'running';
+    item.updated_at = new Date().toISOString();
+    saveQueue(queue);
+
+    try {
+      let result;
+      if (item.type === 'smartstore_ship_batch') {
+        result = await doNaverShipBatch(orderIds);
+      } else {
+        result = await doNaverConfirmBatch(orderIds);
+      }
+
+      item.state = 'success';
+      item.result = result;
+      item.updated_at = new Date().toISOString();
+      auditLog({ actorType: 'system', action: `AUTO_EXECUTE_${item.type.toUpperCase()}`, batchId: item.id, success: result.success, failed: result.failed });
+      console.log(`[auto-execute] ${item.type} ${item.id}: success=${result.success} failed=${result.failed}`);
+    } catch (e) {
+      item.state = 'failed';
+      item.error_message = e.message;
+      item.updated_at = new Date().toISOString();
+      auditLog({ actorType: 'system', action: `AUTO_EXECUTE_FAILED`, batchId: item.id, error: e.message });
+      console.error(`[auto-execute] ${item.type} ${item.id}: failed — ${e.message}`);
+    }
+  }
+
+  if (approvedItems.length > 0) {
+    saveQueue(queue);
+  }
+}
 
 server.listen(PORT, () => {
   console.log(`[dashboard] running on http://localhost:${PORT}`);
   console.log(`[dashboard] owner basic auth user=${OWNER_USERNAME} (password via DASHBOARD_PASSWORD)`);
   console.log('[dashboard] vendor portal: /vendor/login (session cookie)');
+  console.log(`[automation] enabled=${automationEnabled} naverLive=${NAVER_LIVE} sync_interval=${AUTO_SYNC_INTERVAL_MIN}min execute_interval=${AUTO_EXECUTE_INTERVAL_SEC}sec`);
 });
+
+// Scheduler: auto-sync orders from Naver
+setInterval(() => { autoSyncOrders().catch((e) => console.error('[auto-sync] unhandled:', e.message)); }, AUTO_SYNC_INTERVAL_MIN * 60 * 1000);
+
+// Scheduler: auto-execute approved batches
+setInterval(() => { autoExecuteApproved().catch((e) => console.error('[auto-execute] unhandled:', e.message)); }, AUTO_EXECUTE_INTERVAL_SEC * 1000);
 
 // Periodic: rate limit map cleanup (every 30 minutes)
 setInterval(() => {

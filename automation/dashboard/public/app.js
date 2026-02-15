@@ -22,6 +22,8 @@ function cardTitle(item) {
   if (item.type === 'smartstore_invoice_batch') return '🧾 스마트스토어 · 송장 입력';
   if (item.type === 'instagram_dm_draft') return '💬 인스타 DM 초안';
   if (item.type === 'instagram_comment_draft') return '🗨️ 인스타 댓글 초안';
+  if (item.type === 'smartstore_ship_batch') return '🚚 스마트스토어 · 발송처리';
+  if (item.type === 'smartstore_confirm_batch') return '✅ 스마트스토어 · 구매확인';
   return item.type;
 }
 
@@ -38,6 +40,10 @@ function cardSubtitle(item) {
       return `→ @${p.recipient_username || 'unknown'}${p.ai_generated ? ' · 🤖 AI' : ''}`;
     case 'instagram_comment_draft':
       return `@${p.target_username || 'unknown'}${p.ai_generated ? ' · 🤖 AI' : ''}`;
+    case 'smartstore_ship_batch':
+      return `${p.orderCount || 0}건 발송 · ${item.source === 'scheduler' ? '🤖 자동' : '수동'}`;
+    case 'smartstore_confirm_batch':
+      return `${p.orderCount || 0}건 확인 · ${item.source === 'scheduler' ? '🤖 자동' : '수동'}`;
     default:
       return '';
   }
@@ -45,6 +51,14 @@ function cardSubtitle(item) {
 
 function cardPreview(item) {
   const p = item.payload || {};
+
+  if (item.type === 'smartstore_ship_batch' || item.type === 'smartstore_confirm_batch') {
+    const ids = p.orderIds || [];
+    const preview = ids.slice(0, 5).join(', ');
+    const more = ids.length > 5 ? ` ... +${ids.length - 5}건` : '';
+    return escapeHtml(`${p.summary || ''}\n주문: ${preview}${more}`);
+  }
+
   const text =
     item.type === 'instagram_post_draft'
       ? p.caption
