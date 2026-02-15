@@ -1508,6 +1508,18 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(res, '/admin/login.html');
   }
 
+  if (url.pathname === '/api/owner/logout' && req.method === 'POST') {
+    const cookies = parseCookies(req);
+    const token = cookies.owner_session;
+    if (token) {
+      const db = loadOwnerSessions();
+      db.sessions = (db.sessions || []).filter((s) => s.token !== token);
+      saveOwnerSessions(db);
+    }
+    setCookie(res, 'owner_session', '', { path: '/', httpOnly: true, sameSite: 'Strict', maxAge: 0 });
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (url.pathname === '/api/owner/login' && req.method === 'POST') {
     const clientIp = getClientIp(req);
     if (!checkRateLimit(clientIp)) {
@@ -1548,6 +1560,14 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/admin/instagram' || url.pathname === '/admin/instagram/') {
     return serveStatic(res, '/admin/instagram.html');
+  }
+
+  if (url.pathname === '/admin/orders' || url.pathname === '/admin/orders/') {
+    return serveStatic(res, '/admin/orders.html');
+  }
+
+  if (url.pathname === '/admin/vendors' || url.pathname === '/admin/vendors/') {
+    return serveStatic(res, '/admin/vendors.html');
   }
 
   // -------------------------
@@ -1691,6 +1711,12 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  if (url.pathname === '/api/admin/vendors' && req.method === 'GET') {
+    const data = loadVendors();
+    const vendors = (data.vendors || []).map((v) => ({ id: v.id, name: v.name, username: v.username, active: v.active !== false, createdAt: v.createdAt }));
+    return sendJson(res, 200, { vendors });
+  }
+
   if (url.pathname === '/api/admin/vendors' && req.method === 'POST') {
     const body = await readJsonBody(req);
     const name = String(body?.name || '').trim();
@@ -1709,6 +1735,11 @@ const server = http.createServer(async (req, res) => {
 
     auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'VENDOR_CREATED', ip: getClientIp(req), meta: { vendorId: vendor.id, name, username } });
     return sendJson(res, 200, { ok: true, vendor: { id: vendor.id, name: vendor.name, username: vendor.username } });
+  }
+
+  if (url.pathname === '/api/admin/products' && req.method === 'GET') {
+    const data = loadProducts();
+    return sendJson(res, 200, { products: data.products || [] });
   }
 
   if (url.pathname === '/api/admin/products_csv' && req.method === 'POST') {
@@ -1770,6 +1801,14 @@ const server = http.createServer(async (req, res) => {
     saveProducts(existing);
 
     return sendJson(res, 200, { ok: true, count: products.length, total: existing.products.length });
+  }
+
+  if (url.pathname === '/api/admin/mapping' && req.method === 'GET') {
+    const vendorFilter = url.searchParams.get('vendorId');
+    const m = loadMapping();
+    let list = m.mapping || [];
+    if (vendorFilter) list = list.filter((x) => x.vendorId === vendorFilter);
+    return sendJson(res, 200, { mapping: list });
   }
 
   if (url.pathname === '/api/admin/mapping' && req.method === 'POST') {

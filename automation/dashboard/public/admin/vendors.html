@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · 업체 관리</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div class="max-w-4xl mx-auto p-4">
+
+    <!-- Header -->
+    <header class="py-4">
+      <h1 class="text-xl font-semibold">업체 관리</h1>
+      <nav class="mt-2 flex gap-3 text-sm flex-wrap">
+        <a class="underline text-zinc-500" href="/admin/orders">&larr; 주문관리</a>
+        <a class="underline text-zinc-500" href="/admin">대시보드</a>
+        <a class="underline text-zinc-500" href="/admin/instagram">인스타</a>
+        <span class="text-zinc-600">|</span>
+        <span class="text-zinc-300 font-medium">업체 관리</span>
+      </nav>
+    </header>
+
+    <!-- Add Vendor (collapsed) -->
+    <section class="mb-6">
+      <button id="toggleAddForm" class="rounded-lg bg-emerald-400 text-zinc-950 px-4 py-2 text-sm font-semibold">+ 업체 추가</button>
+      <div id="addVendorForm" class="hidden mt-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="text-sm text-zinc-200 font-semibold mb-3">새 업체 등록</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input id="newName" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" placeholder="업체명" />
+          <input id="newUsername" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" placeholder="아이디 (username)" />
+          <input id="newPassword" type="password" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" placeholder="비밀번호 (4자 이상)" minlength="4" />
+        </div>
+        <button id="createVendorBtn" class="mt-3 w-full sm:w-auto rounded-lg bg-emerald-400 text-zinc-950 px-6 py-2 text-sm font-semibold">등록</button>
+        <div id="addMsg" class="mt-2 text-xs text-zinc-400"></div>
+      </div>
+    </section>
+
+    <!-- Vendor List -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-zinc-400">등록된 업체 목록</div>
+        <button id="refreshVendors" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm">새로고침</button>
+      </div>
+      <div id="vendorList" class="grid gap-3"></div>
+      <div id="vendorEmpty" class="text-sm text-zinc-500 hidden">등록된 업체가 없습니다.</div>
+    </section>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div class="w-full max-w-md mx-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-sm font-semibold">업체 수정</div>
+          <button id="closeModal" class="text-zinc-500 hover:text-zinc-300 text-lg">&times;</button>
+        </div>
+        <input type="hidden" id="editId" />
+        <div class="grid gap-2">
+          <label class="text-xs text-zinc-500">업체명</label>
+          <input id="editName" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" />
+          <label class="text-xs text-zinc-500">아이디 (username)</label>
+          <input id="editUsername" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" />
+          <label class="text-xs text-zinc-500">활성 상태</label>
+          <div class="flex items-center gap-2">
+            <button id="editActiveToggle" class="rounded-lg px-4 py-1.5 text-sm font-semibold"></button>
+            <span id="editActiveLabel" class="text-xs text-zinc-500"></span>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button id="saveEditBtn" class="flex-1 rounded-lg bg-emerald-400 text-zinc-950 py-2 text-sm font-semibold">저장</button>
+          <button id="resetPwBtn" class="flex-1 rounded-lg bg-zinc-700 text-zinc-200 py-2 text-sm font-semibold">비밀번호 초기화</button>
+        </div>
+        <div id="editMsg" class="mt-2 text-xs text-zinc-400"></div>
+      </div>
+    </div>
+
+    <footer class="py-6 text-xs text-zinc-500">
+      업체 관리 &middot; 업체 추가/수정, 상품 매핑 관리
+    </footer>
+  </div>
+
+<script>
+// ── API helper ──
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, credentials: 'include' });
+  if (res.status === 401) { location.href = '/admin/login'; return null; }
+  return res.json();
+}
+
+// ── State ──
+let vendors = [];
+let editActive = true;
+let expandedMappings = {};  // vendorId -> boolean
+
+// ── DOM refs ──
+const $vendorList     = document.getElementById('vendorList');
+const $vendorEmpty    = document.getElementById('vendorEmpty');
+const $addMsg         = document.getElementById('addMsg');
+const $editModal      = document.getElementById('editModal');
+const $editMsg        = document.getElementById('editMsg');
+
+// ── Add vendor form toggle ──
+document.getElementById('toggleAddForm').addEventListener('click', () => {
+  const form = document.getElementById('addVendorForm');
+  form.classList.toggle('hidden');
+});
+
+// ── Create vendor ──
+document.getElementById('createVendorBtn').addEventListener('click', async () => {
+  const name     = document.getElementById('newName').value.trim();
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+
+  if (!name || !username || !password) {
+    $addMsg.textContent = '모든 필드를 입력해주세요.';
+    $addMsg.className = 'mt-2 text-xs text-red-400';
+    return;
+  }
+  if (password.length < 4) {
+    $addMsg.textContent = '비밀번호는 4자 이상이어야 합니다.';
+    $addMsg.className = 'mt-2 text-xs text-red-400';
+    return;
+  }
+
+  const data = await api('/api/admin/vendors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, username, password })
+  });
+  if (!data) return;
+
+  if (data.ok) {
+    const tempPw = data.vendor?.password || password;
+    $addMsg.innerHTML = `업체 <b>${esc(name)}</b> 등록 완료. 임시 비밀번호: <code class="bg-zinc-800 px-1 rounded">${esc(tempPw)}</code>`;
+    $addMsg.className = 'mt-2 text-xs text-emerald-400';
+    document.getElementById('newName').value = '';
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    loadVendors();
+  } else {
+    $addMsg.textContent = data.error || '등록 실패';
+    $addMsg.className = 'mt-2 text-xs text-red-400';
+  }
+});
+
+// ── Load vendors ──
+async function loadVendors() {
+  const data = await api('/api/admin/vendors');
+  if (!data) return;
+  vendors = data.vendors || [];
+  renderVendors();
+}
+
+function renderVendors() {
+  if (vendors.length === 0) {
+    $vendorList.innerHTML = '';
+    $vendorEmpty.classList.remove('hidden');
+    return;
+  }
+  $vendorEmpty.classList.add('hidden');
+
+  $vendorList.innerHTML = vendors.map(v => {
+    const isActive  = v.active !== false;
+    const badge     = isActive
+      ? '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-400/20 text-emerald-400">활성</span>'
+      : '<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-400/20 text-red-400">비활성</span>';
+    const created   = v.createdAt ? new Date(v.createdAt).toLocaleDateString('ko-KR') : '-';
+    const orderCnt  = v.orderCount ?? v.orders ?? '-';
+    const expanded  = expandedMappings[v.id];
+
+    return `
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm font-semibold text-zinc-100">${esc(v.name)}</span>
+              ${badge}
+            </div>
+            <div class="mt-1 text-xs text-zinc-500">
+              @${esc(v.username)} &middot; 등록일: ${created} &middot; 주문 수: ${orderCnt}
+            </div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button onclick="openEdit('${v.id}')" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700">수정</button>
+            <button onclick="toggleMapping('${v.id}')" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700">
+              ${expanded ? '상품매핑 접기' : '상품매핑'}
+            </button>
+          </div>
+        </div>
+        <div id="mapping-${v.id}" class="${expanded ? '' : 'hidden'} mt-3 border-t border-zinc-800 pt-3"></div>
+      </div>
+    `;
+  }).join('');
+
+  // Re-render already-expanded mapping sections
+  for (const vid of Object.keys(expandedMappings)) {
+    if (expandedMappings[vid]) loadMapping(vid);
+  }
+}
+
+// ── Edit modal ──
+function openEdit(id) {
+  const v = vendors.find(x => x.id === id);
+  if (!v) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('editName').value = v.name || '';
+  document.getElementById('editUsername').value = v.username || '';
+  editActive = v.active !== false;
+  updateActiveUI();
+  $editMsg.textContent = '';
+  $editModal.classList.remove('hidden');
+}
+
+function updateActiveUI() {
+  const btn   = document.getElementById('editActiveToggle');
+  const label = document.getElementById('editActiveLabel');
+  if (editActive) {
+    btn.textContent = '활성';
+    btn.className   = 'rounded-lg px-4 py-1.5 text-sm font-semibold bg-emerald-400/20 text-emerald-400';
+    label.textContent = '클릭하여 비활성화';
+  } else {
+    btn.textContent = '비활성';
+    btn.className   = 'rounded-lg px-4 py-1.5 text-sm font-semibold bg-red-400/20 text-red-400';
+    label.textContent = '클릭하여 활성화';
+  }
+}
+
+document.getElementById('editActiveToggle').addEventListener('click', () => {
+  editActive = !editActive;
+  updateActiveUI();
+});
+
+document.getElementById('closeModal').addEventListener('click', () => {
+  $editModal.classList.add('hidden');
+});
+$editModal.addEventListener('click', (e) => {
+  if (e.target === $editModal) $editModal.classList.add('hidden');
+});
+
+// ── Save edit ──
+document.getElementById('saveEditBtn').addEventListener('click', async () => {
+  const id       = document.getElementById('editId').value;
+  const name     = document.getElementById('editName').value.trim();
+  const username = document.getElementById('editUsername').value.trim();
+
+  if (!name || !username) {
+    $editMsg.textContent = '업체명과 아이디를 입력해주세요.';
+    $editMsg.className = 'mt-2 text-xs text-red-400';
+    return;
+  }
+
+  const data = await api(`/api/admin/vendors/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, username, active: editActive })
+  });
+  if (!data) return;
+
+  if (data.ok) {
+    $editMsg.textContent = '저장 완료';
+    $editMsg.className = 'mt-2 text-xs text-emerald-400';
+    loadVendors();
+    setTimeout(() => $editModal.classList.add('hidden'), 800);
+  } else {
+    $editMsg.textContent = data.error || '저장 실패';
+    $editMsg.className = 'mt-2 text-xs text-red-400';
+  }
+});
+
+// ── Reset password ──
+document.getElementById('resetPwBtn').addEventListener('click', async () => {
+  const id = document.getElementById('editId').value;
+  if (!confirm('비밀번호를 초기화하시겠습니까?')) return;
+
+  const data = await api(`/api/admin/vendors/${id}/reset_password`, { method: 'POST' });
+  if (!data) return;
+
+  if (data.ok) {
+    $editMsg.innerHTML = `임시 비밀번호: <code class="bg-zinc-800 px-1 rounded">${esc(data.tempPassword)}</code>`;
+    $editMsg.className = 'mt-2 text-xs text-emerald-400';
+  } else {
+    $editMsg.textContent = data.error || '초기화 실패';
+    $editMsg.className = 'mt-2 text-xs text-red-400';
+  }
+});
+
+// ── Product mapping ──
+function toggleMapping(vendorId) {
+  expandedMappings[vendorId] = !expandedMappings[vendorId];
+  const el = document.getElementById(`mapping-${vendorId}`);
+  if (!el) return;
+
+  if (expandedMappings[vendorId]) {
+    el.classList.remove('hidden');
+    loadMapping(vendorId);
+  } else {
+    el.classList.add('hidden');
+  }
+  // Update button text
+  const v = vendors.find(x => x.id === vendorId);
+  if (v) {
+    const btns = el.closest('.rounded-xl').querySelectorAll('button');
+    btns.forEach(b => {
+      if (b.textContent.includes('상품매핑')) {
+        b.textContent = expandedMappings[vendorId] ? '상품매핑 접기' : '상품매핑';
+      }
+    });
+  }
+}
+
+async function loadMapping(vendorId) {
+  const el = document.getElementById(`mapping-${vendorId}`);
+  if (!el) return;
+
+  el.innerHTML = '<div class="text-xs text-zinc-500">불러오는 중...</div>';
+
+  const data = await api(`/api/admin/mapping?vendorId=${vendorId}`);
+  if (!data) return;
+
+  const mappings = (data.mapping || []).filter(m => m.vendorId === vendorId || !m.vendorId);
+
+  let rows = '';
+  if (mappings.length === 0) {
+    rows = '<div class="text-xs text-zinc-500">매핑된 상품이 없습니다.</div>';
+  } else {
+    rows = '<div class="max-h-48 overflow-auto">' +
+      '<table class="w-full text-xs">' +
+      '<thead><tr class="text-zinc-500 border-b border-zinc-800">' +
+      '<th class="text-left py-1 pr-2">상품번호</th>' +
+      '<th class="text-left py-1">상품명</th>' +
+      '</tr></thead><tbody>' +
+      mappings.map(m => `
+        <tr class="border-b border-zinc-800/50">
+          <td class="py-1 pr-2 text-zinc-300">${esc(String(m.productNo || m.productId || ''))}</td>
+          <td class="py-1 text-zinc-400">${esc(m.productName || m.name || '-')}</td>
+        </tr>
+      `).join('') +
+      '</tbody></table></div>';
+  }
+
+  el.innerHTML = `
+    <div class="text-xs text-zinc-400 font-semibold mb-2">상품 매핑 (${mappings.length}건)</div>
+    ${rows}
+    <div class="mt-3 flex gap-2">
+      <input id="mapInput-${vendorId}" class="flex-1 rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="상품번호 입력 (쉼표로 여러 개)" />
+      <button onclick="addMapping('${vendorId}')" class="rounded-lg bg-emerald-400 text-zinc-950 px-4 py-1.5 text-xs font-semibold shrink-0">추가</button>
+    </div>
+    <div id="mapMsg-${vendorId}" class="mt-1 text-xs text-zinc-400"></div>
+  `;
+}
+
+async function addMapping(vendorId) {
+  const input  = document.getElementById(`mapInput-${vendorId}`);
+  const msgEl  = document.getElementById(`mapMsg-${vendorId}`);
+  const raw    = input.value.trim();
+  if (!raw) {
+    msgEl.textContent = '상품번호를 입력해주세요.';
+    msgEl.className = 'mt-1 text-xs text-red-400';
+    return;
+  }
+
+  const productNos = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (productNos.length === 0) {
+    msgEl.textContent = '유효한 상품번호를 입력해주세요.';
+    msgEl.className = 'mt-1 text-xs text-red-400';
+    return;
+  }
+
+  const data = await api('/api/admin/mapping', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vendorId, productNos })
+  });
+  if (!data) return;
+
+  if (data.ok) {
+    msgEl.textContent = `${productNos.length}건 매핑 추가 완료`;
+    msgEl.className = 'mt-1 text-xs text-emerald-400';
+    input.value = '';
+    loadMapping(vendorId);
+  } else {
+    msgEl.textContent = data.error || '매핑 추가 실패';
+    msgEl.className = 'mt-1 text-xs text-red-400';
+  }
+}
+
+// ── Util ──
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Refresh button ──
+document.getElementById('refreshVendors').addEventListener('click', loadVendors);
+
+// ── Init ──
+loadVendors();
+</script>
+</body>
+</html>

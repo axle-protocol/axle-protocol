@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>주문 관리 · Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    [data-tab-content] { display: none; }
+    [data-tab-content].active { display: block; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+    .badge-new { background: rgb(59 130 246 / 0.2); color: rgb(147 197 253); }
+    .badge-assigned { background: rgb(245 158 11 / 0.2); color: rgb(252 211 77); }
+    .badge-shipped { background: rgb(16 185 129 / 0.2); color: rgb(110 231 183); }
+    .badge-hold { background: rgb(239 68 68 / 0.2); color: rgb(252 165 165); }
+    .badge-exported { background: rgb(168 85 247 / 0.2); color: rgb(216 180 254); }
+    .badge-cancelled { background: rgb(113 113 122 / 0.2); color: rgb(161 161 170); }
+    input[type="checkbox"] { accent-color: #34d399; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div class="max-w-4xl mx-auto p-4">
+
+    <!-- Header -->
+    <header class="py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold">주문 관리</h1>
+        <p class="text-sm text-zinc-400">관리자 주문 조회/배정/정산</p>
+      </div>
+      <button id="logoutBtn" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700">로그아웃</button>
+    </header>
+
+    <!-- Nav -->
+    <nav class="flex gap-2 text-sm mb-4 flex-wrap">
+      <button data-tab="orders" class="tab-btn underline text-zinc-100 font-semibold">전체보기</button>
+      <button data-tab="unassigned" class="tab-btn text-zinc-500 hover:text-zinc-300">미배정</button>
+      <button data-tab="hold" class="tab-btn text-zinc-500 hover:text-zinc-300">보류</button>
+      <button data-tab="settlement" class="tab-btn text-zinc-500 hover:text-zinc-300">정산</button>
+      <span class="text-zinc-700">|</span>
+      <a href="/admin/index.html" class="text-zinc-500 hover:text-zinc-300">Setup</a>
+      <a href="/admin/vendors.html" class="text-zinc-500 hover:text-zinc-300">사장님 관리</a>
+    </nav>
+
+    <!-- ==================== TAB: 전체보기 (Orders) ==================== -->
+    <div data-tab-content="orders" class="active">
+
+      <!-- Stats Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <div class="rounded-lg bg-zinc-900/60 border border-zinc-800 p-3 text-center">
+          <div class="text-lg font-bold text-zinc-100" id="statTotal">-</div>
+          <div class="text-xs text-zinc-500">전체</div>
+        </div>
+        <div class="rounded-lg bg-blue-400/10 border border-blue-400/30 p-3 text-center">
+          <div class="text-lg font-bold text-blue-300" id="statUnassigned">-</div>
+          <div class="text-xs text-zinc-500">미배정</div>
+        </div>
+        <div class="rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-3 text-center">
+          <div class="text-lg font-bold text-emerald-300" id="statShipped">-</div>
+          <div class="text-xs text-zinc-500">발송완료</div>
+        </div>
+        <div class="rounded-lg bg-red-400/10 border border-red-400/30 p-3 text-center">
+          <div class="text-lg font-bold text-red-300" id="statHold">-</div>
+          <div class="text-xs text-zinc-500">보류</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 mb-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <select id="filterStatus" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm">
+            <option value="">전체 상태</option>
+            <option value="new">new (신규)</option>
+            <option value="assigned">assigned (배정됨)</option>
+            <option value="shipped">shipped (발송완료)</option>
+            <option value="hold">hold (보류)</option>
+            <option value="exported">exported (내보냄)</option>
+            <option value="cancelled">cancelled (취소)</option>
+          </select>
+          <select id="filterVendor" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm">
+            <option value="">전체 사장님</option>
+          </select>
+          <input id="filterSearch" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm col-span-2 sm:col-span-1" placeholder="검색 (상품명/수령인)" />
+          <button id="filterApplyBtn" class="rounded-lg bg-zinc-100 text-zinc-900 px-3 py-2 text-sm font-semibold">조회</button>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-3 flex items-center gap-2 text-sm flex-wrap">
+          <span class="text-zinc-500">페이지:</span>
+          <button id="prevPageBtn" class="rounded bg-zinc-800 px-2 py-1 text-xs disabled:opacity-30" disabled>&laquo; 이전</button>
+          <span id="pageInfo" class="text-zinc-400">1 / 1</span>
+          <button id="nextPageBtn" class="rounded bg-zinc-800 px-2 py-1 text-xs disabled:opacity-30" disabled>다음 &raquo;</button>
+          <select id="perPage" class="rounded bg-zinc-950 border border-zinc-800 px-2 py-1 text-xs ml-auto">
+            <option value="20">20건</option>
+            <option value="50" selected>50건</option>
+            <option value="100">100건</option>
+            <option value="200">200건</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Bulk Actions -->
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <label class="flex items-center gap-1 text-sm text-zinc-400">
+          <input type="checkbox" id="selectAllOrders" /> 전체 선택
+        </label>
+        <span id="selectedCount" class="text-xs text-zinc-500">0건 선택</span>
+        <div class="ml-auto flex gap-2">
+          <select id="bulkVendorSelect" class="rounded-lg bg-zinc-950 border border-zinc-800 px-2 py-1.5 text-xs">
+            <option value="">사장님 선택</option>
+          </select>
+          <button id="bulkAssignBtn" class="rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 text-xs font-semibold">일괄 배정</button>
+          <button id="naverShipBtn" class="rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold">네이버 발송</button>
+        </div>
+      </div>
+      <div id="bulkMsg" class="text-xs text-zinc-400 mb-2"></div>
+
+      <!-- Orders List -->
+      <div id="ordersList" class="grid gap-2"></div>
+    </div>
+
+    <!-- ==================== TAB: 미배정 ==================== -->
+    <div data-tab-content="unassigned">
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-semibold text-zinc-200">미배정 주문</div>
+          <button id="refreshUnassignedBtn" class="rounded-lg bg-zinc-800 px-3 py-2 text-sm">새로고침</button>
+        </div>
+        <div class="flex gap-2 mb-3">
+          <select id="unassignedVendorSelect" class="flex-1 rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm">
+            <option value="">사장님 선택</option>
+          </select>
+          <button id="unassignedBulkAssignBtn" class="rounded-lg bg-emerald-400 text-zinc-950 px-4 py-2 text-sm font-semibold">선택 배정</button>
+        </div>
+        <label class="flex items-center gap-1 text-sm text-zinc-400 mb-2">
+          <input type="checkbox" id="selectAllUnassigned" /> 전체 선택
+        </label>
+        <div id="unassignedMsg" class="text-xs text-zinc-400 mb-2"></div>
+        <div id="unassignedList" class="max-h-[70vh] overflow-auto grid gap-2"></div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB: 보류 ==================== -->
+    <div data-tab-content="hold">
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-semibold text-zinc-200">보류 주문</div>
+          <button id="refreshHoldBtn" class="rounded-lg bg-zinc-800 px-3 py-2 text-sm">새로고침</button>
+        </div>
+        <div id="holdMsg" class="text-xs text-zinc-400 mb-2"></div>
+        <div id="holdList" class="max-h-[70vh] overflow-auto grid gap-2"></div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB: 정산 ==================== -->
+    <div data-tab-content="settlement">
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div class="text-sm font-semibold text-zinc-200 mb-3">정산 조회</div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          <div>
+            <label class="text-xs text-zinc-500">시작일</label>
+            <input id="settlementFrom" type="date" class="mt-1 w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-zinc-500">종료일</label>
+            <input id="settlementTo" type="date" class="mt-1 w-full rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm" />
+          </div>
+          <div class="flex items-end">
+            <button id="settlementSearchBtn" class="w-full rounded-lg bg-zinc-100 text-zinc-900 px-3 py-2 text-sm font-semibold">조회</button>
+          </div>
+        </div>
+        <div id="settlementMsg" class="text-xs text-zinc-400 mb-2"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="settlementTable">
+            <thead>
+              <tr class="border-b border-zinc-800 text-zinc-500 text-xs">
+                <th class="text-left py-2 px-2">사장님</th>
+                <th class="text-right py-2 px-2">총 주문</th>
+                <th class="text-right py-2 px-2">총 수량</th>
+                <th class="text-right py-2 px-2">총 금액</th>
+                <th class="text-right py-2 px-2">발송완료</th>
+                <th class="text-right py-2 px-2">보류</th>
+                <th class="text-right py-2 px-2">대기</th>
+              </tr>
+            </thead>
+            <tbody id="settlementBody"></tbody>
+            <tfoot id="settlementFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <footer class="py-6 text-xs text-zinc-500 text-center">
+      주문 관리 시스템 &middot; Admin
+    </footer>
+  </div>
+
+<script>
+/* ───────── Utilities ───────── */
+function esc(s) {
+  if (typeof s !== 'string') return String(s ?? '');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function maskName(name) {
+  if (!name) return '-';
+  if (name.length <= 1) return name;
+  if (name.length === 2) return name[0] + '*';
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  return String(d).replace('T', ' ').slice(0, 16);
+}
+
+function statusBadge(status) {
+  const map = {
+    new:       ['badge-new',       '신규'],
+    assigned:  ['badge-assigned',  '배정됨'],
+    shipped:   ['badge-shipped',   '발송완료'],
+    hold:      ['badge-hold',      '보류'],
+    exported:  ['badge-exported',  '내보냄'],
+    cancelled: ['badge-cancelled', '취소'],
+  };
+  const [cls, label] = map[status] || ['badge-cancelled', status || '?'];
+  return `<span class="badge ${cls}">${esc(label)}</span>`;
+}
+
+/* ───────── API helper ───────── */
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, credentials: 'include' });
+  if (res.status === 401) { location.href = '/admin/login'; return null; }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function apiPost(path, body) {
+  return api(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+/* ───────── State ───────── */
+let vendors = [];
+let allOrders = [];
+let filteredOrders = [];
+let currentPage = 1;
+let totalPages = 1;
+let currentTab = 'orders';
+let holdOrders = [];
+let unassignedOrders = [];
+
+/* ───────── Tab switching ───────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    currentTab = tab;
+
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('underline', 'text-zinc-100', 'font-semibold');
+      b.classList.add('text-zinc-500');
+    });
+    btn.classList.add('underline', 'text-zinc-100', 'font-semibold');
+    btn.classList.remove('text-zinc-500');
+
+    document.querySelectorAll('[data-tab-content]').forEach(el => el.classList.remove('active'));
+    const target = document.querySelector(`[data-tab-content="${tab}"]`);
+    if (target) target.classList.add('active');
+
+    if (tab === 'unassigned') loadUnassigned();
+    if (tab === 'hold') loadHold();
+    if (tab === 'settlement') initSettlementDates();
+  });
+});
+
+/* ───────── Load vendors ───────── */
+async function loadVendors() {
+  try {
+    const r = await api('/api/admin/vendors');
+    vendors = r.vendors || r || [];
+  } catch {
+    vendors = [];
+  }
+
+  const selects = ['filterVendor', 'bulkVendorSelect', 'unassignedVendorSelect'];
+  for (const id of selects) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    const val = sel.value;
+    // Keep first option
+    while (sel.options.length > 1) sel.remove(1);
+    for (const v of vendors) {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = `${v.name || v.username} (${v.username})`;
+      sel.appendChild(opt);
+    }
+    if (val) sel.value = val;
+  }
+}
+
+/* ───────── Load orders + stats ───────── */
+async function loadOrders() {
+  try {
+    const params = new URLSearchParams();
+    const status = document.getElementById('filterStatus').value;
+    const vendorId = document.getElementById('filterVendor').value;
+    const search = document.getElementById('filterSearch').value.trim();
+    const limit = document.getElementById('perPage').value;
+
+    if (status) params.set('status', status);
+    if (vendorId) params.set('vendorId', vendorId);
+    if (search) params.set('q', search);
+    params.set('page', currentPage);
+    params.set('limit', limit);
+
+    const r = await api('/api/admin/orders?' + params.toString());
+    allOrders = r.orders || [];
+    totalPages = r.totalPages || Math.ceil((r.total || allOrders.length) / parseInt(limit)) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    renderOrders();
+    updateStats(r);
+  } catch (e) {
+    document.getElementById('ordersList').innerHTML =
+      `<div class="text-sm text-red-300 p-3">로드 실패: ${esc(e.message)}</div>`;
+  }
+}
+
+function updateStats(r) {
+  // Try to use response stats, or compute from loaded data
+  const stats = r.stats || {};
+  document.getElementById('statTotal').textContent = stats.total ?? r.total ?? allOrders.length;
+  document.getElementById('statUnassigned').textContent = stats.unassigned ?? allOrders.filter(o => !o.vendorId && o.status !== 'cancelled').length;
+  document.getElementById('statShipped').textContent = stats.shipped ?? allOrders.filter(o => o.status === 'shipped').length;
+  document.getElementById('statHold').textContent = stats.hold ?? allOrders.filter(o => o.status === 'hold').length;
+
+  // Also try dedicated stats endpoint
+  api('/api/admin/orders_stats').then(s => {
+    if (!s) return;
+    document.getElementById('statTotal').textContent = s.total ?? document.getElementById('statTotal').textContent;
+    document.getElementById('statUnassigned').textContent = s.unassigned ?? document.getElementById('statUnassigned').textContent;
+    document.getElementById('statShipped').textContent = s.shipped ?? document.getElementById('statShipped').textContent;
+    document.getElementById('statHold').textContent = s.hold ?? document.getElementById('statHold').textContent;
+  }).catch(() => {});
+}
+
+function updatePagination() {
+  document.getElementById('pageInfo').textContent = `${currentPage} / ${totalPages}`;
+  document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+  document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+}
+
+/* ───────── Render orders ───────── */
+function renderOrders() {
+  updatePagination();
+  const wrap = document.getElementById('ordersList');
+
+  if (!allOrders.length) {
+    wrap.innerHTML = '<div class="text-sm text-zinc-500 text-center py-6">주문 없음</div>';
+    return;
+  }
+
+  wrap.innerHTML = allOrders.map(o => orderCard(o, { showCheckbox: true, showActions: true })).join('');
+  bindOrderActions(wrap);
+}
+
+function orderCard(o, opts = {}) {
+  const showCheckbox = opts.showCheckbox !== false;
+  const showActions = opts.showActions !== false;
+  const showResolve = opts.showResolve === true;
+
+  const vendorLabel = o.vendorName || (vendors.find(v => v.id === o.vendorId)?.name) || '-';
+  const carrier = o.carrier || '';
+  const tracking = o.trackingNumber || '';
+  const trackingDisplay = carrier && tracking ? `${esc(carrier)} ${esc(tracking)}` : '-';
+  const isUnassigned = !o.vendorId;
+  const isHold = o.status === 'hold';
+
+  const borderClass = isHold
+    ? 'border-red-400/40'
+    : isUnassigned
+      ? 'border-blue-400/40'
+      : 'border-zinc-800';
+
+  let actionsHtml = '';
+  if (showActions) {
+    if (isHold) {
+      actionsHtml = `
+        <button class="rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-xs font-semibold" data-resolve="${esc(o.id)}">보류해제</button>
+      `;
+    } else if (isUnassigned) {
+      const vendorOpts = vendors.map(v =>
+        `<option value="${esc(v.id)}">${esc(v.name || v.username)}</option>`
+      ).join('');
+      actionsHtml = `
+        <div class="flex gap-1 items-center">
+          <select class="rounded bg-zinc-950 border border-zinc-800 px-2 py-1 text-xs" data-assign-vendor="${esc(o.id)}">
+            <option value="">사장님</option>
+            ${vendorOpts}
+          </select>
+          <button class="rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-1 text-xs font-semibold" data-assign="${esc(o.id)}">배정</button>
+        </div>
+      `;
+    }
+  }
+  if (showResolve && isHold) {
+    actionsHtml = `
+      <button class="rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 text-xs font-semibold" data-resolve="${esc(o.id)}">보류해제</button>
+    `;
+  }
+
+  return `
+  <div class="rounded-lg border ${borderClass} bg-zinc-900/40 p-3" data-order-id="${esc(o.id)}">
+    <div class="flex items-start gap-2">
+      ${showCheckbox ? `<input type="checkbox" class="order-checkbox mt-1" value="${esc(o.id)}" />` : ''}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs text-zinc-500 font-mono">${esc(o.productOrderNo || o.id)}</span>
+          ${statusBadge(o.status)}
+        </div>
+        <div class="mt-1 text-sm font-semibold truncate">${esc(o.productName || '-')}</div>
+        <div class="mt-1 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-xs text-zinc-400">
+          <div>수량: <span class="text-zinc-200">${o.qty || 1}</span></div>
+          <div>수령인: <span class="text-zinc-200">${esc(maskName(o.recipientName))}</span></div>
+          <div>사장님: <span class="text-zinc-200">${esc(vendorLabel)}</span></div>
+          <div>송장: <span class="text-zinc-200">${trackingDisplay}</span></div>
+        </div>
+        <div class="mt-1 flex items-center justify-between">
+          <span class="text-xs text-zinc-600">${fmtDate(o.createdAt)}</span>
+          <div class="flex gap-1">${actionsHtml}</div>
+        </div>
+        <div class="text-xs mt-1" data-order-msg="${esc(o.id)}"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindOrderActions(wrap) {
+  // Resolve hold
+  wrap.querySelectorAll('[data-resolve]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.resolve;
+      const msg = wrap.querySelector(`[data-order-msg="${id}"]`);
+      btn.disabled = true;
+      try {
+        await apiPost(`/api/admin/orders/${encodeURIComponent(id)}/resolve`, { status: 'assigned' });
+        if (msg) { msg.className = 'text-xs mt-1 text-emerald-300'; msg.textContent = '보류 해제됨'; }
+        setTimeout(() => { loadOrders(); if (currentTab === 'hold') loadHold(); }, 400);
+      } catch (e) {
+        if (msg) { msg.className = 'text-xs mt-1 text-red-300'; msg.textContent = e.message; }
+      } finally { btn.disabled = false; }
+    });
+  });
+
+  // Single assign
+  wrap.querySelectorAll('[data-assign]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.assign;
+      const sel = wrap.querySelector(`[data-assign-vendor="${id}"]`);
+      const vendorId = sel?.value;
+      const msg = wrap.querySelector(`[data-order-msg="${id}"]`);
+      if (!vendorId) {
+        if (msg) { msg.className = 'text-xs mt-1 text-red-300'; msg.textContent = '사장님을 선택하세요'; }
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await apiPost('/api/admin/orders_assign', { vendorId, orderIds: [id] });
+        if (msg) { msg.className = 'text-xs mt-1 text-emerald-300'; msg.textContent = '배정 완료'; }
+        setTimeout(() => loadOrders(), 400);
+      } catch (e) {
+        if (msg) { msg.className = 'text-xs mt-1 text-red-300'; msg.textContent = e.message; }
+      } finally { btn.disabled = false; }
+    });
+  });
+
+  // Checkboxes
+  wrap.querySelectorAll('.order-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateSelectedCount);
+  });
+}
+
+function updateSelectedCount() {
+  const checked = document.querySelectorAll('#ordersList .order-checkbox:checked');
+  document.getElementById('selectedCount').textContent = `${checked.length}건 선택`;
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll('#ordersList .order-checkbox:checked')).map(cb => cb.value);
+}
+
+/* ───────── Bulk actions ───────── */
+document.getElementById('selectAllOrders').addEventListener('change', (e) => {
+  document.querySelectorAll('#ordersList .order-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+  updateSelectedCount();
+});
+
+document.getElementById('bulkAssignBtn').addEventListener('click', async () => {
+  const ids = getSelectedIds();
+  const vendorId = document.getElementById('bulkVendorSelect').value;
+  const msg = document.getElementById('bulkMsg');
+  if (!ids.length) { msg.className = 'text-xs text-red-300 mb-2'; msg.textContent = '주문을 선택하세요'; return; }
+  if (!vendorId) { msg.className = 'text-xs text-red-300 mb-2'; msg.textContent = '사장님을 선택하세요'; return; }
+  try {
+    const r = await apiPost('/api/admin/orders_assign', { vendorId, orderIds: ids });
+    msg.className = 'text-xs text-emerald-300 mb-2';
+    msg.textContent = `일괄 배정 완료: ${r.updated || ids.length}건`;
+    document.getElementById('selectAllOrders').checked = false;
+    setTimeout(() => loadOrders(), 400);
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+});
+
+document.getElementById('naverShipBtn').addEventListener('click', async () => {
+  const ids = getSelectedIds();
+  const msg = document.getElementById('bulkMsg');
+  if (!ids.length) { msg.className = 'text-xs text-red-300 mb-2'; msg.textContent = '주문을 선택하세요'; return; }
+  try {
+    const qs = new URLSearchParams();
+    qs.set('ids', ids.join(','));
+    msg.className = 'text-xs text-zinc-400 mb-2';
+    msg.textContent = '발송처리 다운로드 중...';
+    window.location.href = '/api/admin/shipping_export.xlsx?' + qs.toString();
+    msg.textContent = '다운로드 시작됨';
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+});
+
+/* ───────── Filters + Pagination ───────── */
+document.getElementById('filterApplyBtn').addEventListener('click', () => { currentPage = 1; loadOrders(); });
+document.getElementById('filterSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentPage = 1; loadOrders(); } });
+document.getElementById('perPage').addEventListener('change', () => { currentPage = 1; loadOrders(); });
+document.getElementById('prevPageBtn').addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadOrders(); } });
+document.getElementById('nextPageBtn').addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; loadOrders(); } });
+
+/* ───────── Unassigned tab ───────── */
+async function loadUnassigned() {
+  const msg = document.getElementById('unassignedMsg');
+  const wrap = document.getElementById('unassignedList');
+  msg.textContent = '불러오는 중...';
+  try {
+    const r = await api('/api/admin/orders_unassigned');
+    unassignedOrders = r.orders || [];
+    msg.className = 'text-xs text-zinc-400 mb-2';
+    msg.textContent = `미배정 ${unassignedOrders.length}건`;
+
+    if (!unassignedOrders.length) {
+      wrap.innerHTML = '<div class="text-sm text-zinc-500 text-center py-4">미배정 주문 없음</div>';
+      return;
+    }
+
+    wrap.innerHTML = unassignedOrders.map(o => {
+      const vendorOpts = vendors.map(v =>
+        `<option value="${esc(v.id)}">${esc(v.name || v.username)}</option>`
+      ).join('');
+      return `
+      <label class="flex items-start gap-2 rounded-lg border border-blue-400/30 bg-zinc-900/40 p-3 cursor-pointer" data-order-id="${esc(o.id)}">
+        <input type="checkbox" class="unassigned-checkbox mt-1" value="${esc(o.id)}" />
+        <div class="flex-1 min-w-0">
+          <div class="text-xs text-zinc-500 font-mono">${esc(o.productOrderNo || o.id)}</div>
+          <div class="text-sm font-semibold truncate">${esc((o.productName || '').slice(0, 60))}</div>
+          <div class="text-xs text-zinc-400">수량: ${o.qty || 1} &middot; 수령인: ${esc(maskName(o.recipientName))} &middot; 상품번호: ${esc(o.productNo || '-')}</div>
+          <div class="text-xs text-zinc-600">${fmtDate(o.createdAt)}</div>
+        </div>
+      </label>`;
+    }).join('');
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+}
+
+document.getElementById('selectAllUnassigned').addEventListener('change', (e) => {
+  document.querySelectorAll('#unassignedList .unassigned-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+});
+
+document.getElementById('refreshUnassignedBtn').addEventListener('click', loadUnassigned);
+
+document.getElementById('unassignedBulkAssignBtn').addEventListener('click', async () => {
+  const ids = Array.from(document.querySelectorAll('#unassignedList .unassigned-checkbox:checked')).map(cb => cb.value);
+  const vendorId = document.getElementById('unassignedVendorSelect').value;
+  const msg = document.getElementById('unassignedMsg');
+  if (!ids.length) { msg.className = 'text-xs text-red-300 mb-2'; msg.textContent = '주문을 선택하세요'; return; }
+  if (!vendorId) { msg.className = 'text-xs text-red-300 mb-2'; msg.textContent = '사장님을 선택하세요'; return; }
+  try {
+    const r = await apiPost('/api/admin/orders_assign', { vendorId, orderIds: ids });
+    msg.className = 'text-xs text-emerald-300 mb-2';
+    msg.textContent = `배정 완료: ${r.updated || ids.length}건`;
+    document.getElementById('selectAllUnassigned').checked = false;
+    setTimeout(() => loadUnassigned(), 400);
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+});
+
+/* ───────── Hold tab ───────── */
+async function loadHold() {
+  const msg = document.getElementById('holdMsg');
+  const wrap = document.getElementById('holdList');
+  msg.textContent = '불러오는 중...';
+  try {
+    const r = await api('/api/admin/orders?status=hold&limit=200');
+    holdOrders = r.orders || [];
+    msg.className = 'text-xs text-zinc-400 mb-2';
+    msg.textContent = `보류 ${holdOrders.length}건`;
+
+    if (!holdOrders.length) {
+      wrap.innerHTML = '<div class="text-sm text-zinc-500 text-center py-4">보류 주문 없음</div>';
+      return;
+    }
+
+    wrap.innerHTML = holdOrders.map(o => orderCard(o, { showCheckbox: false, showActions: false, showResolve: true })).join('');
+    bindOrderActions(wrap);
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+}
+
+document.getElementById('refreshHoldBtn').addEventListener('click', loadHold);
+
+/* ───────── Settlement tab ───────── */
+function initSettlementDates() {
+  const from = document.getElementById('settlementFrom');
+  const to = document.getElementById('settlementTo');
+  if (!from.value) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    from.value = `${y}-${m}-01`;
+    to.value = now.toISOString().slice(0, 10);
+  }
+}
+
+document.getElementById('settlementSearchBtn').addEventListener('click', loadSettlement);
+
+async function loadSettlement() {
+  const from = document.getElementById('settlementFrom').value;
+  const to = document.getElementById('settlementTo').value;
+  const msg = document.getElementById('settlementMsg');
+  const tbody = document.getElementById('settlementBody');
+  const tfoot = document.getElementById('settlementFoot');
+
+  if (!from || !to) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = '날짜를 선택하세요';
+    return;
+  }
+
+  msg.className = 'text-xs text-zinc-400 mb-2';
+  msg.textContent = '조회 중...';
+  tbody.innerHTML = '';
+  tfoot.innerHTML = '';
+
+  try {
+    const r = await api(`/api/admin/settlement?from=${from}&to=${to}`);
+    const rows = r.vendors || r.rows || r.data || [];
+
+    if (!rows.length) {
+      msg.textContent = '정산 데이터 없음';
+      return;
+    }
+
+    msg.textContent = `${from} ~ ${to} 정산 결과`;
+
+    let grandTotal = { totalOrders: 0, totalQty: 0, totalAmount: 0, shipped: 0, hold: 0, pending: 0 };
+
+    tbody.innerHTML = rows.map(row => {
+      grandTotal.totalOrders += (row.totalOrders || 0);
+      grandTotal.totalQty += (row.totalQty || 0);
+      grandTotal.totalAmount += (row.totalAmount || 0);
+      grandTotal.shipped += (row.shipped || 0);
+      grandTotal.hold += (row.hold || 0);
+      grandTotal.pending += (row.pending || 0);
+
+      return `
+      <tr class="border-b border-zinc-800/50 hover:bg-zinc-900/50">
+        <td class="py-2 px-2 text-zinc-200">${esc(row.vendorName || row.vendor || '-')}</td>
+        <td class="py-2 px-2 text-right">${row.totalOrders ?? '-'}</td>
+        <td class="py-2 px-2 text-right">${row.totalQty ?? '-'}</td>
+        <td class="py-2 px-2 text-right">${(row.totalAmount ?? 0).toLocaleString()}원</td>
+        <td class="py-2 px-2 text-right text-emerald-300">${row.shipped ?? '-'}</td>
+        <td class="py-2 px-2 text-right text-red-300">${row.hold ?? '-'}</td>
+        <td class="py-2 px-2 text-right text-amber-300">${row.pending ?? '-'}</td>
+      </tr>`;
+    }).join('');
+
+    tfoot.innerHTML = `
+    <tr class="border-t-2 border-zinc-700 font-semibold">
+      <td class="py-2 px-2 text-zinc-100">합계</td>
+      <td class="py-2 px-2 text-right">${grandTotal.totalOrders}</td>
+      <td class="py-2 px-2 text-right">${grandTotal.totalQty}</td>
+      <td class="py-2 px-2 text-right">${grandTotal.totalAmount.toLocaleString()}원</td>
+      <td class="py-2 px-2 text-right text-emerald-300">${grandTotal.shipped}</td>
+      <td class="py-2 px-2 text-right text-red-300">${grandTotal.hold}</td>
+      <td class="py-2 px-2 text-right text-amber-300">${grandTotal.pending}</td>
+    </tr>`;
+  } catch (e) {
+    msg.className = 'text-xs text-red-300 mb-2';
+    msg.textContent = e.message;
+  }
+}
+
+/* ───────── Logout ───────── */
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try {
+    await apiPost('/api/owner/logout', {});
+  } catch {}
+  location.href = '/admin/login';
+});
+
+/* ───────── Init ───────── */
+(async function init() {
+  await loadVendors();
+  await loadOrders();
+})();
+</script>
+</body>
+</html>
