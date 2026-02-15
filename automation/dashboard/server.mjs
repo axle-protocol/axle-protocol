@@ -269,6 +269,52 @@ const CARRIER_LABEL = {
   kyungdong: '경동택배',
 };
 
+// -------------------------
+// TRUST_PROXY — only trust x-forwarded-proto/x-forwarded-for behind a reverse proxy
+// -------------------------
+const TRUST_PROXY = process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1';
+
+// -------------------------
+// Order State Machine (P0-3)
+// -------------------------
+const ORDER_TRANSITIONS = {
+  // fromStatus → [allowed next statuses]
+  new:       ['assigned', 'hold', 'shipped', 'cancelled'],
+  assigned:  ['shipped', 'hold', 'cancelled'],
+  shipped:   ['exported'],
+  hold:      ['assigned', 'new', 'cancelled'],
+  exported:  ['confirmed'],
+  confirmed: [],
+  cancelled: [],
+};
+
+function getOrderStatus(order) {
+  return order.status || 'new';
+}
+
+/**
+ * Validate + apply order status transition.
+ * Returns { ok, error?, prev, next } — does NOT save to disk (caller saves).
+ */
+function transitionOrder(order, toStatus, { actor, reason, ip } = {}) {
+  const from = getOrderStatus(order);
+  const allowed = ORDER_TRANSITIONS[from];
+  if (!allowed) {
+    return { ok: false, error: `unknown_status: ${from}`, prev: from, next: toStatus };
+  }
+  if (!allowed.includes(toStatus)) {
+    return { ok: false, error: `invalid_transition: ${from} → ${toStatus}`, prev: from, next: toStatus };
+  }
+  const now = new Date().toISOString();
+  const prevStatus = from;
+  order.status = toStatus;
+  order.updatedAt = now;
+  // Append transition to order history
+  if (!Array.isArray(order._history)) order._history = [];
+  order._history.push({ from: prevStatus, to: toStatus, at: now, actor: actor || null, reason: reason || null });
+  return { ok: true, prev: prevStatus, next: toStatus };
+}
+
 // --- Rate Limiting ---
 const loginAttempts = new Map(); // ip -> { count, lockedUntil }
 const RATE_LIMIT_MAX = 5;
@@ -317,9 +363,16 @@ function maskAddress(addr) {
 const DEFAULT_DELIVERY_METHOD = '택배,등기,소포';
 
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  if (TRUST_PROXY) {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  }
   return req.socket?.remoteAddress || null;
+}
+
+function isHttpsRequest(req) {
+  if (TRUST_PROXY) return String(req.headers['x-forwarded-proto'] || '').includes('https');
+  return false; // direct connection — never mark secure unless behind trusted proxy
 }
 
 function loadRoadmap() {
@@ -1406,7 +1459,9 @@ const server = http.createServer(async (req, res) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.headers.origin || '';
     const host = req.headers.host || '';
-    if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1') && !origin.includes(host.split(':')[0])) {
+    const isDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+    const isLocalOrigin = isDev && (origin.includes('localhost') || origin.includes('127.0.0.1'));
+    if (origin && !isLocalOrigin && !origin.includes(host.split(':')[0])) {
       return sendJson(res, 403, { error: 'csrf_origin_mismatch' });
     }
   }
@@ -1478,8 +1533,7 @@ const server = http.createServer(async (req, res) => {
     if (db.sessions.length > 200) db.sessions = db.sessions.slice(db.sessions.length - 200);
     saveOwnerSessions(db);
 
-    const isHttps = String(req.headers['x-forwarded-proto'] || '').includes('https');
-    setCookie(res, 'owner_session', token, { httpOnly: true, sameSite: 'Strict', path: '/', secure: isHttps, maxAge: 60 * 60 * 24 });
+    setCookie(res, 'owner_session', token, { httpOnly: true, sameSite: 'Strict', path: '/', secure: isHttpsRequest(req), maxAge: 60 * 60 * 24 });
 
     auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGGED_IN', ip: getClientIp(req) });
     return sendJson(res, 200, { ok: true });
@@ -1786,7 +1840,13 @@ const server = http.createServer(async (req, res) => {
       const id = String(o.id || o.productOrderNo || '');
       if (set.has(id)) {
         updated++;
-        return { ...o, vendorId, updatedAt: now };
+        const cur = getOrderStatus(o);
+        if (cur === 'new' || !o.vendorId) {
+          transitionOrder(o, 'assigned', { actor: `owner:${OWNER_USERNAME}`, reason: 'admin_assign' });
+        }
+        o.vendorId = vendorId;
+        o.updatedAt = now;
+        return o;
       }
       return o;
     });
@@ -1866,6 +1926,7 @@ const server = http.createServer(async (req, res) => {
           recipientPhone: it.recipient_phone || null,
           recipientAddress: it.recipient_address || null,
           vendorId,
+          status: vendorId ? 'assigned' : 'new',
           carrier: null,
           trackingNumber: '',
           createdAt: byId.has(id) ? byId.get(id).createdAt : now,
@@ -2043,12 +2104,11 @@ const server = http.createServer(async (req, res) => {
     sessions.sessions.push({ token, vendorId: vendor.id, createdAt: new Date().toISOString(), expiresAt });
     saveVendorSessions(sessions);
 
-    const isHttps = String(req.headers['x-forwarded-proto'] || '').includes('https');
     setCookie(res, 'vendor_session', token, {
       httpOnly: true,
       sameSite: 'Strict',
       path: '/',
-      secure: isHttps,
+      secure: isHttpsRequest(req),
       maxAge: 60 * 60 * 24 * 14,
     });
 
@@ -2150,12 +2210,12 @@ const server = http.createServer(async (req, res) => {
       const idx = (db.orders || []).findIndex((o) => o.id === oid && o.vendorId === vendor.id);
       if (idx === -1) { results.push({ orderId: oid, ok: false, error: 'not_found' }); failed++; continue; }
 
+      const tr = transitionOrder(db.orders[idx], 'shipped', { actor: `vendor:${vendor.id}`, reason: 'bulk_tracking' });
+      if (!tr.ok) { results.push({ orderId: oid, ok: false, error: tr.error }); failed++; continue; }
       const now = new Date().toISOString();
       db.orders[idx].tracking = { carrier, number: vt.number, updatedAt: now };
       db.orders[idx].carrier = carrier;
       db.orders[idx].trackingNumber = vt.number;
-      db.orders[idx].status = 'shipped';
-      db.orders[idx].updatedAt = now;
       results.push({ orderId: oid, ok: true });
       success++;
     }
@@ -2180,10 +2240,10 @@ const server = http.createServer(async (req, res) => {
       const db = loadOrders();
       const idx = (db.orders || []).findIndex((o) => o.id === orderId && o.vendorId === vendor.id);
       if (idx === -1) return sendJson(res, 404, { error: 'not_found' });
-      db.orders[idx].status = 'hold';
+      const tr = transitionOrder(db.orders[idx], 'hold', { actor: `vendor:${vendor.id}`, reason });
+      if (!tr.ok) return sendJson(res, 409, { error: tr.error, prev: tr.prev, next: tr.next });
       db.orders[idx].holdReason = reason;
       db.orders[idx].holdAt = new Date().toISOString();
-      db.orders[idx].updatedAt = new Date().toISOString();
       saveOrders(db);
       auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'ORDER_HOLD', orderId, reason, ip: getClientIp(req) });
       return sendJson(res, 200, { ok: true, order: db.orders[idx] });
@@ -2202,6 +2262,9 @@ const server = http.createServer(async (req, res) => {
     const idx = (db.orders || []).findIndex((o) => o.id === orderId && o.vendorId === vendor.id);
     if (idx === -1) return sendJson(res, 404, { error: 'not_found' });
 
+    const tr = transitionOrder(db.orders[idx], 'shipped', { actor: `vendor:${vendor.id}`, reason: 'input_tracking' });
+    if (!tr.ok) return sendJson(res, 409, { error: tr.error, prev: tr.prev, next: tr.next });
+
     const now = new Date().toISOString();
     db.orders[idx].tracking = {
       carrier,
@@ -2211,9 +2274,6 @@ const server = http.createServer(async (req, res) => {
     // legacy top-level fields (used by vendor UI + shipping export)
     db.orders[idx].carrier = carrier;
     db.orders[idx].trackingNumber = v.number;
-
-    db.orders[idx].status = 'shipped';
-    db.orders[idx].updatedAt = now;
 
     saveOrders(db);
     auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'INPUT_TRACKING', orderId, carrier, ip: getClientIp(req) });
@@ -2348,7 +2408,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/agent/new_orders' && req.method === 'GET') {
     if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
     const orders = loadOrders();
-    const pending = (orders.orders || []).filter((o) => !o.vendorId || o.status === 'pending');
+    const pending = (orders.orders || []).filter((o) => !o.vendorId || getOrderStatus(o) === 'new');
     return sendJson(res, 200, { orders: pending, count: pending.length });
   }
 
@@ -2442,10 +2502,10 @@ const server = http.createServer(async (req, res) => {
     const db = loadOrders();
     const idx = (db.orders || []).findIndex((o) => o.id === orderId);
     if (idx === -1) return sendJson(res, 404, { error: 'not_found' });
-    db.orders[idx].status = newStatus;
+    const tr = transitionOrder(db.orders[idx], newStatus, { actor: `owner:${OWNER_USERNAME}`, reason: body?.reason || 'resolve_hold' });
+    if (!tr.ok) return sendJson(res, 409, { error: tr.error, prev: tr.prev, next: tr.next });
     db.orders[idx].holdReason = null;
     db.orders[idx].holdAt = null;
-    db.orders[idx].updatedAt = new Date().toISOString();
     saveOrders(db);
     auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ORDER_HOLD_RESOLVED', orderId, newStatus, ip: getClientIp(req) });
     return sendJson(res, 200, { ok: true });
@@ -2581,6 +2641,7 @@ const server = http.createServer(async (req, res) => {
             recipientPhone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
             recipientAddress: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailAddress].filter(Boolean).join(' ') || null,
             vendorId,
+            status: vendorId ? 'assigned' : 'new',
             carrier: null,
             trackingNumber: '',
             createdAt: po.orderDate || now,
@@ -2595,7 +2656,10 @@ const server = http.createServer(async (req, res) => {
             existing.naverStatus = row.naverStatus;
             existing._naverRaw = row._naverRaw;
             existing.updatedAt = now;
-            if (!existing.vendorId && vendorId) existing.vendorId = vendorId;
+            if (!existing.vendorId && vendorId) {
+              existing.vendorId = vendorId;
+              if (getOrderStatus(existing) === 'new') transitionOrder(existing, 'assigned', { actor: 'system:naver_sync', reason: 'auto_assign' });
+            }
             updated++;
           } else {
             orders.orders.push(row);
@@ -2627,10 +2691,18 @@ const server = http.createServer(async (req, res) => {
     const results = [];
     let success = 0;
     let failed = 0;
+    let skipped = 0;
 
     for (const orderId of orderIds) {
       const order = (db.orders || []).find((o) => o.id === orderId);
       if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
+
+      // Idempotency: already shipped to Naver → skip
+      if (order.naverShippedAt) {
+        results.push({ orderId, ok: true, skipped: true, reason: 'already_shipped' });
+        skipped++;
+        continue;
+      }
 
       const tn = String(order.trackingNumber || order.tracking?.number || '').trim();
       const carrier = String(order.carrier || order.tracking?.carrier || '').trim();
@@ -2639,23 +2711,35 @@ const server = http.createServer(async (req, res) => {
       const naverCarrier = NAVER_CARRIER_MAP[carrier];
       if (!naverCarrier) { results.push({ orderId, ok: false, error: `unknown_carrier: ${carrier}` }); failed++; continue; }
 
+      // State machine: must be 'shipped' to export
+      const tr = transitionOrder(order, 'exported', { actor: `owner:${OWNER_USERNAME}`, reason: 'naver_ship' });
+      if (!tr.ok) { results.push({ orderId, ok: false, error: tr.error }); failed++; continue; }
+
+      const shipAttemptId = crypto.randomUUID();
+      order._shipAttempt = { id: shipAttemptId, startedAt: new Date().toISOString(), carrier: naverCarrier, trackingNumber: tn };
+
       try {
         await naverCommerce.shipOrder(order.productOrderNo, naverCarrier, tn);
         order.naverStatus = 'DISPATCHED';
         order.naverShippedAt = new Date().toISOString();
-        order.status = 'exported';
         order.exportedAt = new Date().toISOString();
+        order._shipAttempt.status = 'success';
         results.push({ orderId, ok: true });
         success++;
       } catch (e) {
+        // Rollback status on API failure
+        order.status = tr.prev;
+        order._shipAttempt.status = 'failed';
+        order._shipAttempt.error = e.message;
+        order._shipAttempt.failedAt = new Date().toISOString();
         results.push({ orderId, ok: false, error: e.message });
         failed++;
       }
     }
 
     saveOrders(db);
-    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_SHIP', success, failed, ip: getClientIp(req) });
-    return sendJson(res, 200, { ok: true, success, failed, results });
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_SHIP', success, failed, skipped, ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true, success, failed, skipped, results });
   }
 
   if (url.pathname === '/api/admin/naver/confirm' && req.method === 'POST') {
@@ -3110,6 +3194,15 @@ server.listen(PORT, () => {
   console.log(`[dashboard] owner basic auth user=${OWNER_USERNAME} (password via DASHBOARD_PASSWORD)`);
   console.log('[dashboard] vendor portal: /vendor/login (session cookie)');
 });
+
+// Periodic: rate limit map cleanup (every 30 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of loginAttempts) {
+    if (entry.lockedUntil && now >= entry.lockedUntil) loginAttempts.delete(ip);
+    else if (now - entry.firstAttempt > RATE_LIMIT_WINDOW * 2) loginAttempts.delete(ip);
+  }
+}, 30 * 60 * 1000);
 
 // Periodic: cleanup old upload files (every 6 hours)
 const UPLOAD_MAX_AGE_DAYS = 7;

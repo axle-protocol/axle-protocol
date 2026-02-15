@@ -15,13 +15,31 @@
       "carrier": "cj",
       "trackingNumber": "1234567890123",
       "createdAt": "2026-12-24T20:53:01.890Z",
-      "updatedAt": "2026-02-15T10:42:56.553Z",
+      "updatedAt": "2026-02-15T15:04:23.097Z",
       "tracking": {
         "carrier": "cj",
         "number": "1234567890123",
         "updatedAt": "2026-02-15T10:42:56.553Z"
       },
-      "status": "shipped"
+      "status": "shipped",
+      "_history": [
+        {
+          "from": "shipped",
+          "to": "exported",
+          "at": "2026-02-15T15:04:23.097Z",
+          "actor": "owner:han",
+          "reason": "naver_ship"
+        }
+      ],
+      "_shipAttempt": {
+        "id": "97b1bdb3-73d9-4eda-b3f9-ae9cc5cd87b0",
+        "startedAt": "2026-02-15T15:04:23.097Z",
+        "carrier": "CJGLS",
+        "trackingNumber": "1234567890123",
+        "status": "failed",
+        "error": "[naver-commerce] API POST /v1/pay-order/seller/product-orders/ship failed (404): {\"code\":\"GW.NOT_FOUND\",\"message\":\"요청하신 리소스를 찾을 수 없습니다.\",\"timestamp\":\"2026-02-16T00:04:23.308+09:00\",\"traceId\":\"5ha7x9ktRyCZiQTq-3ImZA^1770195998608^78070965\"}",
+        "failedAt": "2026-02-15T15:04:23.311Z"
+      }
     },
     {
       "id": "4c33e85e-9004-4c22-980a-5ac7fa237ba5",
@@ -38,7 +56,8 @@
       "carrier": "logen",
       "trackingNumber": "275583611014",
       "createdAt": "2026-12-24T17:13:15.320Z",
-      "updatedAt": "2026-12-24T17:13:15.320Z"
+      "updatedAt": "2026-12-24T17:13:15.320Z",
+      "status": "shipped"
     },
     {
       "id": "5b2ff2c2-66d6-4cc5-9b55-6d9f515a1541",
@@ -55,7 +74,8 @@
       "carrier": "logen",
       "trackingNumber": "591458899397",
       "createdAt": "2026-12-15T11:32:09.141Z",
-      "updatedAt": "2026-12-15T11:32:09.141Z"
+      "updatedAt": "2026-12-15T11:32:09.141Z",
+      "status": "shipped"
     },
     {
       "id": "fb8be18f-304e-40f4-ac60-930082a95daf",
@@ -72,7 +92,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-11-26T18:28:40.600Z",
-      "updatedAt": "2026-11-26T18:28:40.600Z"
+      "updatedAt": "2026-11-26T18:28:40.600Z",
+      "status": "assigned"
     },
     {
       "id": "1ab23727-7844-4cae-9adf-c17da4c34653",
@@ -89,7 +110,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-11-14T06:14:16.980Z",
-      "updatedAt": "2026-11-14T06:14:16.980Z"
+      "updatedAt": "2026-11-14T06:14:16.980Z",
+      "status": "assigned"
     },
     {
       "id": "e033b9e5-3df6-4127-b315-9fa840d2fa17",
@@ -106,7 +128,8 @@
       "carrier": "logen",
       "trackingNumber": "446917600154",
       "createdAt": "2026-11-14T02:18:04.531Z",
-      "updatedAt": "2026-11-14T02:18:04.531Z"
+      "updatedAt": "2026-11-14T02:18:04.531Z",
+      "status": "shipped"
     },
     {
       "id": "e32c3f08-f9b7-4af4-8b5d-a286865d5de4",
@@ -123,7 +146,8 @@
       "carrier": "logen",
       "trackingNumber": "224359895996",
       "createdAt": "2026-11-12T18:56:09.230Z",
-      "updatedAt": "2026-11-12T18:56:09.230Z"
+      "updatedAt": "2026-11-12T18:56:09.230Z",
+      "status": "shipped"
     },
     {
       "id": "1c83f988-aa7f-4d19-8f4b-d5ace5eb5539",
@@ -140,7 +164,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-11-12T12:11:51.742Z",
-      "updatedAt": "2026-11-12T12:11:51.742Z"
+      "updatedAt": "2026-11-12T12:11:51.742Z",
+      "status": "assigned"
     },
     {
       "id": "a535df2c-c3bf-455d-833b-7d4517fe4030",
@@ -157,7 +182,8 @@
       "carrier": "logen",
       "trackingNumber": "441868805076",
       "createdAt": "2026-11-11T06:31:26.151Z",
-      "updatedAt": "2026-11-11T06:31:26.151Z"
+      "updatedAt": "2026-11-11T06:31:26.151Z",
+      "status": "shipped"
     },
     {
       "id": "d17b3ac1-b54d-436f-a844-8dff6e5b4ee6",
@@ -194,7 +220,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-10-14T09:54:49.874Z",
-      "updatedAt": "2026-10-14T09:54:49.874Z"
+      "updatedAt": "2026-10-14T09:54:49.874Z",
+      "status": "assigned"
     },
     {
       "id": "0b08bbc2-ff24-43fe-814b-1ba16d2e435e",
@@ -211,7 +238,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-09-23T07:21:15.453Z",
-      "updatedAt": "2026-09-23T07:21:15.453Z"
+      "updatedAt": "2026-09-23T07:21:15.453Z",
+      "status": "assigned"
     },
     {
       "id": "25c025b7-17fe-4612-bc4f-bd004ec684db",
@@ -228,7 +256,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-09-18T19:59:05.802Z",
-      "updatedAt": "2026-09-18T19:59:05.802Z"
+      "updatedAt": "2026-09-18T19:59:05.802Z",
+      "status": "assigned"
     },
     {
       "id": "c69f7fa3-91b7-418f-a81e-f92451fc0d2c",
@@ -245,7 +274,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-09-16T01:19:19.623Z",
-      "updatedAt": "2026-09-16T01:19:19.623Z"
+      "updatedAt": "2026-09-16T01:19:19.623Z",
+      "status": "assigned"
     },
     {
       "id": "6e8fa8f8-5eff-4f74-bd25-477fbcb596ce",
@@ -262,7 +292,8 @@
       "carrier": "post",
       "trackingNumber": "733988722661",
       "createdAt": "2026-08-29T08:53:32.379Z",
-      "updatedAt": "2026-08-29T08:53:32.379Z"
+      "updatedAt": "2026-08-29T08:53:32.379Z",
+      "status": "shipped"
     },
     {
       "id": "293b9b84-37c4-4a37-88d8-e044b53e7f57",
@@ -279,7 +310,33 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-08-11T04:31:12.100Z",
-      "updatedAt": "2026-08-11T04:31:12.100Z"
+      "updatedAt": "2026-02-15T15:04:07.713Z",
+      "status": "shipped",
+      "_history": [
+        {
+          "from": "assigned",
+          "to": "hold",
+          "at": "2026-02-15T15:04:00.320Z",
+          "actor": "vendor:vendor_015f1a70-14f8-4d44-99fc-2c4d686645b2",
+          "reason": "재고부족"
+        },
+        {
+          "from": "hold",
+          "to": "assigned",
+          "at": "2026-02-15T15:04:07.703Z",
+          "actor": "owner:han",
+          "reason": "재고확인완료"
+        },
+        {
+          "from": "assigned",
+          "to": "shipped",
+          "at": "2026-02-15T15:04:07.713Z",
+          "actor": "owner:han",
+          "reason": "resolve_hold"
+        }
+      ],
+      "holdReason": null,
+      "holdAt": null
     },
     {
       "id": "59cf071f-0308-4187-8e24-744e74247b52",
@@ -296,7 +353,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-08-09T00:43:40.809Z",
-      "updatedAt": "2026-08-09T00:43:40.809Z"
+      "updatedAt": "2026-08-09T00:43:40.809Z",
+      "status": "assigned"
     },
     {
       "id": "1e635b4e-c487-4283-9449-2a4a93b08a4c",
@@ -313,7 +371,8 @@
       "carrier": "lotte",
       "trackingNumber": "946713531682",
       "createdAt": "2026-06-11T00:22:03.423Z",
-      "updatedAt": "2026-06-11T00:22:03.423Z"
+      "updatedAt": "2026-06-11T00:22:03.423Z",
+      "status": "shipped"
     },
     {
       "id": "f2d82b97-0092-40af-bb9c-478c02beafb2",
@@ -330,7 +389,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-06-03T14:45:54.937Z",
-      "updatedAt": "2026-06-03T14:45:54.937Z"
+      "updatedAt": "2026-06-03T14:45:54.937Z",
+      "status": "assigned"
     },
     {
       "id": "91742da5-21e1-4b36-bd5b-e51609d9b8c9",
@@ -347,7 +407,8 @@
       "carrier": "post",
       "trackingNumber": "314774326210",
       "createdAt": "2026-05-17T16:27:40.688Z",
-      "updatedAt": "2026-05-17T16:27:40.688Z"
+      "updatedAt": "2026-05-17T16:27:40.688Z",
+      "status": "shipped"
     },
     {
       "id": "53d49007-8846-4e89-bd75-5e2fd5431bc9",
@@ -364,7 +425,8 @@
       "carrier": "post",
       "trackingNumber": "824055462127",
       "createdAt": "2026-05-15T06:21:36.142Z",
-      "updatedAt": "2026-05-15T06:21:36.142Z"
+      "updatedAt": "2026-05-15T06:21:36.142Z",
+      "status": "shipped"
     },
     {
       "id": "1b1c83a2-a5b3-4749-9a6c-1cbc24bacbd2",
@@ -381,7 +443,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-05-09T16:54:25.485Z",
-      "updatedAt": "2026-05-09T16:54:25.485Z"
+      "updatedAt": "2026-05-09T16:54:25.485Z",
+      "status": "assigned"
     },
     {
       "id": "191a4a43-3ca9-47a3-a7e4-fec94965e110",
@@ -398,7 +461,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-05-05T20:02:07.908Z",
-      "updatedAt": "2026-05-05T20:02:07.908Z"
+      "updatedAt": "2026-05-05T20:02:07.908Z",
+      "status": "assigned"
     },
     {
       "id": "ce9b1eb6-7aac-4ff5-baf0-d461f7b0313d",
@@ -438,7 +502,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-04-27T16:28:01.797Z",
-      "updatedAt": "2026-04-27T16:28:01.797Z"
+      "updatedAt": "2026-04-27T16:28:01.797Z",
+      "status": "assigned"
     },
     {
       "id": "e0d6476e-c824-4a6f-9298-80fdda512535",
@@ -455,7 +520,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-04-23T05:53:02.600Z",
-      "updatedAt": "2026-04-23T05:53:02.600Z"
+      "updatedAt": "2026-04-23T05:53:02.600Z",
+      "status": "assigned"
     },
     {
       "id": "4fd542ad-1e91-4831-ac1b-e9f19c54a031",
@@ -472,7 +538,8 @@
       "carrier": "post",
       "trackingNumber": "910396400067",
       "createdAt": "2026-03-31T18:21:22.867Z",
-      "updatedAt": "2026-03-31T18:21:22.867Z"
+      "updatedAt": "2026-03-31T18:21:22.867Z",
+      "status": "shipped"
     },
     {
       "id": "01d703b4-0ce0-4354-b6b0-7b1a301b375a",
@@ -489,7 +556,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-03-11T11:57:14.065Z",
-      "updatedAt": "2026-03-11T11:57:14.065Z"
+      "updatedAt": "2026-03-11T11:57:14.065Z",
+      "status": "assigned"
     },
     {
       "id": "395a0ff1-f067-42ea-abb4-a12b8b089652",
@@ -529,7 +597,8 @@
       "carrier": null,
       "trackingNumber": "",
       "createdAt": "2026-01-30T05:36:50.047Z",
-      "updatedAt": "2026-01-30T05:36:50.047Z"
+      "updatedAt": "2026-01-30T05:36:50.047Z",
+      "status": "assigned"
     }
   ]
 }
