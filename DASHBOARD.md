@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-16 02:30 KST
+# DASHBOARD.md — 2026-02-16 03:00 KST
 
 ## 🎯 현재 프로젝트
 
@@ -67,6 +67,7 @@
   - 문맥 게이트: 클코 터미널 전체를 읽어 마지막 `STATE: WAITING_FOR_CODEX`일 때만 실행
   - 완료 판정: `REVIEW-RESULT.md` mtime 갱신 확인 후에만 “✅ 완료” 신호
   - push/merge/PR 자동 금지(감지 시 STOP)
+  - 현재 상태: 브릿지 OFF (Han이 BRIDGE_STOP 요청)
 
 ---
 
