@@ -37,8 +37,8 @@
     }
 
     .section-label {
-      margin-top: 160px;
-      font-size: 14px;
+      margin-top: var(--pad-top);
+      font-size: var(--label);
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.3em;
@@ -48,7 +48,7 @@
     }
 
     .items-container {
-      margin-top: 120px;
+      margin-top: 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -60,7 +60,7 @@
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 0 100px;
+      padding: 0 var(--pad-x);
     }
 
     .item-number {
@@ -72,10 +72,10 @@
     }
 
     .item-text {
-      font-size: 26px;
+      font-size: var(--h2);
       font-weight: 400;
       letter-spacing: -0.01em;
-      line-height: 1.6;
+      line-height: 1.4;
       white-space: pre-line;
       color: {{COLOR_TEXT}};
       max-height: 120px;
@@ -83,16 +83,16 @@
     }
 
     .item-separator {
-      width: 50px;
+      width: 48px;
       height: 1px;
-      background: {{COLOR_ACCENT}}26;
-      margin: 30px 0;
+      background: {{COLOR_ACCENT}}33;
+      margin: var(--gap-block) 0;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">WHY</div>
+    <div class="section-label">장점</div>
     <div class="items-container">
       <div class="item">
         <div class="item-number">01</div>

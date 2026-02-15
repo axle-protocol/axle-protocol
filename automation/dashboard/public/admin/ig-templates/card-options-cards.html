@@ -58,13 +58,13 @@
     .card {
       background: {{COLOR_ACCENT}}0A;
       border: 1px solid {{COLOR_ACCENT}}14;
-      border-radius: 20px;
+      border-radius: var(--radius-card);
       padding: 40px 44px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.06);
     }
 
     .option-name {
-      font-size: 24px;
+      font-size: var(--h2);
       font-weight: 400;
       letter-spacing: -0.01em;
       line-height: 1.5;
@@ -75,7 +75,7 @@
     }
 
     .option-price {
-      font-size: 28px;
+      font-size: 36px;
       font-weight: 700;
       color: {{COLOR_ACCENT}};
       letter-spacing: -0.02em;
@@ -88,7 +88,7 @@
 </head>
 <body>
   <div class="content">
-    <div class="section-label">OPTIONS</div>
+    <div class="section-label">구성 옵션</div>
     <div class="cards">
       <div class="card">
         <div class="option-name">{{OPTION_1_NAME}}</div>
