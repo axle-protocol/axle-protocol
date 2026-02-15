@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-16 02:00 KST
+# DASHBOARD.md — 2026-02-16 02:30 KST
 
 ## 🎯 현재 프로젝트
 
@@ -63,8 +63,10 @@
 - [x] (Phase B) “게시 직전까지만 자동” 상태머신 설계(만들기→파일→캡션→공유 직전 STOP) 완료
   - 가드레일: Share/Post/공유/게시 버튼 절대 클릭 금지 + 2FA/챌린지 즉시 중단
 - [~] (Ops) Claude Code(Opus) ↔ Codex(터미널) 리뷰 루프 자동화(피로 작업 대체)
-  - Claude Code가 클립보드에 `REVIEW-REQUEST` 포함 텍스트를 넣으면 Codex 터미널에 자동 paste+Enter
-  - 결과 파일은 Claude Code가 읽는 흐름(규칙 기반)
+  - 엄격 트리거: 클립보드 첫줄 `REVIEW-REQUEST` + 마지막줄 `READY_FOR_CODEX`
+  - 문맥 게이트: 클코 터미널 전체를 읽어 마지막 `STATE: WAITING_FOR_CODEX`일 때만 실행
+  - 완료 판정: `REVIEW-RESULT.md` mtime 갱신 확인 후에만 “✅ 완료” 신호
+  - push/merge/PR 자동 금지(감지 시 STOP)
 
 ---
 
