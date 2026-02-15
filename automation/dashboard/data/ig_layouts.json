@@ -8,7 +8,12 @@
         "why": "numbered-list",
         "detail": "single-accent",
         "offer": "price-comparison",
-        "cta": "centered-bold"
+        "cta": "centered-bold",
+        "cover": "product-hero",
+        "options": "table",
+        "trust": "reviews",
+        "logistics": "list",
+        "howto": "steps"
       },
       "palette": { "bg": "#F5F0EB", "text": "#2D2A26", "accent": "#B5AFA8", "highlight": "#C4956A" }
     },
@@ -20,7 +25,12 @@
         "why": "icon-bullets",
         "detail": "two-column",
         "offer": "simple-block",
-        "cta": "bottom-card"
+        "cta": "bottom-card",
+        "cover": "text-bold",
+        "options": "cards",
+        "trust": "badges",
+        "logistics": "grid",
+        "howto": "flow"
       },
       "palette": { "bg": "#F5F0EB", "text": "#2D2A26", "accent": "#B5AFA8", "highlight": "#C4956A" }
     },
@@ -32,7 +42,12 @@
         "why": "numbered-list",
         "detail": "two-column",
         "offer": "price-comparison",
-        "cta": "bottom-card"
+        "cta": "bottom-card",
+        "cover": "product-hero",
+        "options": "cards",
+        "trust": "reviews",
+        "logistics": "grid",
+        "howto": "steps"
       },
       "palette": { "bg": "#FAF6F1", "text": "#3A3530", "accent": "#C9B99A", "highlight": "#D4A574" }
     },
@@ -44,7 +59,12 @@
         "why": "icon-bullets",
         "detail": "single-accent",
         "offer": "simple-block",
-        "cta": "centered-bold"
+        "cta": "centered-bold",
+        "cover": "text-bold",
+        "options": "table",
+        "trust": "badges",
+        "logistics": "list",
+        "howto": "flow"
       },
       "palette": { "bg": "#F0F0EE", "text": "#2C2C2C", "accent": "#9E9E9E", "highlight": "#7A7A7A" }
     },
@@ -56,7 +76,12 @@
         "why": "numbered-list",
         "detail": "single-accent",
         "offer": "price-comparison",
-        "cta": "centered-bold"
+        "cta": "centered-bold",
+        "cover": "product-hero",
+        "options": "table",
+        "trust": "reviews",
+        "logistics": "list",
+        "howto": "steps"
       },
       "palette": { "bg": "#FDF5F3", "text": "#3D2E2A", "accent": "#D4A99A", "highlight": "#C97B6B" }
     },
@@ -68,7 +93,12 @@
         "why": "icon-bullets",
         "detail": "two-column",
         "offer": "simple-block",
-        "cta": "bottom-card"
+        "cta": "bottom-card",
+        "cover": "text-bold",
+        "options": "cards",
+        "trust": "badges",
+        "logistics": "grid",
+        "howto": "flow"
       },
       "palette": { "bg": "#F4F6F0", "text": "#2D3328", "accent": "#8A9A7B", "highlight": "#6B8A5E" }
     },
@@ -80,7 +110,12 @@
         "why": "numbered-list",
         "detail": "two-column",
         "offer": "price-comparison",
-        "cta": "bottom-card"
+        "cta": "bottom-card",
+        "cover": "product-hero",
+        "options": "cards",
+        "trust": "reviews",
+        "logistics": "grid",
+        "howto": "steps"
       },
       "palette": { "bg": "#F3EDE6", "text": "#332D27", "accent": "#A8907A", "highlight": "#8B7355" }
     },
@@ -92,7 +127,12 @@
         "why": "icon-bullets",
         "detail": "single-accent",
         "offer": "simple-block",
-        "cta": "centered-bold"
+        "cta": "centered-bold",
+        "cover": "text-bold",
+        "options": "table",
+        "trust": "badges",
+        "logistics": "list",
+        "howto": "flow"
       },
       "palette": { "bg": "#EEEEF2", "text": "#2A2A35", "accent": "#8888A0", "highlight": "#6A6A8A" }
     }

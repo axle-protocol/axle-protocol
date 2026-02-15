@@ -41,7 +41,17 @@
     { "id": "h39", "tone": ["luxury"], "text": "감각적인 선택, {product}" },
     { "id": "h40", "tone": ["luxury"], "text": "품격이 다른 {product}" },
     { "id": "h41", "tone": ["luxury"], "text": "특별한 건 따로 있어요" },
-    { "id": "h42", "tone": ["luxury"], "text": "당신의 루틴에 {product}을" }
+    { "id": "h42", "tone": ["luxury"], "text": "당신의 루틴에 {product}을" },
+    { "id": "h43", "tone": ["empathy", "info"], "text": "이거… 진짜 괜찮아서\n공구 열었습니다" },
+    { "id": "h44", "tone": ["empathy", "info"], "text": "지금만 이 가격이에요\n{product} 공구 오픈" },
+    { "id": "h45", "tone": ["empathy"], "text": "{product} 비밀 공구 열렸어요" },
+    { "id": "h46", "tone": ["empathy", "info"], "text": "이번이 마지막 공구가일 수도 있어요" },
+    { "id": "h47", "tone": ["info"], "text": "{product} 공구 전 꼭 알아야 할 것들" },
+    { "id": "h48", "tone": ["empathy"], "text": "저도 이 가격 보고 바로 결정했어요" },
+    { "id": "h49", "tone": ["empathy", "info"], "text": "공구 열자마자 100개 나간 {product}" },
+    { "id": "h50", "tone": ["luxury"], "text": "조용히 오픈합니다\n{product}" },
+    { "id": "h51", "tone": ["empathy"], "text": "이건 저만 알고 싶었는데…\n{product} 공구" },
+    { "id": "h52", "tone": ["info"], "text": "가성비 끝판왕 {product}\n공구가 공개" }
   ],
   "benefit": [
     { "id": "b01", "tone": ["empathy"], "text": "{benefit}\n이게 진짜 체감되는 순간이 오더라고요" },
@@ -127,7 +137,15 @@
     { "id": "o17", "tone": ["luxury"], "text": "지금이 가장 좋은 타이밍\n{price}" },
     { "id": "o18", "tone": ["luxury"], "text": "{price}\n이런 기회는 자주 오지 않아요." },
     { "id": "o19", "tone": ["luxury"], "text": "나를 위한 투자\n{price}" },
-    { "id": "o20", "tone": ["luxury"], "text": "{price}\n품격 있는 선택을 합리적으로." }
+    { "id": "o20", "tone": ["luxury"], "text": "{price}\n품격 있는 선택을 합리적으로." },
+    { "id": "o21", "tone": ["empathy", "info"], "text": "오늘 23:59 마감\n{price} 한정 공구" },
+    { "id": "o22", "tone": ["empathy"], "text": "수량 소진 시 종료\n{price} 선착순 공구" },
+    { "id": "o23", "tone": ["info"], "text": "배송비 무료 + {price} 공구가\n이 구성 다시 없어요" },
+    { "id": "o24", "tone": ["empathy", "info"], "text": "1+1 구성 {price}\n공구 한정 수량" },
+    { "id": "o25", "tone": ["empathy"], "text": "정가 대비 반값\n{price} 공구 진행 중!" },
+    { "id": "o26", "tone": ["info"], "text": "공구가 {price} + 무료배송\n합리적인 구성이에요" },
+    { "id": "o27", "tone": ["luxury"], "text": "{price}\n한정 수량, 조용히 마감됩니다." },
+    { "id": "o28", "tone": ["luxury"], "text": "이 가격은 오래가지 않아요\n{price}" }
   ],
   "cta": [
     { "id": "c01", "tone": ["empathy"], "ctaType": "A", "text": "궁금한 점 있으면 댓글에 '공구' 남겨주세요!" },
@@ -149,6 +167,12 @@
     { "id": "c17", "tone": ["luxury"], "ctaType": "C", "text": "링크는 프로필에." },
     { "id": "c18", "tone": ["luxury"], "ctaType": "A", "text": "DM 주시면 안내드릴게요." },
     { "id": "c19", "tone": ["luxury"], "ctaType": "C", "text": "자세한 건 프로필에서." },
-    { "id": "c20", "tone": ["luxury"], "ctaType": "C", "text": "프로필 링크를 확인해주세요." }
+    { "id": "c20", "tone": ["luxury"], "ctaType": "C", "text": "프로필 링크를 확인해주세요." },
+    { "id": "c21", "tone": ["empathy", "info"], "ctaType": "A", "text": "공구 참여 원하시면\n댓글에 '공구' 남겨주세요!" },
+    { "id": "c22", "tone": ["empathy"], "ctaType": "A", "text": "선착순이니 서두르세요!\n댓글에 '공구' 한마디" },
+    { "id": "c23", "tone": ["info"], "ctaType": "C", "text": "구매 링크는 프로필에 있어요\n문의는 DM 주세요" },
+    { "id": "c24", "tone": ["empathy", "info"], "ctaType": "A", "text": "가격/구성 궁금하시면\n댓글에 '정보' 남겨주세요" },
+    { "id": "c25", "tone": ["luxury"], "ctaType": "A", "text": "댓글에 '공구' 한마디면 충분해요." },
+    { "id": "c26", "tone": ["empathy"], "ctaType": "C", "text": "프로필 링크 타고 들어오시면\n공구가로 만나실 수 있어요!" }
   ]
 }

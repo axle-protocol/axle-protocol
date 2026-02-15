@@ -1,71 +1,141 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1080">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  width: 1080px;
-  height: 1350px;
-  overflow: hidden;
-  font-family: 'Noto Sans KR', sans-serif;
-  background: {{BACKGROUND}};
-  color: {{COLOR_TEXT}};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.container {
-  width: 100%;
-  padding: 100px 120px;
-  text-align: center;
-}
-.offer-text {
-  font-size: 30px;
-  font-weight: 400;
-  line-height: 1.6;
-  color: {{COLOR_TEXT}};
-  margin-bottom: 72px;
-}
-.price-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
-.original-price {
-  font-size: 36px;
-  font-weight: 300;
-  color: {{COLOR_TEXT}};
-  opacity: 0.45;
-  text-decoration: line-through;
-  text-decoration-thickness: 2px;
-}
-.deal-price {
-  font-size: 72px;
-  font-weight: 700;
-  color: {{COLOR_ACCENT}};
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-.price-divider {
-  width: 48px;
-  height: 2px;
-  background: {{COLOR_HIGHLIGHT}};
-  opacity: 0.4;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      position: relative;
+      background: {{BACKGROUND}};
+      font-family: 'Noto Sans KR', sans-serif;
+      color: {{COLOR_TEXT}};
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: {{COLOR_BG}}CC;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .special-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      color: {{COLOR_ACCENT}};
+      opacity: 0.35;
+      margin-bottom: 60px;
+    }
+
+    .offer-text {
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 1.7;
+      text-align: center;
+      white-space: pre-line;
+      color: {{COLOR_TEXT}};
+      max-width: 700px;
+      padding: 0 80px;
+      max-height: 200px;
+      overflow: hidden;
+    }
+
+    .price-section {
+      margin-top: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .original-price {
+      font-size: 30px;
+      font-weight: 300;
+      color: {{COLOR_TEXT}};
+      opacity: 0.35;
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+      letter-spacing: 0.01em;
+    }
+
+    .discount-badge {
+      margin-top: 20px;
+      display: inline-block;
+      background: {{COLOR_HIGHLIGHT}};
+      color: {{COLOR_BG}};
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      padding: 10px 28px;
+      border-radius: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 400px;
+    }
+
+    .price-divider {
+      width: 1px;
+      height: 24px;
+      background: {{COLOR_ACCENT}};
+      margin: 20px 0;
+    }
+
+    .deal-price {
+      font-size: 64px;
+      font-weight: 700;
+      color: {{COLOR_ACCENT}};
+      letter-spacing: -0.03em;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .deadline-info {
+      margin-top: 40px;
+      font-size: 18px;
+      font-weight: 400;
+      color: {{COLOR_TEXT}};
+      opacity: 0.45;
+      text-align: center;
+      max-width: 600px;
+      max-height: 50px;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <div class="offer-text">{{OFFER_TEXT}}</div>
-  <div class="price-block">
-    <div class="original-price">{{ORIGINAL_PRICE}}</div>
-    <div class="price-divider"></div>
-    <div class="deal-price">{{DEAL_PRICE}}</div>
+  <div class="content">
+    <div class="special-label">SPECIAL OFFER</div>
+    <div class="offer-text">{{OFFER_TEXT}}</div>
+    <div class="price-section">
+      <div class="original-price">{{ORIGINAL_PRICE}}</div>
+      <div class="discount-badge">{{DISCOUNT_RATE}}</div>
+      <div class="price-divider"></div>
+      <div class="deal-price">{{DEAL_PRICE}}</div>
+    </div>
+    <div class="deadline-info">{{DEADLINE_INFO}}</div>
   </div>
-</div>
 </body>
 </html>

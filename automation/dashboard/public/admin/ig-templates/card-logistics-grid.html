@@ -47,66 +47,63 @@
       text-align: center;
     }
 
-    .items-container {
-      margin-top: 120px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
+    .grid-container {
+      margin-top: 100px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 28px;
+      padding: 0 80px;
+      width: 100%;
     }
 
-    .item {
+    .grid-cell {
+      background: {{COLOR_ACCENT}}0A;
+      border-radius: 20px;
+      padding: 44px 36px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 0 100px;
+      align-items: flex-start;
     }
 
-    .item-number {
+    .cell-label {
       font-size: 13px;
       font-weight: 500;
+      text-transform: uppercase;
       letter-spacing: 0.15em;
       color: {{COLOR_ACCENT}};
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
 
-    .item-text {
-      font-size: 26px;
+    .cell-text {
+      font-size: 22px;
       font-weight: 400;
-      letter-spacing: -0.01em;
-      line-height: 1.6;
+      line-height: 1.7;
       white-space: pre-line;
-      color: {{COLOR_TEXT}};
-      max-height: 120px;
+      max-height: 100px;
       overflow: hidden;
-    }
-
-    .item-separator {
-      width: 50px;
-      height: 1px;
-      background: {{COLOR_ACCENT}}26;
-      margin: 30px 0;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">WHY</div>
-    <div class="items-container">
-      <div class="item">
-        <div class="item-number">01</div>
-        <div class="item-text">{{ITEM_1}}</div>
+    <div class="section-label">LOGISTICS</div>
+    <div class="grid-container">
+      <div class="grid-cell">
+        <div class="cell-label">배송</div>
+        <div class="cell-text">{{SHIPPING_INFO}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">02</div>
-        <div class="item-text">{{ITEM_2}}</div>
+      <div class="grid-cell">
+        <div class="cell-label">반품</div>
+        <div class="cell-text">{{RETURN_INFO}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">03</div>
-        <div class="item-text">{{ITEM_3}}</div>
+      <div class="grid-cell">
+        <div class="cell-label">교환</div>
+        <div class="cell-text">{{EXCHANGE_INFO}}</div>
+      </div>
+      <div class="grid-cell">
+        <div class="cell-label">안내</div>
+        <div class="cell-text">{{LOGISTICS_NOTE}}</div>
       </div>
     </div>
   </div>

@@ -34,79 +34,73 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      padding: 0 80px;
     }
 
     .section-label {
-      margin-top: 160px;
-      font-size: 14px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.3em;
-      color: {{COLOR_ACCENT}};
-      opacity: 0.4;
-      text-align: center;
-    }
-
-    .items-container {
-      margin-top: 120px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
-    }
-
-    .item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 0 100px;
-    }
-
-    .item-number {
       font-size: 13px;
       font-weight: 500;
-      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
       color: {{COLOR_ACCENT}};
-      margin-bottom: 16px;
+      margin-bottom: 64px;
     }
 
-    .item-text {
-      font-size: 26px;
+    .cards {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .card {
+      background: {{COLOR_ACCENT}}0A;
+      border: 1px solid {{COLOR_ACCENT}}14;
+      border-radius: 20px;
+      padding: 40px 44px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .option-name {
+      font-size: 24px;
       font-weight: 400;
       letter-spacing: -0.01em;
-      line-height: 1.6;
-      white-space: pre-line;
+      line-height: 1.5;
       color: {{COLOR_TEXT}};
-      max-height: 120px;
+      text-align: left;
+      max-height: 60px;
       overflow: hidden;
     }
 
-    .item-separator {
-      width: 50px;
-      height: 1px;
-      background: {{COLOR_ACCENT}}26;
-      margin: 30px 0;
+    .option-price {
+      font-size: 28px;
+      font-weight: 700;
+      color: {{COLOR_ACCENT}};
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-top: 16px;
+      max-height: 60px;
+      overflow: hidden;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">WHY</div>
-    <div class="items-container">
-      <div class="item">
-        <div class="item-number">01</div>
-        <div class="item-text">{{ITEM_1}}</div>
+    <div class="section-label">OPTIONS</div>
+    <div class="cards">
+      <div class="card">
+        <div class="option-name">{{OPTION_1_NAME}}</div>
+        <div class="option-price">{{OPTION_1_PRICE}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">02</div>
-        <div class="item-text">{{ITEM_2}}</div>
+      <div class="card">
+        <div class="option-name">{{OPTION_2_NAME}}</div>
+        <div class="option-price">{{OPTION_2_PRICE}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">03</div>
-        <div class="item-text">{{ITEM_3}}</div>
+      <div class="card">
+        <div class="option-name">{{OPTION_3_NAME}}</div>
+        <div class="option-price">{{OPTION_3_PRICE}}</div>
       </div>
     </div>
   </div>

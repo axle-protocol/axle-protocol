@@ -47,66 +47,71 @@
       text-align: center;
     }
 
-    .items-container {
-      margin-top: 120px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0;
+    .trust-headline {
+      margin-top: 40px;
+      font-size: 30px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.5;
+      padding: 0 100px;
+      max-height: 80px;
+      overflow: hidden;
     }
 
-    .item {
+    .badges-container {
+      margin-top: 100px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 36px;
+      padding: 0 80px;
+    }
+
+    .badge {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 0 100px;
+      padding: 48px 24px;
+      border: 1px solid {{COLOR_ACCENT}}33;
+      border-radius: 20px;
     }
 
-    .item-number {
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.15em;
+    .badge-icon {
+      font-size: 28px;
+      font-weight: 700;
       color: {{COLOR_ACCENT}};
-      margin-bottom: 16px;
+      margin-bottom: 28px;
+      letter-spacing: 0.05em;
     }
 
-    .item-text {
-      font-size: 26px;
+    .badge-text {
+      font-size: 22px;
       font-weight: 400;
-      letter-spacing: -0.01em;
       line-height: 1.6;
       white-space: pre-line;
-      color: {{COLOR_TEXT}};
       max-height: 120px;
       overflow: hidden;
-    }
-
-    .item-separator {
-      width: 50px;
-      height: 1px;
-      background: {{COLOR_ACCENT}}26;
-      margin: 30px 0;
     }
   </style>
 </head>
 <body>
   <div class="content">
-    <div class="section-label">WHY</div>
-    <div class="items-container">
-      <div class="item">
-        <div class="item-number">01</div>
-        <div class="item-text">{{ITEM_1}}</div>
+    <div class="section-label">TRUST</div>
+    <div class="trust-headline">{{TRUST_HEADLINE}}</div>
+    <div class="badges-container">
+      <div class="badge">
+        <div class="badge-icon">01</div>
+        <div class="badge-text">{{REVIEW_1}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">02</div>
-        <div class="item-text">{{ITEM_2}}</div>
+      <div class="badge">
+        <div class="badge-icon">02</div>
+        <div class="badge-text">{{REVIEW_2}}</div>
       </div>
-      <div class="item-separator"></div>
-      <div class="item">
-        <div class="item-number">03</div>
-        <div class="item-text">{{ITEM_3}}</div>
+      <div class="badge">
+        <div class="badge-icon">&#9733;</div>
+        <div class="badge-text">{{TRUST_STAT}}</div>
       </div>
     </div>
   </div>

@@ -160,9 +160,12 @@ async function readMultipart(req, boundaryStr, maxBytes = 30 * 1024 * 1024) {
     const cd = headers['content-disposition'] || '';
     const nameMatch = cd.match(/name="([^"]+)"/);
     const fileMatch = cd.match(/filename="([^"]*)"/);
+    const ctMatch = headerText.match(/Content-Type:\s*([^\r\n]+)/i);
+    const contentType = ctMatch ? ctMatch[1].trim() : '';
     parts.push({
       name: nameMatch ? nameMatch[1] : null,
       filename: fileMatch ? fileMatch[1] : null,
+      contentType,
       headers,
       data: body,
     });
@@ -841,13 +844,56 @@ function loadIgLayouts() {
 
 const IG_PAGE_SEQUENCE = ['hook', 'why', 'detail', 'offer', 'cta'];
 
-function parseVariantToPages(variant, post, pageCount) {
+const IG_SLIDE_TYPES = [
+  { type: 'cover', label: '표지 (상품+가격)', required: false },
+  { type: 'why', label: '장점 (Benefits)', required: false },
+  { type: 'options', label: '옵션/구성표', required: false },
+  { type: 'trust', label: '후기/신뢰', required: false },
+  { type: 'logistics', label: '배송/교환/반품', required: false },
+  { type: 'howto', label: '주문 방법', required: false },
+  { type: 'cta', label: 'CTA (마감)', required: false },
+];
+const IG_DEFAULT_SLIDES = ['cover', 'why', 'options', 'trust', 'logistics', 'howto', 'cta'];
+const IG_VALID_TYPES = new Set([...IG_DEFAULT_SLIDES, 'hook', 'detail', 'offer']);
+
+const PAGE_CHAR_LIMITS = {
+  HOOK_TEXT: 80, COVER_HEADLINE: 80, SUB_TEXT: 60, COVER_SUB: 60,
+  ITEM_1: 50, ITEM_2: 50, ITEM_3: 50,
+  DETAIL_TEXT: 150, DETAIL_LEFT: 80, DETAIL_RIGHT: 80,
+  OFFER_TEXT: 100, ORIGINAL_PRICE: 20, DEAL_PRICE: 15,
+  DISCOUNT_RATE: 10, DEADLINE_INFO: 60,
+  CTA_TEXT: 80, CTA_SUB: 40, CTA_MAIN: 30, CTA_SUB_ACTION: 30,
+  OPTION_1_NAME: 30, OPTION_1_PRICE: 15, OPTION_2_NAME: 30, OPTION_2_PRICE: 15, OPTION_3_NAME: 30, OPTION_3_PRICE: 15,
+  TRUST_HEADLINE: 30, TRUST_STAT: 30, REVIEW_1: 60, REVIEW_2: 60,
+  SHIPPING_INFO: 40, RETURN_INFO: 40, EXCHANGE_INFO: 40, LOGISTICS_NOTE: 40,
+  STEP_1: 40, STEP_2: 40, STEP_3: 40, HOWTO_NOTE: 40,
+  PRODUCT_IMAGE_URL: 999,
+};
+
+function truncateText(t, max) {
+  if (!t || t.length <= max) return t;
+  return t.slice(0, max - 1) + '…';
+}
+
+function applyCharLimits(pages) {
+  for (const page of pages) {
+    for (const [key, val] of Object.entries(page)) {
+      if (key === 'type' || typeof val !== 'string') continue;
+      const limit = PAGE_CHAR_LIMITS[key];
+      if (limit) page[key] = truncateText(val, limit);
+    }
+  }
+  return pages;
+}
+
+function parseVariantToPages(variant, post, pageCount, slides) {
   const caption = variant?.caption || '';
   const blocks = caption.split(/\n\n+/).filter((b) => b.trim());
   const product = post.productName || '';
   const benefit = post.keyBenefit || '';
   const price = post.price ? `${Number(post.price).toLocaleString()}원` : '';
   const priceOriginal = post.price ? `정가 ${Number(Math.round(post.price * 1.3)).toLocaleString()}원` : '';
+  const discountRate = post.price ? `${Math.round((1 - 1/1.3) * 100)}% OFF` : '';
 
   // Build structured detail text
   const detailParts = [];
@@ -856,7 +902,6 @@ function parseVariantToPages(variant, post, pageCount) {
   const detailText = detailParts.join('\n') || `${product}의 매력은 직접 느껴보세요`;
 
   // Intelligent benefit splitting for WHY page (3 items)
-  // Try splitting by comma, period, or newline; fallback to benefit + detail fragments
   let benefitItems = benefit.split(/[,、·\n]/).map((s) => s.trim()).filter((s) => s.length > 2);
   if (benefitItems.length < 2) benefitItems = benefit.split(/\s(?=와|과|및|그리고)/).map((s) => s.trim()).filter(Boolean);
   const item1 = benefitItems[0] || benefit;
@@ -865,18 +910,55 @@ function parseVariantToPages(variant, post, pageCount) {
 
   // Extract hook — first caption block is the hook, second is benefit/body
   const hookText = blocks[0] || product;
-  // CTA is the last block
   const ctaBlock = blocks[blocks.length - 1] || '프로필 링크에서 확인하세요';
-  // Offer block is second-to-last if it contains price/공구 keywords
   const offerCandidate = blocks.length >= 3 ? blocks[blocks.length - 2] : '';
   const isOfferBlock = /원|공구|특가|가격|한정/.test(offerCandidate);
   const offerText = isOfferBlock ? offerCandidate : (price ? `지금 공구가 ${price}` : '지금 특별한 가격으로');
 
-  // Determine pages based on count
+  // Options data (from post or defaults) — supports both array [{name,price}] and object {name1,price1} formats
+  const rawOpts = post.options || {};
+  const optsArr = Array.isArray(rawOpts) ? rawOpts : [];
+  const opt1Name = optsArr[0]?.name || rawOpts.name1 || '기본 구성';
+  const opt1Price = optsArr[0]?.price || rawOpts.price1 || price || '-';
+  const opt2Name = optsArr[1]?.name || rawOpts.name2 || '세트 구성';
+  const opt2Price = optsArr[1]?.price || rawOpts.price2 || '-';
+  const opt3Name = optsArr[2]?.name || rawOpts.name3 || '프리미엄 구성';
+  const opt3Price = optsArr[2]?.price || rawOpts.price3 || '-';
+
+  // Trust data
+  const trustHeadline = post.trustHeadline || '실제 구매 후기';
+  const review1 = post.reviews?.[0] || post.review1 || '정말 만족스럽습니다!';
+  const review2 = post.reviews?.[1] || post.review2 || '재구매 의사 있어요.';
+  const trustStat = post.trustStat || '만족도 98%';
+
+  // Logistics data
+  const shippingInfo = post.shipping || '주문 후 2-3일 이내 출고';
+  const returnInfo = post.returnPolicy || '수령 후 7일 이내 가능';
+  const exchangeInfo = post.exchange || '동일 조건 교환 가능';
+  const logisticsNote = post.logisticsNote || '';
+
+  // Howto data
+  const steps = post.howtoSteps || [];
+  const step1 = steps[0] || '프로필 링크 클릭';
+  const step2 = steps[1] || '옵션 선택 후 주문';
+  const step3 = steps[2] || '입금 확인 후 발송';
+  const howtoNote = post.howtoNote || '';
+
+  // Deadline
+  const deadlineInfo = post.deadline || '';
+
+  // Determine page sequence
   let sequence;
-  if (pageCount <= 3) sequence = ['hook', 'why', 'cta'];
-  else if (pageCount === 4) sequence = ['hook', 'why', 'offer', 'cta'];
-  else sequence = ['hook', 'why', 'detail', 'offer', 'cta'];
+  if (slides && Array.isArray(slides) && slides.length >= 3) {
+    sequence = slides;
+  } else if (pageCount <= 5) {
+    // Legacy 5-page mode
+    if (pageCount <= 3) sequence = ['hook', 'why', 'cta'];
+    else if (pageCount === 4) sequence = ['hook', 'why', 'offer', 'cta'];
+    else sequence = ['hook', 'why', 'detail', 'offer', 'cta'];
+  } else {
+    sequence = IG_DEFAULT_SLIDES;
+  }
 
   const pages = [];
   for (const type of sequence) {
@@ -886,10 +968,29 @@ function parseVariantToPages(variant, post, pageCount) {
         data.HOOK_TEXT = hookText;
         data.SUB_TEXT = benefit.length > 30 ? benefit.slice(0, 30) + '...' : benefit;
         break;
+      case 'cover':
+        data.COVER_HEADLINE = hookText;
+        data.COVER_SUB = benefit.length > 50 ? benefit.slice(0, 50) + '...' : benefit;
+        data.DEAL_PRICE = price || '특별가';
+        break;
       case 'why':
         data.ITEM_1 = item1;
         data.ITEM_2 = item2;
         data.ITEM_3 = item3;
+        break;
+      case 'options':
+        data.OPTION_1_NAME = opt1Name;
+        data.OPTION_1_PRICE = opt1Price;
+        data.OPTION_2_NAME = opt2Name;
+        data.OPTION_2_PRICE = opt2Price;
+        data.OPTION_3_NAME = opt3Name;
+        data.OPTION_3_PRICE = opt3Price;
+        break;
+      case 'trust':
+        data.TRUST_HEADLINE = trustHeadline;
+        data.REVIEW_1 = review1;
+        data.REVIEW_2 = review2;
+        data.TRUST_STAT = trustStat;
         break;
       case 'detail':
         data.DETAIL_TEXT = detailText;
@@ -900,15 +1001,31 @@ function parseVariantToPages(variant, post, pageCount) {
         data.OFFER_TEXT = offerText;
         data.ORIGINAL_PRICE = priceOriginal;
         data.DEAL_PRICE = price || '특별가';
+        data.DISCOUNT_RATE = discountRate;
+        data.DEADLINE_INFO = deadlineInfo;
+        break;
+      case 'logistics':
+        data.SHIPPING_INFO = shippingInfo;
+        data.RETURN_INFO = returnInfo;
+        data.EXCHANGE_INFO = exchangeInfo;
+        data.LOGISTICS_NOTE = logisticsNote;
+        break;
+      case 'howto':
+        data.STEP_1 = step1;
+        data.STEP_2 = step2;
+        data.STEP_3 = step3;
+        data.HOWTO_NOTE = howtoNote;
         break;
       case 'cta':
         data.CTA_TEXT = ctaBlock;
         data.CTA_SUB = product;
+        data.CTA_MAIN = '프로필 링크 클릭';
+        data.CTA_SUB_ACTION = '댓글로 문의하기';
         break;
     }
     pages.push(data);
   }
-  return pages;
+  return applyCharLimits(pages);
 }
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
@@ -946,7 +1063,7 @@ function resolveBackground(palette, aiBgPath) {
 }
 
 async function generateCardImages(post, variant, options = {}) {
-  const { layoutId, pageCount = 5 } = options;
+  const { layoutId, pageCount = 5, slides } = options;
   const layoutsData = loadIgLayouts();
   const layout = layoutsData.layouts.find((l) => l.id === layoutId) || layoutsData.layouts[0];
   if (!layout) throw new Error('No layouts available');
@@ -972,7 +1089,7 @@ async function generateCardImages(post, variant, options = {}) {
 
   const aiBgPath = await generateAiBackground(palette, post.productName, outDir);
   const background = resolveBackground(palette, aiBgPath);
-  const pages = parseVariantToPages(variant, post, pageCount);
+  const pages = parseVariantToPages(variant, post, pageCount, slides);
   const templateDir = path.join(__dirname, 'public', 'admin', 'ig-templates');
 
   async function runOnce() {
@@ -1274,8 +1391,13 @@ const server = http.createServer(async (req, res) => {
       mkdirSync(outDir, { recursive: true });
 
       const origName = String(filePart.filename || '').toLowerCase();
-      const ext = (origName.match(/\.(webp|png|jpe?g)$/)?.[0]) || '.jpg';
-      let outName = `product${ext}`;
+      const ext = origName.match(/\.(webp|png|jpe?g)$/)?.[0] || '';
+      const allowedMimes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+      if (!ext && !allowedMimes.has(filePart.contentType)) {
+        return sendJson(res, 400, { ok: false, error: 'invalid_format', detail: '지원하지 않는 이미지 형식입니다. JPG, PNG, WebP 파일만 업로드 가능합니다.' });
+      }
+      const finalExt = ext || { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }[filePart.contentType] || '.jpg';
+      let outName = `product${finalExt}`;
       // cleanup old variants
       for (const fn of ['product.webp','product.png','product.jpg','product.jpeg']) {
         try { if (existsSync(path.join(outDir, fn))) unlinkSync(path.join(outDir, fn)); } catch {}
@@ -1284,7 +1406,7 @@ const server = http.createServer(async (req, res) => {
       writeFileSync(outPath, filePart.data);
 
       // webp sometimes fails to render as file:// background-image in headless screenshot; convert to png for stability
-      if (ext === '.webp') {
+      if (finalExt === '.webp') {
         try {
           const pngPath = path.join(outDir, 'product.png');
           const py = `from PIL import Image\nimg=Image.open(r'''${outPath}''')\nimg.save(r'''${pngPath}''', format='PNG')\nprint('ok')`;
@@ -2017,6 +2139,19 @@ const server = http.createServer(async (req, res) => {
       price: body.price || null,
       targetAudience: body.targetAudience || null,
       notes: body.notes || null,
+      options: body.options || null,
+      reviews: body.reviews || null,
+      review1: body.review1 || null,
+      review2: body.review2 || null,
+      trustHeadline: body.trustHeadline || null,
+      trustStat: body.trustStat || null,
+      shipping: body.shipping || null,
+      returnPolicy: body.returnPolicy || null,
+      exchange: body.exchange || null,
+      logisticsNote: body.logisticsNote || null,
+      howtoSteps: body.howtoSteps || null,
+      howtoNote: body.howtoNote || null,
+      deadline: body.deadline || null,
       variants,
       status: 'draft',
       approvedVariantId: null,
@@ -2131,17 +2266,22 @@ const server = http.createServer(async (req, res) => {
       if (!variant) return sendJson(res, 404, { error: 'approved_variant_not_found' });
 
       const layoutId = body?.layoutId || null;
-      const pageCount = Math.min(Math.max(body?.pageCount || 5, 3), 5);
+      let slides = null;
+      if (Array.isArray(body?.slides) && body.slides.length >= 3) {
+        slides = body.slides.filter((s) => IG_VALID_TYPES.has(s)).slice(0, 7);
+        if (slides.length < 3) return sendJson(res, 400, { error: 'invalid_slides', detail: '유효한 슬라이드가 3개 이상 필요합니다.' });
+      }
+      const pageCount = slides ? slides.length : Math.min(Math.max(body?.pageCount || 5, 3), 7);
 
       post.imageStatus = 'generating';
       post.imageError = null;
       data.posts[idx] = post;
       saveIgPosts(data);
-      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_IMAGES_GENERATE_REQUESTED', postId: post.id, layoutId, pageCount, ip: getClientIp(req) });
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_IMAGES_GENERATE_REQUESTED', postId: post.id, layoutId, pageCount, slides, ip: getClientIp(req) });
 
       try {
-        const result = await generateCardImages(post, variant, { layoutId, pageCount });
-        post.assets = { cards: result.cards.map((c) => ({ index: c.index, type: c.type, filename: c.filename })), generatedAt: new Date().toISOString(), layoutId: result.layoutId, layoutName: result.layoutName };
+        const result = await generateCardImages(post, variant, { layoutId, pageCount, slides });
+        post.assets = { cards: result.cards.map((c) => ({ index: c.index, type: c.type, filename: c.filename })), generatedAt: new Date().toISOString(), layoutId: result.layoutId, layoutName: result.layoutName, slides: slides || (result.cards.map((c) => c.type)) };
         post.imageStatus = 'ready';
         post.imageError = null;
         const data2 = loadIgPosts();
@@ -2227,6 +2367,11 @@ const server = http.createServer(async (req, res) => {
     archive.finalize();
     auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'IG_PACKAGE_DOWNLOADED', postId: post.id, ip: getClientIp(req) });
     return;
+  }
+
+  // IG slide types list
+  if (url.pathname === '/api/admin/ig/slide_types' && req.method === 'GET') {
+    return sendJson(res, 200, { slideTypes: IG_SLIDE_TYPES, defaults: IG_DEFAULT_SLIDES });
   }
 
   // IG layouts list

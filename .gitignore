@@ -17,3 +17,13 @@ __pycache__/
 # BTS ticketing local auth/session state
 bts-ticketing/src/auth_state.json
 *.har
+
+# automation dashboard runtime data (do not commit)
+automation/dashboard/data/ig_brand_guide.json
+automation/dashboard/data/ig_posts.json
+automation/dashboard/data/owner_sessions.json
+automation/dashboard/data/uploads/
+
+# local scratch
+tmp/
+/tmp/

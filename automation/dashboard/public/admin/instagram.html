@@ -43,6 +43,34 @@
             <option value="info">정보형(똑똑한 소비)</option>
             <option value="luxury">럭셔리 감성형(짧고 세련)</option>
           </select>
+          <details class="rounded-lg border border-zinc-800 bg-zinc-950/30 p-3">
+            <summary class="text-xs text-zinc-400 cursor-pointer">상세 정보 (선택 - 7페이지용)</summary>
+            <div class="grid gap-2 mt-2">
+              <div class="text-[11px] text-zinc-600">옵션 (최대 3개)</div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="opt1Name" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션1 이름" />
+                <input id="opt1Price" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션1 가격" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="opt2Name" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션2 이름" />
+                <input id="opt2Price" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션2 가격" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="opt3Name" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션3 이름" />
+                <input id="opt3Price" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="옵션3 가격" />
+              </div>
+              <div class="text-[11px] text-zinc-600 mt-1">배송/교환/반품</div>
+              <input id="shippingInfo" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="배송 정보 (예: 주문 후 2-3일 출고)" />
+              <input id="returnInfo" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="반품 정보" />
+              <input id="exchangeInfo" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="교환 정보" />
+              <div class="text-[11px] text-zinc-600 mt-1">후기/신뢰</div>
+              <input id="review1" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="후기 1" />
+              <input id="review2" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="후기 2" />
+              <input id="trustStat" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="신뢰 통계 (예: 만족도 98%)" />
+              <div class="text-[11px] text-zinc-600 mt-1">기타</div>
+              <input id="deadline" class="rounded-lg bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-xs" placeholder="마감 정보 (예: 2/20까지 한정)" />
+            </div>
+          </details>
           <button id="generateBtn" class="w-full rounded-lg bg-emerald-400 text-zinc-950 py-2.5 text-sm font-semibold">초안 생성 (5개 변형)</button>
         </div>
         <div id="genMsg" class="mt-2 text-xs text-zinc-400"></div>

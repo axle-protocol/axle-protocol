@@ -1,61 +1,76 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1080">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  width: 1080px;
-  height: 1350px;
-  overflow: hidden;
-  font-family: 'Noto Sans KR', sans-serif;
-  background: {{BACKGROUND}};
-  color: {{COLOR_TEXT}};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.container {
-  width: 100%;
-  padding: 100px 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.accent-block {
-  position: relative;
-  padding: 80px 72px;
-  max-width: 840px;
-  width: 100%;
-}
-.accent-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: {{COLOR_ACCENT}};
-  opacity: 0.08;
-  border-radius: 16px;
-}
-.detail-text {
-  position: relative;
-  font-size: 30px;
-  font-weight: 400;
-  line-height: 1.8;
-  color: {{COLOR_TEXT}};
-  text-align: center;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+      position: relative;
+      background: {{BACKGROUND}};
+      font-family: 'Noto Sans KR', sans-serif;
+      color: {{COLOR_TEXT}};
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: {{COLOR_BG}}CC;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .top-line {
+      width: 40px;
+      height: 1px;
+      background: {{COLOR_ACCENT}}40;
+      margin-bottom: 64px;
+    }
+
+    .text-block {
+      background: {{COLOR_ACCENT}}0F;
+      border-radius: 16px;
+      padding: 64px 56px;
+      max-width: 800px;
+      width: calc(100% - 160px);
+    }
+
+    .detail-text {
+      font-size: 28px;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 1.8;
+      text-align: center;
+      white-space: pre-line;
+      color: {{COLOR_TEXT}};
+      max-height: 280px;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <div class="accent-block">
-    <div class="accent-bg"></div>
-    <div class="detail-text">{{DETAIL_TEXT}}</div>
+  <div class="content">
+    <div class="top-line"></div>
+    <div class="text-block">
+      <div class="detail-text">{{DETAIL_TEXT}}</div>
+    </div>
   </div>
-</div>
 </body>
 </html>
