@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 10:49 KST
+# DASHBOARD.md — 2026-02-15 19:50 KST
 
 ## 🎯 현재 프로젝트
 
@@ -41,6 +41,21 @@
 - [ ] (선택) Codex CLI를 쓰려면 OpenAI **API Billing/Quota** 활성화 필요 (ChatGPT Pro와 별개)
 - [ ] (선택) Codex 자동화용 OpenRouter는 일단 보류 (키 노출 이슈로 revoke 권장)
 - [ ] (결정) 매핑 운영 초기: **상품번호 기반 자동 매핑(권장)** + 미매핑은 ‘미분류’로 처리
+
+## 🐾 Clo 작업현황
+
+### 인스타(뷰티 제품 판매) — 팔로워 성장 + 게시 직전 자동
+- [x] (IG) 뷰티(팔로워 성장) 30일 캘린더/템플릿/샘플 패키지 v1
+  - 파일: `ops/ig/calendar-30d.md`, `ops/ig/templates.md`, `ops/ig/examples.md`
+  - 커밋: `b4b9202`
+- [x] (Research) 20~30대 반응 포맷/훅/Do&Don’t 1차 정리 완료
+  - 핵심: 15~30초 릴스(증상/결과 훅) + 캐러셀(저장형 체크리스트) 조합
+- [x] (Research) 레퍼런스 계정 후보 15개(브랜드 9 + 크리에이터 6) 링크/패턴 1차 정리
+- [~] (Browser) 인스타 웹(로그인 세션) Chrome Relay attach로 연결 확인
+  - rom&nd, AMUSE에서 캡션/훅 패턴 추출 진행(툭툭 끊김 이슈 간헐)
+- [~] (Phase B) “게시 직전까지만 자동” 상태머신 설계(만들기→파일→캡션→공유 직전 STOP) 완료
+
+---
 
 ## 🐾 Clo 작업현황
 - [x] (Ops) 대시보드 서버 nohup 재기동 (SIGKILL 방지)
@@ -107,11 +122,23 @@
     - 7페이지 파이프라인 + 슬라이드 선택 UI + slide_types API
   - TODO: 실제 코드 반영 여부 확인 → 스모크 테스트 → 커밋 정리
 - [ ] (Next) IG: 미리캔버스/망고보드 스타일 리서치 → ‘사람이 만든’ 판매형 10종 세트 구조 정의
+- [x] (Ops) 서브 에이전트 통합 대시보드(`/agents`) + 30분 자동워커 스캐폴딩
+  - `/agents` (BasicAuth): 장군/서기/디자이너 상태 + handoff 타임라인
+  - 30분 워커: ops/backlog.json → ops/handoff.jsonl TASK 기록(스캐폴딩)
+  - 커밋: `da0db12`, `af047ce`, `6de40cf`
+- [x] (IG) 뷰티(팔로워 성장) 30일 캘린더/템플릿/샘플 패키지 v1
+  - 파일: `ops/ig/calendar-30d.md`, `ops/ig/templates.md`, `ops/ig/examples.md`
+  - 커밋: `b4b9202`
 - [ ] (Later) 네이버 업로드 자동화(Playwright) 안정화
 
 ---
 
 ## 📊 세션 상태
 - Model: openai-codex/gpt-5.2
-- Context: 44% (175k/400k)
+- Context: 60% (241k/400k)
 - Usage: (see memory/usage-tracker.json)
+
+## 🔗 개발자 링크
+- 서브 에이전트 대시보드: `/agents` (BasicAuth)
+  - ID: `han`
+  - PW: `devpass`
