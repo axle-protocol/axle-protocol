@@ -2495,7 +2495,8 @@ const server = http.createServer(async (req, res) => {
   // -------------------------
   // Ops dashboard (developer-only)
   // -------------------------
-  if (url.pathname === '/__ops' && req.method === 'GET') {
+  if ((url.pathname === '/agents' || url.pathname === '/__ops') && req.method === 'GET') {
+    // /__ops kept as backward-compatible alias
     return serveStatic(res, '/__ops.html');
   }
 
