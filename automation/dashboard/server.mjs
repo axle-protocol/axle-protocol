@@ -20,6 +20,18 @@ import * as XLSX from 'xlsx';
 import { chromium } from 'playwright';
 import archiver from 'archiver';
 
+// Naver Commerce API (conditional — only loads if env vars present)
+let naverCommerce = null;
+if (process.env.NAVER_CLIENT_ID && process.env.NAVER_CLIENT_SECRET) {
+  try {
+    naverCommerce = await import('./lib/naver-commerce.mjs');
+    console.log('[dashboard] Naver Commerce API module loaded');
+  } catch (e) {
+    console.warn('[dashboard] Naver Commerce API module failed to load:', e.message);
+    console.warn('[dashboard] Run: npm install bcryptjs');
+  }
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -251,7 +263,55 @@ const roadmapPath = path.join(dataDir, 'roadmap.json');
 const CARRIER_LABEL = {
   cj: 'CJ대한통운',
   hanjin: '한진택배',
+  lotte: '롯데택배',
+  post: '우체국택배',
+  logen: '로젠택배',
+  kyungdong: '경동택배',
 };
+
+// --- Rate Limiting ---
+const loginAttempts = new Map(); // ip -> { count, lockedUntil }
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 5 * 60 * 1000; // 5min
+const RATE_LIMIT_LOCKOUT = 15 * 60 * 1000; // 15min
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry) return true;
+  if (entry.lockedUntil && now < entry.lockedUntil) return false;
+  if (entry.lockedUntil && now >= entry.lockedUntil) { loginAttempts.delete(ip); return true; }
+  if (now - entry.firstAttempt > RATE_LIMIT_WINDOW) { loginAttempts.delete(ip); return true; }
+  return entry.count < RATE_LIMIT_MAX;
+}
+
+function recordLoginAttempt(ip, success) {
+  if (success) { loginAttempts.delete(ip); return; }
+  const now = Date.now();
+  const entry = loginAttempts.get(ip) || { count: 0, firstAttempt: now };
+  entry.count++;
+  if (entry.count >= RATE_LIMIT_MAX) entry.lockedUntil = now + RATE_LIMIT_LOCKOUT;
+  loginAttempts.set(ip, entry);
+}
+
+// --- XSS Prevention ---
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Privacy masking helpers
+function maskPhone(phone) {
+  if (!phone || phone.length < 4) return phone;
+  return phone.slice(0, -4) + '****';
+}
+function maskAddress(addr) {
+  if (!addr) return addr;
+  // Keep city/district, mask rest
+  const parts = addr.split(' ');
+  if (parts.length <= 2) return addr;
+  return parts.slice(0, 2).join(' ') + ' ***';
+}
 
 // SmartStore bulk shipping upload usually expects these exact strings.
 const DEFAULT_DELIVERY_METHOD = '택배,등기,소포';
@@ -1311,8 +1371,10 @@ function getOwnerFromSession(req) {
   const token = cookies.owner_session;
   if (!token) return null;
   const db = loadOwnerSessions();
+  const now = Date.now();
   const s = (db.sessions || []).find((x) => x.token === token);
   if (!s) return null;
+  if (s.expiresAt && now > new Date(s.expiresAt).getTime()) return null;
   return { username: OWNER_USERNAME, token };
 }
 
@@ -1326,6 +1388,9 @@ function shouldRequireOwnerAuth(url) {
   if (url.pathname.startsWith('/vendor')) return false;
   if (url.pathname.startsWith('/api/vendor')) return false;
 
+  // Agent APIs use X-Agent-Key auth.
+  if (url.pathname.startsWith('/api/agent/')) return false;
+
   // Owner session bootstrap endpoints/pages
   if (url.pathname === '/admin/login') return false;
   if (url.pathname === '/api/owner/login') return false;
@@ -1336,6 +1401,15 @@ function shouldRequireOwnerAuth(url) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+
+  // --- CSRF: Origin check for state-changing methods ---
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const origin = req.headers.origin || '';
+    const host = req.headers.host || '';
+    if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1') && !origin.includes(host.split(':')[0])) {
+      return sendJson(res, 403, { error: 'csrf_origin_mismatch' });
+    }
+  }
 
   // Owner auth for non-vendor routes (basic OR cookie session)
   if (shouldRequireOwnerAuth(url)) {
@@ -1380,24 +1454,32 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/owner/login' && req.method === 'POST') {
+    const clientIp = getClientIp(req);
+    if (!checkRateLimit(clientIp)) {
+      return sendJson(res, 429, { error: 'too_many_attempts', message: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.' });
+    }
     const body = await readJsonBody(req);
     const user = String(body?.username || OWNER_USERNAME);
     const pass = String(body?.password || '');
     if (user !== OWNER_USERNAME || pass !== OWNER_PASSWORD) {
-      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGIN_FAILED', ip: getClientIp(req) });
+      recordLoginAttempt(clientIp, false);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGIN_FAILED', ip: clientIp });
       return sendJson(res, 401, { ok: false, error: 'bad_credentials' });
     }
+    recordLoginAttempt(clientIp, true);
 
     const token = crypto.randomUUID();
     const db = loadOwnerSessions();
     const now = new Date().toISOString();
-    db.sessions = (db.sessions || []).concat({ token, createdAt: now, lastSeenAt: now });
-    // keep last 200 sessions
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(); // 24h
+    // prune expired sessions
+    db.sessions = (db.sessions || []).filter((s) => !s.expiresAt || Date.now() <= new Date(s.expiresAt).getTime());
+    db.sessions.push({ token, createdAt: now, expiresAt });
     if (db.sessions.length > 200) db.sessions = db.sessions.slice(db.sessions.length - 200);
     saveOwnerSessions(db);
 
     const isHttps = String(req.headers['x-forwarded-proto'] || '').includes('https');
-    setCookie(res, 'owner_session', token, { httpOnly: true, sameSite: 'Lax', path: '/', secure: isHttps, maxAge: 60 * 60 * 24 * 30 });
+    setCookie(res, 'owner_session', token, { httpOnly: true, sameSite: 'Strict', path: '/', secure: isHttps, maxAge: 60 * 60 * 24 });
 
     auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'OWNER_LOGGED_IN', ip: getClientIp(req) });
     return sendJson(res, 200, { ok: true });
@@ -1567,10 +1649,11 @@ const server = http.createServer(async (req, res) => {
     if ((data.vendors || []).some((v) => v.username === username)) return sendJson(res, 409, { error: 'username_exists' });
 
     const pw = hashPassword(password);
-    const vendor = { id: `vendor_${crypto.randomUUID()}`, name, username, password: pw };
+    const vendor = { id: `vendor_${crypto.randomUUID()}`, name, username, password: pw, active: true, createdAt: new Date().toISOString() };
     data.vendors = (data.vendors || []).concat(vendor);
     saveJson(vendorsPath, data);
 
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'VENDOR_CREATED', ip: getClientIp(req), meta: { vendorId: vendor.id, name, username } });
     return sendJson(res, 200, { ok: true, vendor: { id: vendor.id, name: vendor.name, username: vendor.username } });
   }
 
@@ -1643,12 +1726,35 @@ const server = http.createServer(async (req, res) => {
     if (!vendorId) return sendJson(res, 400, { error: 'bad_input' });
 
     const m = loadMapping();
+    // Check for conflicts: productNo already mapped to a DIFFERENT vendor
+    const otherMappings = (m.mapping || []).filter((x) => x.vendorId !== vendorId);
+    const otherMap = new Map(otherMappings.map((x) => [x.productNo, x.vendorId]));
+    const conflicts = [];
+    for (const pn of productNos) {
+      if (otherMap.has(pn)) {
+        const conflictVendorId = otherMap.get(pn);
+        const vendors = loadVendors();
+        const cv = (vendors.vendors || []).find((v) => v.id === conflictVendorId);
+        conflicts.push({ productNo: pn, existingVendor: cv?.name || conflictVendorId });
+      }
+    }
+    // If conflicts and not force, reject
+    if (conflicts.length > 0 && !body?.force) {
+      return sendJson(res, 409, { error: 'mapping_conflict', conflicts, message: '다른 거래처에 이미 매핑된 상품이 있습니다. force:true로 덮어쓰기 가능합니다.' });
+    }
+    // If force, remove conflicting mappings from other vendors
+    if (conflicts.length > 0 && body?.force) {
+      const conflictPNs = new Set(conflicts.map((c) => c.productNo));
+      m.mapping = (m.mapping || []).filter((x) => !(x.vendorId !== vendorId && conflictPNs.has(x.productNo)));
+    }
+
     m.mapping = (m.mapping || []).filter((x) => x.vendorId !== vendorId);
     for (const pn of productNos) {
       if (!pn) continue;
       m.mapping.push({ vendorId, productNo: pn });
     }
     saveMapping(m);
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'MAPPING_UPDATED', ip: getClientIp(req), meta: { vendorId, count: productNos.length, conflicts: conflicts.length } });
     return sendJson(res, 200, { ok: true, count: productNos.length });
   }
 
@@ -1698,57 +1804,6 @@ const server = http.createServer(async (req, res) => {
     const m = ct.match(/boundary=(?:(?:\"([^\"]+)\")|([^;]+))/i);
     const boundary = m ? (m[1] || m[2]) : null;
     if (!boundary) return sendJson(res, 400, { error: 'missing_boundary' });
-
-    async function readMultipart(boundaryStr, maxBytes = 30 * 1024 * 1024) {
-      const chunks = [];
-      let size = 0;
-      for await (const chunk of req) {
-        const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        size += b.length;
-        if (size > maxBytes) throw new Error('multipart_too_large');
-        chunks.push(b);
-      }
-      const buf = Buffer.concat(chunks);
-      const boundaryBuf = Buffer.from(`--${boundaryStr}`);
-      const parts = [];
-      let start = buf.indexOf(boundaryBuf);
-      while (start !== -1) {
-        start += boundaryBuf.length;
-        // end?
-        if (buf.slice(start, start + 2).toString('utf8') === '--') break;
-        // skip leading CRLF
-        if (buf.slice(start, start + 2).toString('utf8') === '\r\n') start += 2;
-        const headerEnd = buf.indexOf(Buffer.from('\r\n\r\n'), start);
-        if (headerEnd === -1) break;
-        const headerText = buf.slice(start, headerEnd).toString('utf8');
-        const bodyStart = headerEnd + 4;
-        let next = buf.indexOf(boundaryBuf, bodyStart);
-        if (next === -1) break;
-        // body ends with CRLF right before boundary
-        let bodyEnd = next - 2;
-        if (bodyEnd < bodyStart) bodyEnd = bodyStart;
-        const body = buf.slice(bodyStart, bodyEnd);
-
-        const headers = {};
-        for (const line of headerText.split('\r\n')) {
-          const idx = line.indexOf(':');
-          if (idx === -1) continue;
-          headers[line.slice(0, idx).trim().toLowerCase()] = line.slice(idx + 1).trim();
-        }
-        const cd = headers['content-disposition'] || '';
-        const nameMatch = cd.match(/name="([^"]+)"/);
-        const fileMatch = cd.match(/filename="([^"]*)"/);
-        parts.push({
-          name: nameMatch ? nameMatch[1] : null,
-          filename: fileMatch ? fileMatch[1] : null,
-          headers,
-          data: body,
-        });
-
-        start = next;
-      }
-      return parts;
-    }
 
     try {
       const parts = await readMultipart(req, boundary);
@@ -1891,22 +1946,37 @@ const server = http.createServer(async (req, res) => {
     const chunk = Math.max(0, Number(qs.get('chunk') || 0) || 0);
     const size = Math.min(5000, Math.max(1, Number(qs.get('size') || 2000) || 2000));
     const deliveryMethod = String(qs.get('method') || DEFAULT_DELIVERY_METHOD);
+    const includeExported = qs.get('includeExported') === 'true';
 
     const orders = loadOrders();
     const all = (orders.orders || []).filter((o) => {
       const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
       const carrier = String(o.carrier || o.tracking?.carrier || '').trim();
-      return tn.length > 0 && carrier.length > 0;
+      if (tn.length === 0 || carrier.length === 0) return false;
+      // Exclude hold/cancelled orders
+      if (o.status === 'hold' || o.status === 'cancelled') return false;
+      // Exclude already exported unless explicitly requested
+      if (!includeExported && o.exportedAt) return false;
+      return true;
     });
 
+    // Mark exported orders with timestamp
+    const now = new Date().toISOString();
     const start = chunk * size;
     const rows = all.slice(start, start + size);
+    const exportedIds = new Set(rows.map((o) => o.id || o.productOrderNo));
+    orders.orders = (orders.orders || []).map((o) => {
+      const id = o.id || o.productOrderNo;
+      if (exportedIds.has(id)) return { ...o, exportedAt: now, status: o.status || 'exported' };
+      return o;
+    });
+    saveOrders(orders);
 
     const sheetRows = [
       ['상품주문번호', '배송방법', '택배사', '송장번호'],
       ...rows.map((o) => {
         const carrierKey = String(o.carrier || o.tracking?.carrier || '').trim();
-        const carrierLabel = CARRIER_LABEL[carrierKey] || carrierKey; // fallback
+        const carrierLabel = CARRIER_LABEL[carrierKey] || carrierKey;
         const tn = String(o.trackingNumber || o.tracking?.number || '');
         return [String(o.productOrderNo || o.id || ''), deliveryMethod, carrierLabel, tn];
       }),
@@ -1943,15 +2013,25 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/vendor/login' && req.method === 'POST') {
+    const clientIp = getClientIp(req);
+    if (!checkRateLimit(clientIp)) {
+      return sendJson(res, 429, { error: 'too_many_attempts', message: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.' });
+    }
     const body = await readJsonBody(req);
     const username = String(body?.username || '').trim();
     const password = String(body?.password || '');
 
     const vendor = getVendorByUsername(username);
     if (!vendor || !verifyPassword(password, vendor.password)) {
-      auditLog({ actorType: 'vendor', actorId: username || null, action: 'VENDOR_LOGIN_FAILED', ip: getClientIp(req) });
+      recordLoginAttempt(clientIp, false);
+      auditLog({ actorType: 'vendor', actorId: username || null, action: 'VENDOR_LOGIN_FAILED', ip: clientIp });
       return sendJson(res, 401, { error: 'bad_credentials' });
     }
+    // Check if vendor is deactivated
+    if (vendor.active === false) {
+      return sendJson(res, 403, { error: 'vendor_deactivated', message: '비활성화된 계정입니다.' });
+    }
+    recordLoginAttempt(clientIp, true);
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(); // 14 days
@@ -1963,11 +2043,12 @@ const server = http.createServer(async (req, res) => {
     sessions.sessions.push({ token, vendorId: vendor.id, createdAt: new Date().toISOString(), expiresAt });
     saveVendorSessions(sessions);
 
+    const isHttps = String(req.headers['x-forwarded-proto'] || '').includes('https');
     setCookie(res, 'vendor_session', token, {
       httpOnly: true,
-      sameSite: 'Lax',
+      sameSite: 'Strict',
       path: '/',
-      secure: false,
+      secure: isHttps,
       maxAge: 60 * 60 * 24 * 14,
     });
 
@@ -1993,6 +2074,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/vendor/orders' && req.method === 'GET') {
     const vendor = requireVendor(req, res);
     if (!vendor) return;
+    const mask = url.searchParams.get('mask') === '1';
 
     const data = loadOrders();
     let orders = (data.orders || []).filter((o) => o.vendorId === vendor.id);
@@ -2001,7 +2083,12 @@ const server = http.createServer(async (req, res) => {
     orders = orders.map((o) => {
       const carrier = o.carrier || o.tracking?.carrier || null;
       const trackingNumber = o.trackingNumber || o.tracking?.number || '';
-      return { ...o, carrier, trackingNumber };
+      const out = { ...o, carrier, trackingNumber };
+      if (mask) {
+        out.recipientPhone = maskPhone(out.recipientPhone);
+        out.recipientAddress = maskAddress(out.recipientAddress);
+      }
+      return out;
     });
 
     // newest first (by createdAt if present)
@@ -2039,6 +2126,45 @@ const server = http.createServer(async (req, res) => {
     return res.end(out.stdout);
   }
 
+  if (url.pathname === '/api/vendor/orders/bulk_tracking' && req.method === 'POST') {
+    const vendor = requireVendor(req, res);
+    if (!vendor) return;
+    const body = await readJsonBody(req);
+    const items = body?.items;
+    if (!Array.isArray(items) || items.length === 0) return sendJson(res, 400, { error: 'items required (array of {orderId, carrier, number})' });
+    if (items.length > 200) return sendJson(res, 400, { error: 'max 200 items per request' });
+
+    const db = loadOrders();
+    const results = [];
+    let success = 0;
+    let failed = 0;
+
+    for (const it of items) {
+      const oid = String(it.orderId || '');
+      const carrier = String(it.carrier || 'etc');
+      const number = it.number;
+      const vt = validateTracking({ carrier, number });
+
+      if (!vt.ok) { results.push({ orderId: oid, ok: false, error: vt.error }); failed++; continue; }
+
+      const idx = (db.orders || []).findIndex((o) => o.id === oid && o.vendorId === vendor.id);
+      if (idx === -1) { results.push({ orderId: oid, ok: false, error: 'not_found' }); failed++; continue; }
+
+      const now = new Date().toISOString();
+      db.orders[idx].tracking = { carrier, number: vt.number, updatedAt: now };
+      db.orders[idx].carrier = carrier;
+      db.orders[idx].trackingNumber = vt.number;
+      db.orders[idx].status = 'shipped';
+      db.orders[idx].updatedAt = now;
+      results.push({ orderId: oid, ok: true });
+      success++;
+    }
+
+    saveOrders(db);
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'BULK_TRACKING', success, failed, ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true, success, failed, results });
+  }
+
   if (url.pathname?.startsWith('/api/vendor/orders/') && req.method === 'POST') {
     const vendor = requireVendor(req, res);
     if (!vendor) return;
@@ -2046,6 +2172,22 @@ const server = http.createServer(async (req, res) => {
     const parts = url.pathname.split('/').filter(Boolean); // api vendor orders :id ...
     const orderId = parts[3];
     const action = parts[4];
+
+    // Hold action
+    if (action === 'hold') {
+      const body = await readJsonBody(req);
+      const reason = String(body?.reason || 'vendor_unavailable');
+      const db = loadOrders();
+      const idx = (db.orders || []).findIndex((o) => o.id === orderId && o.vendorId === vendor.id);
+      if (idx === -1) return sendJson(res, 404, { error: 'not_found' });
+      db.orders[idx].status = 'hold';
+      db.orders[idx].holdReason = reason;
+      db.orders[idx].holdAt = new Date().toISOString();
+      db.orders[idx].updatedAt = new Date().toISOString();
+      saveOrders(db);
+      auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'ORDER_HOLD', orderId, reason, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true, order: db.orders[idx] });
+    }
 
     if (action !== 'tracking') return sendJson(res, 404, { error: 'not_found' });
 
@@ -2113,6 +2255,438 @@ const server = http.createServer(async (req, res) => {
       'Content-Disposition': `attachment; filename="orders-${vendor.id}.xlsx"`,
     });
     return res.end(buf);
+  }
+
+  // -------------------------
+  // Admin: Vendor CRUD (update, deactivate, reset password)
+  // -------------------------
+  if (url.pathname?.match(/^\/api\/admin\/vendors\/[^/]+$/) && req.method === 'PUT') {
+    const vendorId = url.pathname.split('/').pop();
+    const body = await readJsonBody(req);
+    const data = loadVendors();
+    const idx = (data.vendors || []).findIndex((v) => v.id === vendorId);
+    if (idx === -1) return sendJson(res, 404, { error: 'vendor_not_found' });
+
+    if (body?.name) data.vendors[idx].name = String(body.name).trim();
+    if (body?.username) {
+      const newUsername = String(body.username).trim();
+      if ((data.vendors || []).some((v, i) => i !== idx && v.username === newUsername)) return sendJson(res, 409, { error: 'username_exists' });
+      data.vendors[idx].username = newUsername;
+    }
+    if (body?.active !== undefined) {
+      data.vendors[idx].active = !!body.active;
+      // If deactivating, kill all sessions
+      if (!body.active) {
+        const sessions = loadVendorSessions();
+        sessions.sessions = (sessions.sessions || []).filter((s) => s.vendorId !== vendorId);
+        saveVendorSessions(sessions);
+      }
+    }
+    data.vendors[idx].updatedAt = new Date().toISOString();
+    saveJson(vendorsPath, data);
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'VENDOR_UPDATED', ip: getClientIp(req), meta: { vendorId, changes: Object.keys(body || {}) } });
+    return sendJson(res, 200, { ok: true, vendor: { id: data.vendors[idx].id, name: data.vendors[idx].name, username: data.vendors[idx].username, active: data.vendors[idx].active } });
+  }
+
+  if (url.pathname?.match(/^\/api\/admin\/vendors\/[^/]+\/reset_password$/) && req.method === 'POST') {
+    const vendorId = url.pathname.split('/').slice(-2, -1)[0];
+    const data = loadVendors();
+    const idx = (data.vendors || []).findIndex((v) => v.id === vendorId);
+    if (idx === -1) return sendJson(res, 404, { error: 'vendor_not_found' });
+
+    // Generate temp password
+    const tempPw = crypto.randomBytes(4).toString('hex'); // 8 chars
+    data.vendors[idx].password = hashPassword(tempPw);
+    data.vendors[idx].updatedAt = new Date().toISOString();
+    saveJson(vendorsPath, data);
+
+    // Kill all sessions for this vendor
+    const sessions = loadVendorSessions();
+    sessions.sessions = (sessions.sessions || []).filter((s) => s.vendorId !== vendorId);
+    saveVendorSessions(sessions);
+
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'VENDOR_PASSWORD_RESET', ip: getClientIp(req), meta: { vendorId } });
+    return sendJson(res, 200, { ok: true, tempPassword: tempPw });
+  }
+
+  // -------------------------
+  // Vendor: Change own password
+  // -------------------------
+  if (url.pathname === '/api/vendor/change_password' && req.method === 'POST') {
+    const vendor = requireVendor(req, res);
+    if (!vendor) return;
+    const body = await readJsonBody(req);
+    const currentPw = String(body?.currentPassword || '');
+    const newPw = String(body?.newPassword || '');
+    if (newPw.length < 4) return sendJson(res, 400, { error: 'password_too_short', message: '비밀번호는 4자 이상이어야 합니다.' });
+
+    const data = loadVendors();
+    const idx = (data.vendors || []).findIndex((v) => v.id === vendor.id);
+    if (idx === -1) return sendJson(res, 404, { error: 'vendor_not_found' });
+    if (!verifyPassword(currentPw, data.vendors[idx].password)) return sendJson(res, 401, { error: 'wrong_password' });
+
+    data.vendors[idx].password = hashPassword(newPw);
+    data.vendors[idx].updatedAt = new Date().toISOString();
+    saveJson(vendorsPath, data);
+    auditLog({ actorType: 'vendor', actorId: vendor.id, action: 'VENDOR_PASSWORD_CHANGED', ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  // -------------------------
+  // Vendor: Mark order as hold (품절/불가)
+  // -------------------------
+  // -------------------------
+  // Agent APIs (for OpenClaw integration)
+  // -------------------------
+  const AGENT_KEY = process.env.AGENT_API_KEY || 'openclaw-agent-key';
+
+  function checkAgentAuth(req) {
+    const key = req.headers['x-agent-key'];
+    return key === AGENT_KEY;
+  }
+
+  if (url.pathname === '/api/agent/new_orders' && req.method === 'GET') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const pending = (orders.orders || []).filter((o) => !o.vendorId || o.status === 'pending');
+    return sendJson(res, 200, { orders: pending, count: pending.length });
+  }
+
+  if (url.pathname === '/api/agent/pending_tracking' && req.method === 'GET') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const pending = (orders.orders || []).filter((o) => {
+      if (!o.vendorId) return false;
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      return tn.length === 0 && o.status !== 'hold' && o.status !== 'cancelled';
+    });
+    return sendJson(res, 200, { orders: pending, count: pending.length });
+  }
+
+  if (url.pathname === '/api/agent/holds' && req.method === 'GET') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const holds = (orders.orders || []).filter((o) => o.status === 'hold');
+    return sendJson(res, 200, { orders: holds, count: holds.length });
+  }
+
+  if (url.pathname === '/api/agent/daily_summary' && req.method === 'GET') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const all = orders.orders || [];
+    const today = new Date().toISOString().slice(0, 10);
+    const todayOrders = all.filter((o) => (o.createdAt || '').startsWith(today));
+    const noTracking = all.filter((o) => o.vendorId && !o.trackingNumber && !o.tracking?.number && o.status !== 'hold');
+    const holds = all.filter((o) => o.status === 'hold');
+    const shipped = all.filter((o) => o.status === 'shipped');
+    const exported = all.filter((o) => o.exportedAt);
+    return sendJson(res, 200, {
+      date: today,
+      total: all.length,
+      todayNew: todayOrders.length,
+      awaitingTracking: noTracking.length,
+      holds: holds.length,
+      shipped: shipped.length,
+      exported: exported.length,
+    });
+  }
+
+  if (url.pathname === '/api/agent/dispatch_ready' && req.method === 'POST') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const orders = loadOrders();
+    const ready = (orders.orders || []).filter((o) => {
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      const carrier = String(o.carrier || o.tracking?.carrier || '').trim();
+      return tn.length > 0 && carrier.length > 0 && !o.exportedAt && o.status !== 'hold' && o.status !== 'cancelled';
+    });
+    auditLog({ actorType: 'agent', action: 'DISPATCH_READY_CHECK', count: ready.length });
+    return sendJson(res, 200, { ready: ready.length, orders: ready.map((o) => ({ id: o.id, productOrderNo: o.productOrderNo, carrier: o.carrier, trackingNumber: o.trackingNumber })) });
+  }
+
+  if (url.pathname === '/api/agent/alert' && req.method === 'POST') {
+    if (!checkAgentAuth(req)) return sendJson(res, 401, { error: 'agent_unauthorized' });
+    const body = await readJsonBody(req);
+    const alertType = String(body?.type || 'info');
+    const message = String(body?.message || '');
+    auditLog({ actorType: 'agent', action: 'ALERT', alertType, message });
+    return sendJson(res, 200, { ok: true, logged: true });
+  }
+
+  // -------------------------
+  // Admin: Orders list with status filter
+  // -------------------------
+  if (url.pathname === '/api/admin/orders' && req.method === 'GET') {
+    const statusFilter = url.searchParams.get('status');
+    const vendorFilter = url.searchParams.get('vendorId');
+    const search = (url.searchParams.get('q') || '').toLowerCase();
+    const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+    const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 50)));
+    const orders = loadOrders();
+    let list = orders.orders || [];
+    if (statusFilter) list = list.filter((o) => o.status === statusFilter);
+    if (vendorFilter) list = list.filter((o) => o.vendorId === vendorFilter);
+    if (search) list = list.filter((o) => (o.productName || '').toLowerCase().includes(search) || (o.recipientName || '').toLowerCase().includes(search) || (o.productOrderNo || '').includes(search));
+    list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const total = list.length;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+    const paged = list.slice(offset, offset + limit);
+    return sendJson(res, 200, { orders: paged, total, page, totalPages, limit });
+  }
+
+  // Admin: Resolve hold
+  if (url.pathname?.match(/^\/api\/admin\/orders\/[^/]+\/resolve$/) && req.method === 'POST') {
+    const orderId = url.pathname.split('/').slice(-2, -1)[0];
+    const body = await readJsonBody(req);
+    const newStatus = String(body?.status || 'assigned');
+    const db = loadOrders();
+    const idx = (db.orders || []).findIndex((o) => o.id === orderId);
+    if (idx === -1) return sendJson(res, 404, { error: 'not_found' });
+    db.orders[idx].status = newStatus;
+    db.orders[idx].holdReason = null;
+    db.orders[idx].holdAt = null;
+    db.orders[idx].updatedAt = new Date().toISOString();
+    saveOrders(db);
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'ORDER_HOLD_RESOLVED', orderId, newStatus, ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  // -------------------------
+  // Phase 2B: Settlement (정산) API
+  // -------------------------
+  if (url.pathname === '/api/admin/settlement' && req.method === 'GET') {
+    const orders = loadOrders();
+    const vendors = loadVendors();
+    const products = loadProducts();
+    const vendorFilter = url.searchParams.get('vendorId');
+    const from = url.searchParams.get('from') || '';
+    const to = url.searchParams.get('to') || '';
+
+    let list = orders.orders || [];
+    if (vendorFilter) list = list.filter((o) => o.vendorId === vendorFilter);
+    if (from) list = list.filter((o) => (o.createdAt || '') >= from);
+    if (to) list = list.filter((o) => (o.createdAt || '') <= to + 'T23:59:59Z');
+
+    const productMap = new Map((products.products || []).map((p) => [p.productNo, p]));
+    const vendorMap = new Map((vendors.vendors || []).map((v) => [v.id, v]));
+
+    // Aggregate per vendor
+    const byVendor = {};
+    for (const o of list) {
+      const vid = o.vendorId || 'unassigned';
+      if (!byVendor[vid]) byVendor[vid] = { vendorId: vid, vendorName: '', totalOrders: 0, totalQty: 0, totalAmount: 0, shipped: 0, hold: 0, pending: 0 };
+      const v = vendorMap.get(vid);
+      if (v) byVendor[vid].vendorName = v.name;
+      byVendor[vid].totalOrders++;
+      byVendor[vid].totalQty += Number(o.qty || 0);
+      const prod = productMap.get(o.productNo);
+      if (prod) byVendor[vid].totalAmount += Number(prod.price || 0) * Number(o.qty || 0);
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      if (o.status === 'hold') byVendor[vid].hold++;
+      else if (tn) byVendor[vid].shipped++;
+      else byVendor[vid].pending++;
+    }
+
+    const summary = Object.values(byVendor).sort((a, b) => b.totalAmount - a.totalAmount);
+    const grandTotal = summary.reduce((s, v) => ({ orders: s.orders + v.totalOrders, qty: s.qty + v.totalQty, amount: s.amount + v.totalAmount }), { orders: 0, qty: 0, amount: 0 });
+
+    return sendJson(res, 200, { vendors: summary, grandTotal, period: { from: from || 'all', to: to || 'all' } });
+  }
+
+  // -------------------------
+  // Phase 2B: Bulk tracking upload (벌크 송장)
+  // -------------------------
+  // -------------------------
+  // Phase 2B: Combined shipping grouping (합배송)
+  // -------------------------
+  if (url.pathname === '/api/admin/combined_shipping' && req.method === 'GET') {
+    const orders = loadOrders();
+    const list = (orders.orders || []).filter((o) => {
+      const tn = String(o.trackingNumber || o.tracking?.number || '').trim();
+      return tn && o.status !== 'hold' && o.status !== 'cancelled';
+    });
+
+    const groups = {};
+    for (const o of list) {
+      const key = `${(o.recipientName || '').trim()}|${(o.recipientAddress || '').trim()}`;
+      if (!groups[key]) groups[key] = { recipientName: o.recipientName, recipientAddress: o.recipientAddress, orders: [] };
+      groups[key].orders.push({ id: o.id, productOrderNo: o.productOrderNo, productName: o.productName, qty: o.qty, carrier: o.carrier, trackingNumber: o.trackingNumber });
+    }
+
+    const combined = Object.values(groups).filter((g) => g.orders.length > 1).sort((a, b) => b.orders.length - a.orders.length);
+    return sendJson(res, 200, { groups: combined, count: combined.length });
+  }
+
+  // -------------------------
+  // Phase 4: Naver Commerce API endpoints
+  // -------------------------
+
+  // Internal carrier code -> Naver carrier code mapping
+  const NAVER_CARRIER_MAP = {
+    cj: 'CJGLS',
+    hanjin: 'HANJIN',
+    lotte: 'LOTTE',
+    post: 'EPOST',
+    logen: 'LOGEN',
+    kyungdong: 'KYUNGDONG',
+  };
+
+  if (url.pathname === '/api/admin/naver/status' && req.method === 'GET') {
+    return sendJson(res, 200, {
+      enabled: !!naverCommerce,
+      clientId: process.env.NAVER_CLIENT_ID ? process.env.NAVER_CLIENT_ID.slice(0, 8) + '...' : null,
+    });
+  }
+
+  if (url.pathname === '/api/admin/naver/sync_orders' && req.method === 'POST') {
+    if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured', detail: 'Set NAVER_CLIENT_ID and NAVER_CLIENT_SECRET' });
+
+    const body = await readJsonBody(req);
+    const from = body?.from || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = body?.to || new Date().toISOString().slice(0, 10);
+
+    try {
+      const result = await naverCommerce.fetchOrders(from, to);
+      const productOrderIds = (result?.lastChangeStatuses || []).map((s) => s.productOrderId);
+
+      if (productOrderIds.length === 0) {
+        return sendJson(res, 200, { ok: true, imported: 0, message: 'No new orders in range' });
+      }
+
+      // Fetch details for each order
+      const mapping = loadMapping();
+      const productToVendor = new Map((mapping.mapping || []).map((m2) => [String(m2.productNo), String(m2.vendorId)]));
+      const orders = loadOrders();
+      const byPon = new Map((orders.orders || []).map((o) => [String(o.productOrderNo), o]));
+      const now = new Date().toISOString();
+      let imported = 0;
+      let updated = 0;
+
+      for (const poId of productOrderIds) {
+        try {
+          const detail = await naverCommerce.getOrderDetail(poId);
+          const po = detail?.productOrder || detail;
+          const productNo = String(po.productNo || po.productId || '');
+          const vendorId = productToVendor.get(productNo) || null;
+
+          const row = {
+            id: String(po.productOrderId || poId),
+            productOrderNo: String(po.productOrderId || poId),
+            orderNo: String(po.orderId || ''),
+            productNo,
+            productName: po.productName || '',
+            optionInfo: po.optionManageCode || po.optionContent || '',
+            qty: Number(po.quantity || 1),
+            recipientName: po.shippingAddress?.name || '',
+            recipientPhone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
+            recipientAddress: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailAddress].filter(Boolean).join(' ') || null,
+            vendorId,
+            carrier: null,
+            trackingNumber: '',
+            createdAt: po.orderDate || now,
+            updatedAt: now,
+            naverStatus: po.productOrderStatus || null,
+            _naverRaw: { claimType: po.claimType || null, claimStatus: po.claimStatus || null },
+          };
+
+          if (byPon.has(row.productOrderNo)) {
+            // Update existing
+            const existing = byPon.get(row.productOrderNo);
+            existing.naverStatus = row.naverStatus;
+            existing._naverRaw = row._naverRaw;
+            existing.updatedAt = now;
+            if (!existing.vendorId && vendorId) existing.vendorId = vendorId;
+            updated++;
+          } else {
+            orders.orders.push(row);
+            byPon.set(row.productOrderNo, row);
+            imported++;
+          }
+        } catch (e) {
+          console.error(`[naver-sync] Failed to fetch detail for ${poId}:`, e.message);
+        }
+      }
+
+      saveOrders(orders);
+      auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_ORDER_SYNC', imported, updated, from, to, ip: getClientIp(req) });
+      return sendJson(res, 200, { ok: true, imported, updated, total: productOrderIds.length, from, to });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'naver_sync_failed', detail: e.message });
+    }
+  }
+
+  if (url.pathname === '/api/admin/naver/ship' && req.method === 'POST') {
+    if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured' });
+
+    const body = await readJsonBody(req);
+    const orderIds = body?.orderIds;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) return sendJson(res, 400, { error: 'orderIds required' });
+    if (orderIds.length > 50) return sendJson(res, 400, { error: 'max 50 orders per request' });
+
+    const db = loadOrders();
+    const results = [];
+    let success = 0;
+    let failed = 0;
+
+    for (const orderId of orderIds) {
+      const order = (db.orders || []).find((o) => o.id === orderId);
+      if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
+
+      const tn = String(order.trackingNumber || order.tracking?.number || '').trim();
+      const carrier = String(order.carrier || order.tracking?.carrier || '').trim();
+      if (!tn) { results.push({ orderId, ok: false, error: 'no_tracking_number' }); failed++; continue; }
+
+      const naverCarrier = NAVER_CARRIER_MAP[carrier];
+      if (!naverCarrier) { results.push({ orderId, ok: false, error: `unknown_carrier: ${carrier}` }); failed++; continue; }
+
+      try {
+        await naverCommerce.shipOrder(order.productOrderNo, naverCarrier, tn);
+        order.naverStatus = 'DISPATCHED';
+        order.naverShippedAt = new Date().toISOString();
+        order.status = 'exported';
+        order.exportedAt = new Date().toISOString();
+        results.push({ orderId, ok: true });
+        success++;
+      } catch (e) {
+        results.push({ orderId, ok: false, error: e.message });
+        failed++;
+      }
+    }
+
+    saveOrders(db);
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_SHIP', success, failed, ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true, success, failed, results });
+  }
+
+  if (url.pathname === '/api/admin/naver/confirm' && req.method === 'POST') {
+    if (!naverCommerce) return sendJson(res, 400, { error: 'naver_api_not_configured' });
+
+    const body = await readJsonBody(req);
+    const orderIds = body?.orderIds;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) return sendJson(res, 400, { error: 'orderIds required' });
+
+    const results = [];
+    let success = 0;
+    let failed = 0;
+
+    for (const orderId of orderIds) {
+      const db = loadOrders();
+      const order = (db.orders || []).find((o) => o.id === orderId);
+      if (!order) { results.push({ orderId, ok: false, error: 'not_found' }); failed++; continue; }
+
+      try {
+        await naverCommerce.confirmOrder(order.productOrderNo);
+        order.naverStatus = 'PAYED';
+        results.push({ orderId, ok: true });
+        success++;
+      } catch (e) {
+        results.push({ orderId, ok: false, error: e.message });
+        failed++;
+      }
+    }
+
+    auditLog({ actorType: 'owner', actorId: OWNER_USERNAME, action: 'NAVER_CONFIRM', success, failed, ip: getClientIp(req) });
+    return sendJson(res, 200, { ok: true, success, failed, results });
   }
 
   // -------------------------
@@ -2536,3 +3110,27 @@ server.listen(PORT, () => {
   console.log(`[dashboard] owner basic auth user=${OWNER_USERNAME} (password via DASHBOARD_PASSWORD)`);
   console.log('[dashboard] vendor portal: /vendor/login (session cookie)');
 });
+
+// Periodic: cleanup old upload files (every 6 hours)
+const UPLOAD_MAX_AGE_DAYS = 7;
+setInterval(() => {
+  const uploadsDir = path.join(dataDir, 'uploads');
+  if (!existsSync(uploadsDir)) return;
+  const now = Date.now();
+  const maxAgeMs = UPLOAD_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  try {
+    for (const name of readdirSync(uploadsDir)) {
+      const p = path.join(uploadsDir, name);
+      try {
+        const st = statSync(p);
+        if (now - st.mtimeMs > maxAgeMs) { unlinkSync(p); }
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}, 6 * 60 * 60 * 1000);
+
+// Also run cleanup on startup
+try {
+  cleanupOldBackups(path.join(dataDir, 'backups'), 30);
+  cleanupOldBackups(path.join(dataDir, 'uploads'), UPLOAD_MAX_AGE_DAYS);
+} catch { /* ignore */ }

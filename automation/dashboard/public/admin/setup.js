@@ -1,4 +1,5 @@
 function $(id){return document.getElementById(id)}
+function esc(s){if(typeof s!=='string')return s;return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 async function jget(url){
   const res = await fetch(url, { cache: 'no-store' });
@@ -55,8 +56,8 @@ function renderItems(){
     row.innerHTML = `
       <input type="checkbox" data-product="${p.productNo}" ${mapped.has(p.productNo)?'checked':''} />
       <div class="text-sm">
-        <div class="text-zinc-100">${p.productName}</div>
-        <div class="text-xs text-zinc-500">${p.productNo}</div>
+        <div class="text-zinc-100">${esc(p.productName)}</div>
+        <div class="text-xs text-zinc-500">${esc(p.productNo)}</div>
       </div>
     `;
     wrap.appendChild(row);
@@ -77,8 +78,8 @@ function renderUnassigned(){
     row.innerHTML = `
       <input type="checkbox" data-order="${o.id}" />
       <div class="text-sm">
-        <div class="text-zinc-100">${(o.productName||'').slice(0,60)} <span class="text-xs text-zinc-500">x${o.qty||''}</span></div>
-        <div class="text-xs text-zinc-500">상품주문번호: ${o.productOrderNo||o.id} · 상품번호: ${o.productNo||''}</div>
+        <div class="text-zinc-100">${esc((o.productName||'').slice(0,60))} <span class="text-xs text-zinc-500">x${o.qty||''}</span></div>
+        <div class="text-xs text-zinc-500">상품주문번호: ${esc(o.productOrderNo||o.id)} · 상품번호: ${esc(o.productNo||'')}</div>
       </div>
     `;
     wrap.appendChild(row);

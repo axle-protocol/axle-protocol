@@ -1,15 +1,264 @@
 {
   "vendors": [
     {
-      "id": "vendor_demo",
-      "name": "데모 벤더",
-      "username": "demo",
+      "id": "vendor_560d5b6a-e1a3-478e-9aa2-db907440d7e0",
+      "name": "대한식품",
+      "username": "vendor01",
       "password": {
+        "salt": "e7a7111273e9f00c4d072e7466912590",
+        "hash": "8e7cc9b5832999138a8296e5c9e40eee7007e1e0536f030c32d9daf9f0123df3",
         "algo": "pbkdf2_sha256",
-        "iter": 120000,
-        "salt": "1667c74065c2d96a058ae8e3060f96c5",
-        "hash": "3c0053d57400dd1ada383cda3aeae7715879510ff95c79503e15087671fbf1cf"
-      }
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-04-25T21:24:15.729Z"
+    },
+    {
+      "id": "vendor_65d0c6ab-24e9-4561-86fd-9f0273afad72",
+      "name": "미래유통",
+      "username": "vendor02",
+      "password": {
+        "salt": "05a2ff0089fbd9cc6d4980cd946a9560",
+        "hash": "76342a85e40d0bb8876c93066bb033fbf118dc20f2ba737d247df6b5aed1cf1e",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-11-11T03:55:27.767Z"
+    },
+    {
+      "id": "vendor_015f1a70-14f8-4d44-99fc-2c4d686645b2",
+      "name": "세영상사",
+      "username": "vendor03",
+      "password": {
+        "salt": "e762b25effb19ce6420f68cd730ff2cd",
+        "hash": "9152be2823dd7959411ba09d9e160f4b3a1e37b81b918f934f865b1e9614ebbe",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-05-29T04:04:35.866Z"
+    },
+    {
+      "id": "vendor_c7db72ea-e49f-443a-80de-bffd2fdce033",
+      "name": "한빛무역",
+      "username": "vendor04",
+      "password": {
+        "salt": "d997107520dd12995d569f0b736389f4",
+        "hash": "c1e75fb704bdf4ee55f1a4f6f9b25c8a7f70fe9a4b23672fb83e57499d67b217",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-08-20T03:11:56.934Z"
+    },
+    {
+      "id": "vendor_0ccf7eff-86cc-4c80-a258-4f6a8277eada",
+      "name": "동아물산",
+      "username": "vendor05",
+      "password": {
+        "salt": "a2c84aedbe740f9b2164dcbf6c3b4a6e",
+        "hash": "6ac23916d911bbdc6ea326f43a3bcd6798fc17b45f98570a670e2948e289d49f",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-01-19T22:11:21.516Z"
+    },
+    {
+      "id": "vendor_96797339-3772-4b54-877a-fb7a9dc2664d",
+      "name": "청운유통",
+      "username": "vendor06",
+      "password": {
+        "salt": "73f06c9d41a447f44ec6709e49e31630",
+        "hash": "36a575732b70ca7cdd2c1856c927b098b2e8835bba2f5745bc58450ab0a1929d",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-09-27T23:22:11.113Z"
+    },
+    {
+      "id": "vendor_ad846593-b64f-4c74-a303-6c2207a65f0d",
+      "name": "삼성상회",
+      "username": "vendor07",
+      "password": {
+        "salt": "06cbfecd8c9e6c55df6c236fb94fac81",
+        "hash": "e25aca4d5a3353e173e6025d92ebf63f415006e1667211b31a4087dbe7a07066",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-06-09T16:20:05.422Z"
+    },
+    {
+      "id": "vendor_5866b64d-2e39-40f4-b3a7-4fd1e27e9f84",
+      "name": "우리식품",
+      "username": "vendor08",
+      "password": {
+        "salt": "1c10dda57d6c74f7a70349e1bdd7ecb7",
+        "hash": "cc54fab738466e5c9456e0cac93b820103d768effca771de3c3f442c7768f18d",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-05-14T23:35:53.746Z"
+    },
+    {
+      "id": "vendor_96c36710-0299-4f80-9118-f74e7c7803fd",
+      "name": "태양무역",
+      "username": "vendor09",
+      "password": {
+        "salt": "b9ea14e497c965cfebaf5df6e1da8a9d",
+        "hash": "91e59a2cfe92e8715210d5cbc47172063a427a354845a96ae2ee7534bcf4ab2e",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-12-27T07:01:49.470Z"
+    },
+    {
+      "id": "vendor_14d364ff-3339-40f7-9098-5a3de4e89674",
+      "name": "하나유통",
+      "username": "vendor10",
+      "password": {
+        "salt": "eddfdd8b4fe55466bb8816ea27946058",
+        "hash": "b683d9dc3f8ecbb5a74e0bbdac4d7fd818b1688085c4e7e2a05a99143148c482",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-02-17T21:30:08.223Z"
+    },
+    {
+      "id": "vendor_bbecfbe1-cf09-4b17-9fdd-27c4971d50a6",
+      "name": "금성상사",
+      "username": "vendor11",
+      "password": {
+        "salt": "2bb8ee60eeef19ba815f7d1f29cb121b",
+        "hash": "946b7585390a551a7170013367a86aaff0715a6dfca4f5e3fff6a87de9c8d77f",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-08-22T04:13:03.908Z"
+    },
+    {
+      "id": "vendor_d209c4b2-92eb-4a38-b514-a6573e8f8c7f",
+      "name": "백두물산",
+      "username": "vendor12",
+      "password": {
+        "salt": "9551e57d30603cc6669f3933fa5bf7b5",
+        "hash": "807fe5044bad440de8c9cfc48b22a2d2fa076cb9646300a352ff8ff92099b930",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-07-21T18:53:57.674Z"
+    },
+    {
+      "id": "vendor_aea4a0b3-9ffb-4e04-8471-e13a9db25607",
+      "name": "강산식품",
+      "username": "vendor13",
+      "password": {
+        "salt": "dc48dc25031a61d6359358f88a121128",
+        "hash": "04a5837267937a784b8b26ba0264f1bf5b6cafbdfe4767389dd8a413412e7da5",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-06-15T05:22:18.202Z"
+    },
+    {
+      "id": "vendor_8dca318a-d917-4cf4-9f76-dfef73753422",
+      "name": "동방유통",
+      "username": "vendor14",
+      "password": {
+        "salt": "9849180c6c57398abdd050bcdebceef5",
+        "hash": "6910c4c6974c690c46c8a4820b143d73ed43ff525ef66a2b41342b4da1ef63c1",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-04-17T14:44:27.760Z"
+    },
+    {
+      "id": "vendor_1bb8833c-05a5-459a-8362-27d3432422e1",
+      "name": "새한상사",
+      "username": "vendor15",
+      "password": {
+        "salt": "e4c171e9d341d6f69a67445607eb031b",
+        "hash": "2a35ece89fdbd1787edbc819b5ec3543395d48ab531936e5cf6cb841264b0519",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-07-24T17:41:40.064Z"
+    },
+    {
+      "id": "vendor_99f82149-e124-4c2f-8941-06ff3c5b22a6",
+      "name": "보성무역",
+      "username": "vendor16",
+      "password": {
+        "salt": "7a28a0d0b481a76f837ee0afc093ffa8",
+        "hash": "850ff48108c1b80dd32e4eecf098cd42b23c7368441c5fb4c150a37db3ed9bd0",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-04-14T19:37:12.901Z"
+    },
+    {
+      "id": "vendor_3bfe5a08-1817-419e-8d72-719943785e7d",
+      "name": "한솔물산",
+      "username": "vendor17",
+      "password": {
+        "salt": "52121b5424ba10f1d35a15535186fd84",
+        "hash": "b9559516403a792aa67349d30dd12e4290e956569810a62a04685fd90c7bf752",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-12-07T12:18:37.440Z"
+    },
+    {
+      "id": "vendor_874cb7c2-9498-4326-8571-6f652a18199a",
+      "name": "성진유통",
+      "username": "vendor18",
+      "password": {
+        "salt": "3b02fb5a2d624a0b515f8eac38df8a32",
+        "hash": "fa56f127704b27d935dce35f7d3671f8cac0376c7db5d052b0fd5acfef257430",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-05-22T01:27:35.960Z"
+    },
+    {
+      "id": "vendor_5eb3600a-8975-4e83-b168-b6f391a71248",
+      "name": "제일상사",
+      "username": "vendor19",
+      "password": {
+        "salt": "357a705bfc9f030b0c0819994a98de21",
+        "hash": "0ea6327542d90c4f4bc2071738fbbf2910d9f2bf6ce2607b53fd834d687bbfe9",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2024-10-03T21:31:44.500Z"
+    },
+    {
+      "id": "vendor_5b940f9c-7d3c-4da2-a656-45a503472ada",
+      "name": "다온식품",
+      "username": "vendor20",
+      "password": {
+        "salt": "341b25a895f6ef8c8595abfd6b7d9806",
+        "hash": "e69edfc46dc199c1384327cca5de56cfd0400e9a622f0261ea9c0df461b3094b",
+        "algo": "pbkdf2_sha256",
+        "iter": 120000
+      },
+      "active": true,
+      "createdAt": "2025-01-01T11:03:42.057Z"
     }
   ]
 }
