@@ -1,4 +1,4 @@
-# DASHBOARD.md — 2026-02-15 23:20 KST
+# DASHBOARD.md — 2026-02-15 23:50 KST
 
 ## 🎯 현재 프로젝트
 
@@ -36,6 +36,7 @@
 ---
 
 ## 📋 Han 할 일
+- [ ] (IG) 오늘 밀 상품 10개(상품명/카테고리/딜가[/정가]) 리스트 전달 → 7일 운영안 실상품 버전 생성
 - [ ] (운영) Cloudflare로 옮길 **운영용 도메인 결정** (기존 가비아 도메인 vs 새 도메인)
   - 형태: `vendor.<domain>` / `admin.<domain>` (서브도메인 분리)
 - [ ] (선택) Codex CLI를 쓰려면 OpenAI **API Billing/Quota** 활성화 필요 (ChatGPT Pro와 별개)
